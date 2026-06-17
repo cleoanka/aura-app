@@ -27,7 +27,7 @@ pub fn hybrid_search(
 
     let search_limit = k.saturating_mul(2);
     let fts_ranked = db::fts_search(conn, query, search_limit).map_err(|err| err.to_string())?;
-    let query_embedding = embedder.embed(query);
+    let query_embedding = embedder.embed_query(query);
     let vec_ranked =
         db::vec_search(conn, &query_embedding, search_limit).map_err(|err| err.to_string())?;
 

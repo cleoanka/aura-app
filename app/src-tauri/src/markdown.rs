@@ -1,6 +1,7 @@
 use regex::Regex;
 use sha2::{Digest, Sha256};
 use std::collections::HashSet;
+use std::path::Path;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParsedNote {
@@ -35,6 +36,34 @@ pub fn parse(markdown: &str) -> ParsedNote {
     ParsedNote {
         title,
         wikilinks,
+        chunks,
+    }
+}
+
+pub fn parse_project_text(path: &Path, content: &str) -> ParsedNote {
+    let ext = path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    if matches!(ext.as_str(), "md" | "markdown" | "mdx") {
+        return parse(content);
+    }
+
+    let title = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or_default()
+        .to_string();
+    let chunks = if is_code_extension(&ext) || is_code_filename(path) {
+        code_chunks(content, &ext, &title)
+    } else {
+        fixed_line_chunks(content, &title, 40, 8)
+    };
+
+    ParsedNote {
+        title,
+        wikilinks: Vec::new(),
         chunks,
     }
 }
@@ -194,6 +223,167 @@ fn parse_chunks(markdown: &str, heading_re: &Regex, title: &str) -> Vec<Chunk> {
     }
 
     chunks
+}
+
+fn code_chunks(content: &str, ext: &str, title: &str) -> Vec<Chunk> {
+    let Some(def_re) = definition_regex(ext) else {
+        return fixed_line_chunks(content, title, 60, 10);
+    };
+    let lines = content.lines().collect::<Vec<_>>();
+    let mut starts = Vec::new();
+    for (index, line) in lines.iter().enumerate() {
+        if def_re.is_match(line) {
+            starts.push(index);
+        }
+    }
+
+    if starts.is_empty() {
+        return fixed_line_chunks(content, title, 60, 10);
+    }
+
+    let mut chunks = Vec::new();
+    for (ordinal, start) in starts.iter().enumerate() {
+        let end = starts.get(ordinal + 1).copied().unwrap_or(lines.len());
+        let text = lines[*start..end].join("\n").trim().to_string();
+        if text.is_empty() {
+            continue;
+        }
+        chunks.push(Chunk {
+            parent_ordinal: None,
+            level: 1,
+            heading_path: signature_heading(lines[*start]),
+            ordinal,
+            text,
+        });
+    }
+
+    chunks
+}
+
+fn fixed_line_chunks(content: &str, title: &str, window: usize, overlap: usize) -> Vec<Chunk> {
+    let lines = content.lines().collect::<Vec<_>>();
+    if lines.is_empty() || content.trim().is_empty() {
+        return Vec::new();
+    }
+
+    let step = window.saturating_sub(overlap).max(1);
+    let mut chunks = Vec::new();
+    let mut start = 0usize;
+    while start < lines.len() {
+        let end = (start + window).min(lines.len());
+        let text = lines[start..end].join("\n").trim().to_string();
+        if !text.is_empty() {
+            chunks.push(Chunk {
+                parent_ordinal: None,
+                level: 0,
+                heading_path: format!("{title} lines {}-{}", start + 1, end),
+                ordinal: chunks.len(),
+                text,
+            });
+        }
+        if end == lines.len() {
+            break;
+        }
+        start += step;
+    }
+    chunks
+}
+
+fn definition_regex(ext: &str) -> Option<Regex> {
+    let pattern = match ext {
+        "py" | "pyi" => r"^\s*(def|class|async\s+def)\b",
+        "rs" => r"^\s*(pub\s+)?(fn|struct|enum|trait|impl|mod)\b",
+        "js" | "jsx" | "ts" | "tsx" | "mjs" | "cjs" => {
+            r"^\s*(export\s+)?(async\s+)?(function|class|const|interface|type|enum)\b"
+        }
+        "go" => r"^\s*(func|type)\b",
+        "c" | "h" | "cc" | "cpp" | "cxx" | "hpp" | "hh" | "java" | "kt" | "kts" | "swift"
+        | "cs" | "scala" | "php" => r"^[\w:<>\*\s]+\s+\w+\s*\([^;]*\)\s*\{",
+        _ => return None,
+    };
+    Some(Regex::new(pattern).expect("valid definition regex"))
+}
+
+fn signature_heading(line: &str) -> String {
+    let signature = line.trim();
+    if signature.len() <= 120 {
+        signature.to_string()
+    } else {
+        let mut end = 120;
+        while !signature.is_char_boundary(end) {
+            end -= 1;
+        }
+        format!("{}...", &signature[..end])
+    }
+}
+
+fn is_code_extension(ext: &str) -> bool {
+    matches!(
+        ext,
+        "py" | "pyi"
+            | "rs"
+            | "ts"
+            | "tsx"
+            | "js"
+            | "jsx"
+            | "mjs"
+            | "cjs"
+            | "c"
+            | "h"
+            | "cc"
+            | "cpp"
+            | "cxx"
+            | "hpp"
+            | "hh"
+            | "go"
+            | "java"
+            | "kt"
+            | "kts"
+            | "swift"
+            | "rb"
+            | "php"
+            | "cs"
+            | "scala"
+            | "sh"
+            | "bash"
+            | "zsh"
+            | "fish"
+            | "lua"
+            | "dart"
+            | "r"
+            | "jl"
+            | "ex"
+            | "exs"
+            | "sql"
+            | "vue"
+            | "svelte"
+            | "html"
+            | "css"
+            | "scss"
+            | "sass"
+            | "less"
+            | "json"
+            | "json5"
+            | "toml"
+            | "yaml"
+            | "yml"
+            | "ini"
+            | "cfg"
+            | "conf"
+            | "xml"
+            | "gradle"
+            | "make"
+            | "mk"
+            | "dockerfile"
+            | "proto"
+            | "graphql"
+    )
+}
+
+fn is_code_filename(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| name.eq_ignore_ascii_case("dockerfile"))
 }
 
 fn finish_chunk(chunks: &mut Vec<Chunk>, current: Option<ChunkBuilder>) {
