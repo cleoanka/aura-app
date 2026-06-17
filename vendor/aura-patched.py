@@ -366,12 +366,21 @@ def _token_location(agent: str) -> str:
 
 def _doctor_agent_json(agent: str) -> dict:
     path = _agent_path(agent)
+    token = _token_location(agent)
+    # no-probe (çağrısız): token deposu varsa logged_in say (keychain/dosya creds = giriş yapılmış).
+    # Böylece UI probe'suz, anında ve gemini-timeout'suz doğru durum gösterir; probe can_invoke'u doğrular.
+    if not path:
+        auth = "unknown"
+    elif token != "unknown":
+        auth = "logged_in"
+    else:
+        auth = "logged_out"
     return {
         "installed": bool(path),
         "path": path,
         "version": _agent_version(agent) if path else None,
-        "auth": "unknown",
-        "token_location": _token_location(agent),
+        "auth": auth,
+        "token_location": token,
         "can_invoke": None,
         "last_error": None,
     }

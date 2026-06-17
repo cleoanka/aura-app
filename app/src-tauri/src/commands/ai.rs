@@ -149,6 +149,21 @@ pub async fn ask_consensus(
     consensus::run_consensus(job_id, &query, &context, on_event, jobs.inner().clone()).await
 }
 
+/// Düz sohbet: notlardan/retrieval'dan bağımsız, doğrudan claude (fast lane).
+/// Cache yok, context yok — sadece kullanıcının mesajı.
+#[tauri::command]
+pub async fn chat(
+    jobs: State<'_, JobRegistry>,
+    message: String,
+    on_event: Channel<AiEvent>,
+) -> Result<String, String> {
+    on_event
+        .send(AiEvent::Start { lane: "fast".to_string() })
+        .ok();
+    let job_id = new_job_id();
+    exec::run_aura(job_id, "fast", &message, "", on_event, jobs.inner().clone()).await
+}
+
 #[tauri::command]
 pub fn cancel_job(jobs: State<'_, JobRegistry>, job_id: String) {
     exec::cancel(jobs.inner().clone(), &job_id);
