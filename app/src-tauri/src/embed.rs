@@ -4,6 +4,14 @@ use sha2::{Digest, Sha256};
 pub trait Embedder: Send + Sync {
     fn dim(&self) -> usize;
     fn embed(&self, text: &str) -> Vec<f32>;
+    /// e5 sözleşmesi: indekslenen içerik "passage: ", sorgu "query: " ile prefixlenir.
+    /// Varsayılan (stub) prefix kullanmaz; CandleEmbedder override eder.
+    fn embed_passage(&self, text: &str) -> Vec<f32> {
+        self.embed(text)
+    }
+    fn embed_query(&self, text: &str) -> Vec<f32> {
+        self.embed(text)
+    }
 }
 
 /// Stub embedder -- replaced by candle e5-small in Faz 2c.
@@ -79,7 +87,9 @@ mod candle_backend {
                 .get("config.json")
                 .map_err(|err| format!("failed to fetch config.json: {err}"))?;
 
-            let device = Device::new_metal(0).unwrap_or(Device::Cpu);
+            // Tek-sorgu gecikmesi için CPU, Metal'in kernel-dispatch ek-yükünden
+            // ve .app bundle linkleme sorunlarından kaçınır (e5-small küçük).
+            let device = Device::Cpu;
             let config_text = std::fs::read_to_string(&config_path)
                 .map_err(|err| format!("failed to read {}: {err}", config_path.display()))?;
             let config: Config = serde_json::from_str(&config_text)
@@ -121,8 +131,8 @@ mod candle_backend {
             })
         }
 
-        fn embed_inner(&self, text: &str) -> Result<Vec<f32>, String> {
-            let input = format!("query: {text}");
+        fn embed_inner(&self, prefix: &str, text: &str) -> Result<Vec<f32>, String> {
+            let input = format!("{prefix}{text}");
             let encoding = self
                 .tokenizer
                 .encode(input, true)
@@ -165,13 +175,9 @@ mod candle_backend {
         }
     }
 
-    impl Embedder for CandleEmbedder {
-        fn dim(&self) -> usize {
-            crate::db::EMBEDDING_DIM
-        }
-
-        fn embed(&self, text: &str) -> Vec<f32> {
-            match self.embed_inner(text) {
+    impl CandleEmbedder {
+        fn embed_with_prefix(&self, prefix: &str, text: &str) -> Vec<f32> {
+            match self.embed_inner(prefix, text) {
                 Ok(vector) => vector,
                 Err(err) => {
                     eprintln!(
@@ -180,6 +186,25 @@ mod candle_backend {
                     StubEmbedder.embed(text)
                 }
             }
+        }
+    }
+
+    impl Embedder for CandleEmbedder {
+        fn dim(&self) -> usize {
+            crate::db::EMBEDDING_DIM
+        }
+
+        // e5: varsayılan embed = query (geriye dönük uyumluluk).
+        fn embed(&self, text: &str) -> Vec<f32> {
+            self.embed_with_prefix("query: ", text)
+        }
+
+        fn embed_passage(&self, text: &str) -> Vec<f32> {
+            self.embed_with_prefix("passage: ", text)
+        }
+
+        fn embed_query(&self, text: &str) -> Vec<f32> {
+            self.embed_with_prefix("query: ", text)
         }
     }
 

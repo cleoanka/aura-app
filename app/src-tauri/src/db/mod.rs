@@ -1,4 +1,3 @@
-use std::cmp::Ordering;
 use std::ffi::{CStr, CString};
 use std::fmt;
 use std::os::raw::{c_char, c_double, c_int, c_void};
@@ -168,7 +167,8 @@ fn migrate(conn: &Connection) -> Result<()> {
             file_id TEXT NOT NULL,
             mtime INTEGER NOT NULL,
             content_hash TEXT NOT NULL,
-            title TEXT
+            title TEXT,
+            kind TEXT NOT NULL DEFAULT 'text'
         );
 
         CREATE TABLE IF NOT EXISTS chunks(
@@ -179,6 +179,7 @@ fn migrate(conn: &Connection) -> Result<()> {
             heading_path TEXT NOT NULL,
             ordinal INTEGER NOT NULL,
             chunk_stable_id TEXT NOT NULL UNIQUE,
+            content_hash TEXT NOT NULL DEFAULT '',
             text TEXT NOT NULL
         );
 
@@ -225,18 +226,41 @@ fn migrate(conn: &Connection) -> Result<()> {
             content_hash TEXT NOT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS links(
+            source_path TEXT NOT NULL,
+            target_path TEXT NOT NULL,
+            kind TEXT NOT NULL,
+            resolved INTEGER NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS links_source_idx ON links(source_path);
+        CREATE INDEX IF NOT EXISTS links_target_idx ON links(target_path);
+
         CREATE TABLE IF NOT EXISTS meta(
             k TEXT PRIMARY KEY,
             v TEXT NOT NULL
         );
 
-        INSERT OR REPLACE INTO meta(k, v) VALUES ('schema_version', '1');
+        INSERT OR REPLACE INTO meta(k, v) VALUES ('schema_version', '2');
         INSERT OR IGNORE INTO meta(k, v) VALUES ('embedding_model', '');
         INSERT OR IGNORE INTO meta(k, v) VALUES ('embedding_dim', '384');
         INSERT OR IGNORE INTO meta(k, v) VALUES ('chunker_ver', '');
         INSERT OR IGNORE INTO meta(k, v) VALUES ('vault_id', '');
         "#,
-    )
+    )?;
+    ensure_column(
+        conn,
+        "notes",
+        "kind",
+        "ALTER TABLE notes ADD COLUMN kind TEXT NOT NULL DEFAULT 'text'",
+    )?;
+    ensure_column(
+        conn,
+        "chunks",
+        "content_hash",
+        "ALTER TABLE chunks ADD COLUMN content_hash TEXT NOT NULL DEFAULT ''",
+    )?;
+    Ok(())
 }
 
 pub fn upsert_note(
@@ -247,15 +271,28 @@ pub fn upsert_note(
     content_hash: &str,
     title: Option<&str>,
 ) -> Result<()> {
+    upsert_file(conn, path, file_id, mtime, content_hash, title, "text")
+}
+
+pub fn upsert_file(
+    conn: &Connection,
+    path: &str,
+    file_id: &str,
+    mtime: i64,
+    content_hash: &str,
+    title: Option<&str>,
+    kind: &str,
+) -> Result<()> {
     conn.execute(
         r#"
-        INSERT INTO notes(path, file_id, mtime, content_hash, title)
-        VALUES (?1, ?2, ?3, ?4, ?5)
+        INSERT INTO notes(path, file_id, mtime, content_hash, title, kind)
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6)
         ON CONFLICT(path) DO UPDATE SET
             file_id = excluded.file_id,
             mtime = excluded.mtime,
             content_hash = excluded.content_hash,
-            title = excluded.title
+            title = excluded.title,
+            kind = excluded.kind
         "#,
         &[
             Bind::Text(path),
@@ -263,6 +300,7 @@ pub fn upsert_note(
             Bind::I64(mtime),
             Bind::Text(content_hash),
             Bind::OptionalText(title),
+            Bind::Text(kind),
         ],
     )?;
     Ok(())
@@ -278,6 +316,31 @@ pub fn insert_chunk(
     chunk_stable_id: &str,
     text: &str,
 ) -> Result<i64> {
+    insert_chunk_with_hash(
+        conn,
+        note_path,
+        parent_id,
+        level,
+        heading_path,
+        ordinal,
+        chunk_stable_id,
+        "",
+        text,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn insert_chunk_with_hash(
+    conn: &Connection,
+    note_path: &str,
+    parent_id: Option<i64>,
+    level: i64,
+    heading_path: &str,
+    ordinal: i64,
+    chunk_stable_id: &str,
+    content_hash: &str,
+    text: &str,
+) -> Result<i64> {
     conn.execute(
         r#"
         INSERT INTO chunks(
@@ -287,9 +350,10 @@ pub fn insert_chunk(
             heading_path,
             ordinal,
             chunk_stable_id,
+            content_hash,
             text
         )
-        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
         "#,
         &[
             Bind::Text(note_path),
@@ -298,6 +362,7 @@ pub fn insert_chunk(
             Bind::Text(heading_path),
             Bind::I64(ordinal),
             Bind::Text(chunk_stable_id),
+            Bind::Text(content_hash),
             Bind::Text(text),
         ],
     )?;
@@ -305,9 +370,60 @@ pub fn insert_chunk(
     Ok(unsafe { sqlite3_last_insert_rowid(conn.raw.as_ptr()) })
 }
 
+#[allow(clippy::too_many_arguments)]
+pub fn upsert_chunk_with_hash(
+    conn: &Connection,
+    note_path: &str,
+    parent_id: Option<i64>,
+    level: i64,
+    heading_path: &str,
+    ordinal: i64,
+    chunk_stable_id: &str,
+    content_hash: &str,
+    text: &str,
+) -> Result<i64> {
+    conn.execute(
+        r#"
+        INSERT INTO chunks(
+            note_path,
+            parent_id,
+            level,
+            heading_path,
+            ordinal,
+            chunk_stable_id,
+            content_hash,
+            text
+        )
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+        ON CONFLICT(chunk_stable_id) DO UPDATE SET
+            note_path = excluded.note_path,
+            parent_id = excluded.parent_id,
+            level = excluded.level,
+            heading_path = excluded.heading_path,
+            ordinal = excluded.ordinal,
+            content_hash = excluded.content_hash,
+            text = excluded.text
+        "#,
+        &[
+            Bind::Text(note_path),
+            Bind::OptionalI64(parent_id),
+            Bind::I64(level),
+            Bind::Text(heading_path),
+            Bind::I64(ordinal),
+            Bind::Text(chunk_stable_id),
+            Bind::Text(content_hash),
+            Bind::Text(text),
+        ],
+    )?;
+
+    chunk_id_by_stable_id(conn, chunk_stable_id)?
+        .ok_or_else(|| Error::new("upserted chunk could not be found"))
+}
+
 pub fn insert_embedding(conn: &Connection, chunk_id: i64, embedding: &[f32]) -> Result<()> {
     validate_embedding(embedding)?;
-    let embedding = f32_blob(embedding);
+    let embedding = normalize_embedding(embedding);
+    let embedding = f32_blob(&embedding);
 
     conn.execute(
         "INSERT OR REPLACE INTO vec_chunks(chunk_id, embedding) VALUES (?1, ?2)",
@@ -318,7 +434,11 @@ pub fn insert_embedding(conn: &Connection, chunk_id: i64, embedding: &[f32]) -> 
 
 pub fn vec_search(conn: &Connection, query_vec: &[f32], k: usize) -> Result<Vec<(i64, f64)>> {
     validate_embedding(query_vec)?;
-    let mut rows = Vec::new();
+    if k == 0 {
+        return Ok(Vec::new());
+    }
+    let query_vec = normalize_embedding(query_vec);
+    let mut best: Vec<(i64, f32)> = Vec::with_capacity(k);
 
     conn.query(
         "SELECT chunk_id, embedding FROM vec_chunks",
@@ -327,15 +447,32 @@ pub fn vec_search(conn: &Connection, query_vec: &[f32], k: usize) -> Result<Vec<
             let chunk_id = unsafe { sqlite3_column_int64(statement.raw, 0) };
             let embedding = statement.column_blob(1)?;
             let vector = f32_blob_to_vec(embedding)?;
-            let distance = cosine_distance(query_vec, &vector);
-            rows.push((chunk_id, distance));
+            let score = dot_product(&query_vec, &vector);
+            if best.len() < k {
+                best.push((chunk_id, score));
+            } else if let Some((min_index, (_, min_score))) = best
+                .iter()
+                .enumerate()
+                .min_by(|(_, left), (_, right)| left.1.total_cmp(&right.1))
+            {
+                if score > *min_score {
+                    best[min_index] = (chunk_id, score);
+                }
+            }
             Ok(())
         },
     )?;
 
-    rows.sort_by(|left, right| left.1.partial_cmp(&right.1).unwrap_or(Ordering::Equal));
-    rows.truncate(k);
-    Ok(rows)
+    best.sort_by(|left, right| {
+        right
+            .1
+            .total_cmp(&left.1)
+            .then_with(|| left.0.cmp(&right.0))
+    });
+    Ok(best
+        .into_iter()
+        .map(|(chunk_id, score)| (chunk_id, f64::from(score)))
+        .collect())
 }
 
 pub fn fts_search(conn: &Connection, query: &str, k: usize) -> Result<Vec<(i64, f64)>> {
@@ -393,6 +530,62 @@ pub fn delete_chunks_for_note(conn: &Connection, note_path: &str) -> Result<usiz
     )
 }
 
+pub fn chunk_id_by_stable_id(conn: &Connection, stable_id: &str) -> Result<Option<i64>> {
+    let mut id = None;
+    conn.query(
+        "SELECT id FROM chunks WHERE chunk_stable_id = ?1",
+        &[Bind::Text(stable_id)],
+        |statement| {
+            id = Some(unsafe { sqlite3_column_int64(statement.raw, 0) });
+            Ok(())
+        },
+    )?;
+    Ok(id)
+}
+
+pub fn embedding_exists_for_chunk(
+    conn: &Connection,
+    chunk_id: i64,
+    content_hash: &str,
+) -> Result<bool> {
+    let mut exists = false;
+    conn.query(
+        r#"
+        SELECT 1
+        FROM chunks c
+        JOIN vec_chunks v ON v.chunk_id = c.id
+        WHERE c.id = ?1 AND c.content_hash = ?2
+        LIMIT 1
+        "#,
+        &[Bind::I64(chunk_id), Bind::Text(content_hash)],
+        |_statement| {
+            exists = true;
+            Ok(())
+        },
+    )?;
+    Ok(exists)
+}
+
+pub fn list_chunk_stable_ids_for_note(conn: &Connection, note_path: &str) -> Result<Vec<String>> {
+    let mut stable_ids = Vec::new();
+    conn.query(
+        "SELECT chunk_stable_id FROM chunks WHERE note_path = ?1",
+        &[Bind::Text(note_path)],
+        |statement| {
+            stable_ids.push(statement.column_text(0)?);
+            Ok(())
+        },
+    )?;
+    Ok(stable_ids)
+}
+
+pub fn delete_chunk_by_stable_id(conn: &Connection, stable_id: &str) -> Result<usize> {
+    conn.execute(
+        "DELETE FROM chunks WHERE chunk_stable_id = ?1",
+        &[Bind::Text(stable_id)],
+    )
+}
+
 pub fn chunk_by_id(conn: &Connection, chunk_id: i64) -> Result<Option<ChunkRecord>> {
     let mut chunk = None;
     conn.query(
@@ -437,6 +630,89 @@ pub fn list_notes(conn: &Connection) -> Result<Vec<NoteRef>> {
         },
     )?;
     Ok(notes)
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FileRef {
+    pub path: String,
+    pub title: String,
+    pub kind: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LinkRef {
+    pub source_path: String,
+    pub target_path: String,
+    pub kind: String,
+    pub resolved: bool,
+}
+
+pub fn list_files(conn: &Connection) -> Result<Vec<FileRef>> {
+    let mut files = Vec::new();
+    conn.query(
+        r#"
+        SELECT path, COALESCE(NULLIF(title, ''), path) AS title, COALESCE(kind, 'text')
+        FROM notes
+        ORDER BY path COLLATE NOCASE
+        "#,
+        &[],
+        |statement| {
+            files.push(FileRef {
+                path: statement.column_text(0)?,
+                title: statement.column_text(1)?,
+                kind: statement.column_text(2)?,
+            });
+            Ok(())
+        },
+    )?;
+    Ok(files)
+}
+
+pub fn delete_links_for_source(conn: &Connection, source_path: &str) -> Result<usize> {
+    conn.execute(
+        "DELETE FROM links WHERE source_path = ?1",
+        &[Bind::Text(source_path)],
+    )
+}
+
+pub fn insert_link(
+    conn: &Connection,
+    source_path: &str,
+    target_path: &str,
+    kind: &str,
+    resolved: bool,
+) -> Result<()> {
+    conn.execute(
+        r#"
+        INSERT INTO links(source_path, target_path, kind, resolved)
+        VALUES (?1, ?2, ?3, ?4)
+        "#,
+        &[
+            Bind::Text(source_path),
+            Bind::Text(target_path),
+            Bind::Text(kind),
+            Bind::I64(if resolved { 1 } else { 0 }),
+        ],
+    )?;
+    Ok(())
+}
+
+pub fn list_links(conn: &Connection) -> Result<Vec<LinkRef>> {
+    let mut links = Vec::new();
+    conn.query(
+        "SELECT source_path, target_path, kind, resolved FROM links ORDER BY source_path, target_path, kind",
+        &[],
+        |statement| {
+            links.push(LinkRef {
+                source_path: statement.column_text(0)?,
+                target_path: statement.column_text(1)?,
+                kind: statement.column_text(2)?,
+                resolved: unsafe { sqlite3_column_int64(statement.raw, 3) } != 0,
+            });
+            Ok(())
+        },
+    )?;
+    Ok(links)
 }
 
 pub fn meta_value(conn: &Connection, key: &str) -> Result<Option<String>> {
@@ -783,12 +1059,49 @@ fn validate_embedding(embedding: &[f32]) -> Result<()> {
     }
 }
 
+fn ensure_column(conn: &Connection, table: &str, column: &str, alter_sql: &str) -> Result<()> {
+    let mut found = false;
+    let sql = format!("PRAGMA table_info({table})");
+    conn.query(&sql, &[], |statement| {
+        if statement.column_text(1)? == column {
+            found = true;
+        }
+        Ok(())
+    })?;
+
+    if found {
+        Ok(())
+    } else {
+        conn.execute_batch(alter_sql)
+    }
+}
+
 fn f32_blob(values: &[f32]) -> Vec<u8> {
     let mut bytes = Vec::with_capacity(values.len() * std::mem::size_of::<f32>());
     for value in values {
         bytes.extend_from_slice(&value.to_le_bytes());
     }
     bytes
+}
+
+fn normalize_embedding(embedding: &[f32]) -> Vec<f32> {
+    let mut normalized = embedding.to_vec();
+    let norm = normalized
+        .iter()
+        .map(|value| value * value)
+        .sum::<f32>()
+        .sqrt();
+
+    if norm == 0.0 {
+        normalized.fill(0.0);
+        normalized[0] = 1.0;
+        return normalized;
+    }
+
+    for value in &mut normalized {
+        *value /= norm;
+    }
+    normalized
 }
 
 fn f32_blob_to_vec(blob: &[u8]) -> Result<Vec<f32>> {
@@ -805,6 +1118,14 @@ fn f32_blob_to_vec(blob: &[u8]) -> Result<Vec<f32>> {
         .collect())
 }
 
+fn dot_product(left: &[f32], right: &[f32]) -> f32 {
+    left.iter()
+        .zip(right)
+        .map(|(left, right)| left * right)
+        .sum()
+}
+
+#[cfg(test)]
 fn cosine_distance(left: &[f32], right: &[f32]) -> f64 {
     let mut dot = 0.0_f64;
     let mut left_norm = 0.0_f64;

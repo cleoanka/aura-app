@@ -10,6 +10,7 @@ pub mod exec;
 pub mod graph;
 pub mod indexer;
 pub mod lane0;
+pub mod links;
 pub mod markdown;
 pub mod pty;
 pub mod search;

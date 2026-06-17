@@ -67,7 +67,7 @@ fn vector_fallback_and_fts5_work() -> db::Result<()> {
     assert_eq!(fts_matches[0].0, alpha_chunk);
 
     let schema_version = db::meta_value(&conn, "schema_version")?;
-    assert_eq!(schema_version.as_deref(), Some("1"));
+    assert_eq!(schema_version.as_deref(), Some("2"));
 
     Ok(())
 }
