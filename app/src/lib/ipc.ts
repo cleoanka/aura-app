@@ -1,6 +1,15 @@
-import { invoke } from "@tauri-apps/api/core";
+import { Channel, invoke } from "@tauri-apps/api/core";
 
-import type { AgentId, DoctorReport } from "./types";
+import type {
+  AgentId,
+  AiEvent,
+  DoctorReport,
+  GraphData,
+  IndexStats,
+  NoteRef,
+  SearchHit,
+  Settings,
+} from "./types";
 
 function readableError(error: unknown): Error {
   if (error instanceof Error) {
@@ -33,6 +42,100 @@ export async function agentDetect(probe = false): Promise<DoctorReport> {
 export async function agentInstall(id: AgentId): Promise<string> {
   try {
     return await invoke<string>("agent_install", { id });
+  } catch (error) {
+    throw readableError(error);
+  }
+}
+
+export async function listNotes(): Promise<NoteRef[]> {
+  try {
+    return await invoke<NoteRef[]>("list_notes");
+  } catch (error) {
+    throw readableError(error);
+  }
+}
+
+export async function readNote(path: string): Promise<string> {
+  try {
+    return await invoke<string>("read_note", { path });
+  } catch (error) {
+    throw readableError(error);
+  }
+}
+
+export async function writeNote(path: string, content: string): Promise<void> {
+  try {
+    await invoke<void>("write_note", { path, content });
+  } catch (error) {
+    throw readableError(error);
+  }
+}
+
+export async function searchHybrid(query: string, k = 10): Promise<SearchHit[]> {
+  try {
+    return await invoke<SearchHit[]>("search_hybrid", { query, k });
+  } catch (error) {
+    throw readableError(error);
+  }
+}
+
+export async function pickVaultFolder(): Promise<string | null> {
+  try {
+    return await invoke<string | null>("pick_vault_folder");
+  } catch (error) {
+    throw readableError(error);
+  }
+}
+
+export async function indexVault(path: string): Promise<IndexStats> {
+  try {
+    return await invoke<IndexStats>("index_vault", { path });
+  } catch (error) {
+    throw readableError(error);
+  }
+}
+
+export async function getGraph(): Promise<GraphData> {
+  try {
+    return await invoke<GraphData>("get_graph");
+  } catch (error) {
+    throw readableError(error);
+  }
+}
+
+export async function getSettings(): Promise<Settings> {
+  try {
+    return await invoke<Settings>("get_settings");
+  } catch (error) {
+    throw readableError(error);
+  }
+}
+
+export async function setSettings(settings: Settings): Promise<void> {
+  try {
+    await invoke<void>("set_settings", { s: settings });
+  } catch (error) {
+    throw readableError(error);
+  }
+}
+
+export async function ask(
+  query: string,
+  onEvent: (event: AiEvent) => void,
+): Promise<string> {
+  const channel = new Channel<AiEvent>();
+  channel.onmessage = onEvent;
+
+  try {
+    return await invoke<string>("ask", { query, onEvent: channel });
+  } catch (error) {
+    throw readableError(error);
+  }
+}
+
+export async function cancelJob(id: string): Promise<void> {
+  try {
+    await invoke<void>("cancel_job", { jobId: id });
   } catch (error) {
     throw readableError(error);
   }
