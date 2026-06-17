@@ -1,27 +1,15 @@
 use app_lib::exec::build_mode_argv;
 
 #[test]
-fn plan_and_fix_include_json_events_and_never_apply() {
-    for mode in ["plan", "fix"] {
+fn all_modes_include_json_events_and_never_apply() {
+    // Tüm modlar artık --json-events (verbose status + canlı akış); hiçbiri --apply değil.
+    for mode in ["plan", "fix", "review", "ship"] {
         let argv = build_mode_argv(mode, true).expect("mode should be valid");
 
         assert_eq!(argv[0], "aura");
         assert_eq!(argv[1], mode);
         assert!(argv.iter().any(|arg| arg == "--prompt-file"));
         assert!(argv.iter().any(|arg| arg == "--json-events"));
-        assert!(!argv.iter().any(|arg| arg == "--apply"));
-    }
-}
-
-#[test]
-fn review_and_ship_do_not_include_json_events_or_apply() {
-    for mode in ["review", "ship"] {
-        let argv = build_mode_argv(mode, true).expect("mode should be valid");
-
-        assert_eq!(argv[0], "aura");
-        assert_eq!(argv[1], mode);
-        assert!(argv.iter().any(|arg| arg == "--prompt-file"));
-        assert!(!argv.iter().any(|arg| arg == "--json-events"));
         assert!(!argv.iter().any(|arg| arg == "--apply"));
     }
 }

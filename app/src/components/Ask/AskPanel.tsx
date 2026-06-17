@@ -92,12 +92,16 @@ export function AskPanel() {
         setLane(activeConsensus.current ? "consensus" : event.lane);
         setStreaming(true);
         break;
+      case "job":
+        // job_id baştan gelir → Stop butonu akış sırasında çalışır
+        setJobId(event.job_id);
+        break;
       case "chunk":
         setAnswer((current) => current + event.text);
         break;
       case "status":
         setStatusText(event.text);
-        setStatusLog((log) => [...log, event.text]);
+        setStatusLog((log) => [...log.slice(-40), event.text]);
         break;
       case "cached":
         setLane(activeConsensus.current ? "consensus" : "cached");
@@ -137,11 +141,8 @@ export function AskPanel() {
 
     try {
       const run = activeConsensus.current ? askConsensus : ask;
-      const id = await run(trimmed, (aiEvent) => handleAiEvent(requestId, aiEvent));
-
-      if (requestId === activeRequest.current && id.trim()) {
-        setJobId(id);
-      }
+      // job_id artık "job" event'inden gelir (akış sırasında); dönüş = cevap metni.
+      await run(trimmed, (aiEvent) => handleAiEvent(requestId, aiEvent));
     } catch {
       if (requestId === activeRequest.current) {
         setStreaming(false);
@@ -155,9 +156,12 @@ export function AskPanel() {
       return;
     }
 
+    // requestId'yi ilerlet → iptal sonrası geç gelen event'ler yok sayılır (race-safe).
+    activeRequest.current += 1;
+    setStreaming(false);
+
     try {
       await cancelJob(jobId);
-      setStreaming(false);
       setError(friendlyAiError(t, "cancelled"));
     } catch {
       setError(t("ask.error"));
