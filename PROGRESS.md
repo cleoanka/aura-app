@@ -59,3 +59,11 @@ Otonom build (Opus 4.8 orkestratör + Codex implementer + Gemini verify). Ultrap
 6. App smoke: **açılıyor, çökmüyor** ✓.
 
 Headless yapılamayan (kullanıcı): canlı GUI tıklama akışı (vault→index→ara→Ask), notarization (Apple ID).
+
+## 🔧 Kullanıcı geri bildirimi düzeltmeleri (UI/i18n)
+- Vault picker çökmesi → async + non-blocking dialog (ana-thread deadlock fix).
+- Titlebar overlap → Overlay kaldırıldı.
+- Çirkin tek-harf rail ikonları → gerçek SVG ikon seti + marka simgesi.
+- 'Vault Seç' jargonu → 'Not Klasörü Aç' (gemini EN/TR string tablosu).
+- **EN/TR dil desteği**: i18n (97 anahtar), rail'de canlı toggle, 10 panel t()'ye geçti (paralel claude workflow).
+- Ekranlar: docs/ui-after-redesign.png, docs/ui-final.png.

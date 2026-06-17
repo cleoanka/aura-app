@@ -1,7 +1,5 @@
 use crate::env_resolver;
-use portable_pty::{
-    native_pty_system, Child, CommandBuilder, MasterPty, PtySize,
-};
+use portable_pty::{native_pty_system, Child, CommandBuilder, MasterPty, PtySize};
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::sync::atomic::{AtomicU64, Ordering};
