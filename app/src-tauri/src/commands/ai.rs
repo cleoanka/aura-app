@@ -281,8 +281,10 @@ fn build_lane0_prompt(context: &str, query: &str) -> String {
 }
 
 fn model_ver(settings: &Settings, lane: &str) -> String {
+    // Son ek (answer-v2) prompt şemasının versiyonu: değişince eski cache otomatik geçersiz.
+    // (Eskiden Ask planlayıcıya gidip 'untrusted DATA' diye reddediyordu; o cevaplar cache'lendi.)
     format!(
-        "{}:{}:{}",
+        "{}:{}:{}:answer-v2",
         settings.local_gen.provider, settings.local_gen.model, lane
     )
 }
