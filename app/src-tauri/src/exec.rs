@@ -314,6 +314,7 @@ async fn run_aura_with_files(
         .args(["--lane", lane])
         .args(["--prompt-file", &prompt_arg])
         .args(["--context", &context_arg])
+        .arg("--answer") // ask/chat: planla DEĞİL, soruyu cevapla
         .arg("--json-events")
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
