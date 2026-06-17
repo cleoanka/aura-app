@@ -49,3 +49,13 @@ Otonom build (Opus 4.8 orkestratör + Codex implementer + Gemini verify). Ultrap
 - [x] **FINAL: 'AURA Desktop.app' (14M) + .dmg (5.6M) build + smoke (açılıyor/çökmüyor) ✓**
 - [x] gerçek candle e5 embedding: `--features candle` DERLENİYOR ✓ (default StubEmbedder korunur); runtime model-download ilk kullanımda
 - [ ] notarize: kullanıcı Apple Developer ID gerekir (T4.6) — dev build lokal çalışır
+
+## ✅ TAM TEST TARAMASI (hepsi GEÇTİ)
+1. Rust `cargo test` (default): **23 test PASS** + 1 ignored (db, indexer, hybrid RRF, settings-robust, cache_key, vault_guard, pty_argv, modes_argv, consensus_prompt, doctor_contract).
+2. `cargo build --features candle`: **DERLENİYOR** (gerçek e5 embedding opt-in); default build StubEmbedder + 0 uyarı.
+3. Frontend `npm run build` (tsc+vite): **PASS** (1105 modül, 0 tip hatası).
+4. aura engine: `--json-events` start→chunk→done **PASS**; `doctor --json` sözleşme **PASS** (claude=keychain).
+5. `npm run tauri build`: **AURA Desktop.app (14M) + .dmg (6.6M)** üretildi.
+6. App smoke: **açılıyor, çökmüyor** ✓.
+
+Headless yapılamayan (kullanıcı): canlı GUI tıklama akışı (vault→index→ara→Ask), notarization (Apple ID).
