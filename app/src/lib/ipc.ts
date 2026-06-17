@@ -40,6 +40,67 @@ export async function agentDetect(probe = false): Promise<DoctorReport> {
   }
 }
 
+export type EmbeddingStatus = {
+  backend: string;
+  model: string;
+  ready: boolean;
+  downloading: boolean;
+  device: string;
+  cache_path: string;
+};
+
+export type OllamaStatus = {
+  installed: boolean;
+  running: boolean;
+  models: string[];
+};
+
+export async function embeddingStatus(): Promise<EmbeddingStatus> {
+  try {
+    return await invoke<EmbeddingStatus>("embedding_status");
+  } catch (error) {
+    throw readableError(error);
+  }
+}
+
+export async function prepareEmbeddingModel(
+  onLine: (line: string) => void,
+): Promise<EmbeddingStatus> {
+  const channel = new Channel<string>();
+  channel.onmessage = onLine;
+
+  try {
+    return await invoke<EmbeddingStatus>("prepare_embedding_model", {
+      onEvent: channel,
+    });
+  } catch (error) {
+    throw readableError(error);
+  }
+}
+
+export async function ollamaStatus(baseUrl?: string): Promise<OllamaStatus> {
+  try {
+    return await invoke<OllamaStatus>("ollama_status", { baseUrl });
+  } catch (error) {
+    throw readableError(error);
+  }
+}
+
+export async function ollamaPull(
+  model: string,
+  baseUrl: string | undefined,
+  onLine: (line: string) => void,
+): Promise<void> {
+  const channel = new Channel<string>();
+  channel.onmessage = onLine;
+
+  try {
+    await invoke<void>("ollama_pull", { model, baseUrl, onEvent: channel });
+  } catch (error) {
+    throw readableError(error);
+  }
+}
+
 export async function agentInstall(id: AgentId): Promise<string> {
   try {
     return await invoke<string>("agent_install", { id });
