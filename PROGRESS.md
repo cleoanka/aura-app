@@ -15,8 +15,8 @@ Otonom build (Opus 4.8 orkestratör + Codex implementer + Gemini verify). Ultrap
 
 ## Faz 1 — Agent Manager + sözleşmeler + vault (DEVAM EDİYOR)
 - [ ] T1.1 Tauri v2 + plugin-shell + ACL iskeleti + Playwright
-- [ ] T1.2 aura `--prompt-file/--context/--json-events` + `doctor --json`
-- [ ] T1.3 doctor JSON sözleşmesi (contracts/) + Python+Rust sözleşme testi
+- [x] T1.2 aura `--prompt-file/--context/--json-events` + `doctor --json` ✓ (json-events start→chunk→done; doctor --json sözleşme GEÇTİ)
+- [x] T1.3 doctor sözleşmesi contracts/ ✓ (Rust testi AM işinde)
 - [ ] T1.4 env_resolver + ErrorTaxonomy
 - [ ] T1.5 detect → install → login(PTY) → doctor → UI kartları
 - [ ] T1.6 vault folder-picker + settings persist
