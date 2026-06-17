@@ -1,6 +1,7 @@
 pub mod agent;
 mod agent_manager;
 mod commands;
+pub mod db;
 mod env_resolver;
 mod error;
 

@@ -18,7 +18,7 @@ Otonom build (Opus 4.8 orkestratör + Codex implementer + Gemini verify). Ultrap
 - [x] T1.2 aura `--prompt-file/--context/--json-events` + `doctor --json` ✓ (json-events start→chunk→done; doctor --json sözleşme GEÇTİ)
 - [x] T1.3 doctor sözleşmesi contracts/ ✓ (Rust testi AM işinde)
 - [x] T1.4 env_resolver + ErrorTaxonomy (Rust) ✓
-- [~] T1.5 detect/install/doctor + Tauri commands ✓ (cargo build+test PASS); UI kartları + PTY login SIRADA
+- [x] T1.5 detect/install/doctor + Tauri commands + **React UI kartları** ✓ (npm build PASS); PTY login SIRADA
 - [ ] T1.6 vault folder-picker + settings persist
 - [ ] T1.7 gerçek .app re-smoke
 
