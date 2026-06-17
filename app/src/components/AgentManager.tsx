@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { agentDetect, agentInstall } from "../lib/ipc";
 import type { AgentAuth, AgentId, AgentStatus, DoctorReport } from "../lib/types";
+import { PtyLogin } from "./Pty/PtyLogin";
 
 type AgentManagerProps = {
   onReportChange: (report: DoctorReport | null) => void;
@@ -118,6 +119,7 @@ export function AgentManager({ onReportChange }: AgentManagerProps) {
   const [error, setError] = useState<string | null>(null);
   const [installState, setInstallState] =
     useState<Record<AgentId, InstallState>>(emptyInstallState);
+  const [loginAgent, setLoginAgent] = useState<AgentId | null>(null);
 
   const installedCount = useMemo(() => {
     if (!report) {
@@ -175,6 +177,11 @@ export function AgentManager({ onReportChange }: AgentManagerProps) {
       }));
     }
   };
+
+  const closeLogin = useCallback(() => {
+    setLoginAgent(null);
+    void refresh(true);
+  }, [refresh]);
 
   return (
     <section className="agent-manager" aria-labelledby="agent-manager-title">
@@ -286,12 +293,12 @@ export function AgentManager({ onReportChange }: AgentManagerProps) {
                   Yeniden Dene
                 </button>
                 <button
-                  aria-label={`${definition.name} girişi yakında`}
+                  aria-label={`${definition.name} ajanına giriş yap`}
                   className="button ghost"
-                  disabled
+                  onClick={() => setLoginAgent(definition.id)}
                   type="button"
                 >
-                  Giriş (yakında - PTY)
+                  Giriş
                 </button>
               </div>
 
@@ -302,6 +309,8 @@ export function AgentManager({ onReportChange }: AgentManagerProps) {
           );
         })}
       </div>
+
+      {loginAgent ? <PtyLogin agent={loginAgent} onClose={closeLogin} /> : null}
     </section>
   );
 }
