@@ -1,3 +1,4 @@
+use crate::consensus;
 use crate::db::{self, CacheDep};
 use crate::exec::{self, AiEvent, JobRegistry};
 use crate::indexer::Indexer;
@@ -128,6 +129,24 @@ pub async fn ask(
     }
 
     Ok(response)
+}
+
+#[tauri::command]
+pub async fn ask_consensus(
+    _app: AppHandle,
+    indexer: State<'_, Mutex<Indexer>>,
+    jobs: State<'_, JobRegistry>,
+    query: String,
+    on_event: Channel<AiEvent>,
+) -> Result<String, String> {
+    let context = {
+        let indexer = indexer.lock().map_err(|err| err.to_string())?;
+        let hits = indexer.search_hybrid(&query, 6)?;
+        build_context(&hits)
+    };
+
+    let job_id = new_job_id();
+    consensus::run_consensus(job_id, &query, &context, on_event, jobs.inner().clone()).await
 }
 
 #[tauri::command]

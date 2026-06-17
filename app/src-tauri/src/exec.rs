@@ -28,11 +28,52 @@ pub enum AiEvent {
 
 #[derive(Clone)]
 pub struct JobHandle {
-    child: Arc<Mutex<GroupChild>>,
+    children: Arc<Mutex<Vec<Arc<Mutex<GroupChild>>>>>,
     cancelled: Arc<AtomicBool>,
 }
 
 pub type JobRegistry = Arc<Mutex<HashMap<String, JobHandle>>>;
+
+impl JobHandle {
+    pub fn new() -> Self {
+        Self {
+            children: Arc::new(Mutex::new(Vec::new())),
+            cancelled: Arc::new(AtomicBool::new(false)),
+        }
+    }
+
+    pub fn add_child(&self, child: GroupChild) -> Arc<Mutex<GroupChild>> {
+        let child = Arc::new(Mutex::new(child));
+        if let Ok(mut children) = self.children.lock() {
+            children.push(child.clone());
+        }
+        if self.is_cancelled() {
+            if let Ok(mut child) = child.lock() {
+                let _ = child.kill();
+            }
+        }
+        child
+    }
+
+    pub fn cancelled(&self) -> Arc<AtomicBool> {
+        self.cancelled.clone()
+    }
+
+    pub fn is_cancelled(&self) -> bool {
+        self.cancelled.load(Ordering::SeqCst)
+    }
+
+    pub fn cancel(&self) {
+        self.cancelled.store(true, Ordering::SeqCst);
+        if let Ok(children) = self.children.lock() {
+            for child in children.iter() {
+                if let Ok(mut child) = child.lock() {
+                    let _ = child.kill();
+                }
+            }
+        }
+    }
+}
 
 pub fn new_job_registry() -> JobRegistry {
     Arc::new(Mutex::new(HashMap::new()))
@@ -118,10 +159,7 @@ pub fn cancel(jobs: JobRegistry, job_id: &str) {
     let handle = jobs.lock().ok().and_then(|jobs| jobs.get(job_id).cloned());
 
     if let Some(handle) = handle {
-        handle.cancelled.store(true, Ordering::SeqCst);
-        if let Ok(mut child) = handle.child.lock() {
-            let _ = child.kill();
-        }
+        handle.cancel();
     }
 }
 
@@ -171,10 +209,8 @@ async fn run_aura_mode_with_argv(
         .take()
         .ok_or_else(|| "failed to capture aura stdout".to_string())?;
     let raw_stdout_mode = matches!(mode, "review" | "ship");
-    let handle = JobHandle {
-        child: Arc::new(Mutex::new(child)),
-        cancelled: Arc::new(AtomicBool::new(false)),
-    };
+    let handle = JobHandle::new();
+    let child = handle.add_child(child);
 
     jobs.lock()
         .map_err(|err| err.to_string())?
@@ -183,14 +219,14 @@ async fn run_aura_mode_with_argv(
     let read_task = if matches!(mode, "plan" | "fix") {
         tokio::task::spawn_blocking({
             let on_event = on_event.clone();
-            let cancelled = handle.cancelled.clone();
+            let cancelled = handle.cancelled();
             let lane = mode.to_string();
             move || read_jsonl(stdout, lane, on_event, cancelled)
         })
     } else {
         tokio::task::spawn_blocking({
             let on_event = on_event.clone();
-            let cancelled = handle.cancelled.clone();
+            let cancelled = handle.cancelled();
             let lane = mode.to_string();
             move || read_stdout_lines(stdout, lane, on_event, cancelled)
         })
@@ -200,10 +236,7 @@ async fn run_aura_mode_with_argv(
         Ok(Ok(result)) => result,
         Ok(Err(err)) => Err(format!("aura reader task failed: {err}")),
         Err(_) => {
-            handle.cancelled.store(true, Ordering::SeqCst);
-            if let Ok(mut child) = handle.child.lock() {
-                let _ = child.kill();
-            }
+            handle.cancel();
             let event = AiEvent::Error {
                 reason: "aura timed out".to_string(),
                 taxonomy: "network".to_string(),
@@ -218,7 +251,6 @@ async fn run_aura_mode_with_argv(
     }
 
     let wait_result = {
-        let child = handle.child.clone();
         tokio::task::spawn_blocking(move || {
             if let Ok(mut child) = child.lock() {
                 child
@@ -296,10 +328,8 @@ async fn run_aura_with_files(
         .stdout
         .take()
         .ok_or_else(|| "failed to capture aura stdout".to_string())?;
-    let handle = JobHandle {
-        child: Arc::new(Mutex::new(child)),
-        cancelled: Arc::new(AtomicBool::new(false)),
-    };
+    let handle = JobHandle::new();
+    let child = handle.add_child(child);
 
     jobs.lock()
         .map_err(|err| err.to_string())?
@@ -307,7 +337,7 @@ async fn run_aura_with_files(
 
     let read_task = tokio::task::spawn_blocking({
         let on_event = on_event.clone();
-        let cancelled = handle.cancelled.clone();
+        let cancelled = handle.cancelled();
         let lane = lane.to_string();
         move || read_jsonl(stdout, lane, on_event, cancelled)
     });
@@ -316,10 +346,7 @@ async fn run_aura_with_files(
         Ok(Ok(result)) => result,
         Ok(Err(err)) => Err(format!("aura reader task failed: {err}")),
         Err(_) => {
-            handle.cancelled.store(true, Ordering::SeqCst);
-            if let Ok(mut child) = handle.child.lock() {
-                let _ = child.kill();
-            }
+            handle.cancel();
             let event = AiEvent::Error {
                 reason: "aura timed out".to_string(),
                 taxonomy: "network".to_string(),
@@ -334,7 +361,6 @@ async fn run_aura_with_files(
     }
 
     {
-        let child = handle.child.clone();
         let _ = tokio::task::spawn_blocking(move || {
             if let Ok(mut child) = child.lock() {
                 let _ = child.wait();

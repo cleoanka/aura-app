@@ -1,6 +1,7 @@
 pub mod agent;
 mod agent_manager;
 pub mod commands;
+pub mod consensus;
 pub mod db;
 pub mod embed;
 mod env_resolver;
@@ -14,8 +15,9 @@ pub mod search;
 pub mod settings;
 
 use commands::{
-    agent_detect, agent_install, ask, cancel_job, get_graph, get_settings, index_vault, list_notes,
-    pick_vault_folder, read_note, run_mode, search_fts, search_hybrid, set_settings, write_note,
+    agent_detect, agent_install, ask, ask_consensus, cancel_job, get_graph, get_settings,
+    index_vault, list_notes, pick_vault_folder, read_note, run_mode, search_fts, search_hybrid,
+    set_settings, write_note,
 };
 use embed::StubEmbedder;
 use indexer::Indexer;
@@ -42,6 +44,7 @@ pub fn run() {
             agent_detect,
             agent_install,
             ask,
+            ask_consensus,
             cancel_job,
             run_mode,
             index_vault,
