@@ -3,6 +3,7 @@ import { Channel, invoke } from "@tauri-apps/api/core";
 import type {
   AgentId,
   AiEvent,
+  AuraMode,
   DoctorReport,
   GraphData,
   IndexStats,
@@ -128,6 +129,41 @@ export async function ask(
 
   try {
     return await invoke<string>("ask", { query, onEvent: channel });
+  } catch (error) {
+    throw readableError(error);
+  }
+}
+
+export async function runMode(
+  mode: AuraMode,
+  prompt: string,
+  projectDir: string | null,
+  onEvent: (event: AiEvent) => void,
+): Promise<string> {
+  const channel = new Channel<AiEvent>();
+  channel.onmessage = onEvent;
+
+  try {
+    return await invoke<string>("run_mode", {
+      mode,
+      prompt,
+      projectDir,
+      onEvent: channel,
+    });
+  } catch (error) {
+    throw readableError(error);
+  }
+}
+
+export async function askConsensus(
+  query: string,
+  onEvent: (event: AiEvent) => void,
+): Promise<string> {
+  const channel = new Channel<AiEvent>();
+  channel.onmessage = onEvent;
+
+  try {
+    return await invoke<string>("ask_consensus", { query, onEvent: channel });
   } catch (error) {
     throw readableError(error);
   }

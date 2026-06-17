@@ -1,6 +1,6 @@
-import { FormEvent, useRef, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 
-import { ask, cancelJob } from "../../lib/ipc";
+import { ask, askConsensus, cancelJob, getSettings } from "../../lib/ipc";
 import type { AiEvent, AiLane } from "../../lib/types";
 
 function laneLabel(lane: AiLane | null) {
@@ -45,7 +45,35 @@ export function AskPanel() {
   const [jobId, setJobId] = useState<string | null>(null);
   const [runDir, setRunDir] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [consensusAvailable, setConsensusAvailable] = useState(false);
+  const [consensusChecked, setConsensusChecked] = useState(false);
   const activeRequest = useRef(0);
+  const activeConsensus = useRef(false);
+
+  useEffect(() => {
+    let alive = true;
+
+    void getSettings()
+      .then((settings) => {
+        if (!alive) {
+          return;
+        }
+
+        const enabled = settings.consensus_enabled === true;
+        setConsensusAvailable(enabled);
+        setConsensusChecked(false);
+      })
+      .catch(() => {
+        if (alive) {
+          setConsensusAvailable(false);
+          setConsensusChecked(false);
+        }
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const handleAiEvent = (requestId: number, event: AiEvent) => {
     if (requestId !== activeRequest.current) {
@@ -54,14 +82,14 @@ export function AskPanel() {
 
     switch (event.kind) {
       case "start":
-        setLane(event.lane);
+        setLane(activeConsensus.current ? "consensus" : event.lane);
         setStreaming(true);
         break;
       case "chunk":
         setAnswer((current) => current + event.text);
         break;
       case "cached":
-        setLane("cached");
+        setLane(activeConsensus.current ? "consensus" : "cached");
         setAnswer(event.text);
         break;
       case "done":
@@ -91,9 +119,11 @@ export function AskPanel() {
     setError(null);
     setJobId(null);
     setStreaming(true);
+    activeConsensus.current = consensusAvailable && consensusChecked;
 
     try {
-      const id = await ask(trimmed, (aiEvent) => handleAiEvent(requestId, aiEvent));
+      const run = activeConsensus.current ? askConsensus : ask;
+      const id = await run(trimmed, (aiEvent) => handleAiEvent(requestId, aiEvent));
 
       if (requestId === activeRequest.current && id.trim()) {
         setJobId(id);
@@ -146,6 +176,18 @@ export function AskPanel() {
           <button className="button primary" disabled={streaming} type="submit">
             Sor
           </button>
+          {consensusAvailable ? (
+            <label className="consensus-toggle">
+              <input
+                checked={consensusChecked}
+                disabled={streaming}
+                onChange={(event) => setConsensusChecked(event.currentTarget.checked)}
+                type="checkbox"
+              />
+              <span>Consensus</span>
+              <small>3 ajan · ~3× maliyet</small>
+            </label>
+          ) : null}
           <button
             className="button"
             disabled={!streaming || !jobId}

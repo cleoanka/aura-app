@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { AgentManager } from "./components/AgentManager";
 import { AppShell, type ActiveView } from "./components/AppShell";
+import { AuraModePanel } from "./components/AuraMode/AuraModePanel";
 import { AskPanel } from "./components/Ask/AskPanel";
 import { NoteEditor } from "./components/Editor/NoteEditor";
 import { GraphView } from "./components/Graph/GraphView";
@@ -59,6 +60,8 @@ function App() {
         return <SearchPanel onOpenNote={openNote} />;
       case "ask":
         return <AskPanel />;
+      case "aura-mode":
+        return <AuraModePanel />;
       case "graph":
         return <GraphView onOpenNote={openNote} />;
       case "agents":

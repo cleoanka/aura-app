@@ -2,7 +2,14 @@ import type { ReactNode } from "react";
 
 import type { DoctorReport } from "../lib/types";
 
-export type ActiveView = "workspace" | "search" | "ask" | "graph" | "agents" | "settings";
+export type ActiveView =
+  | "workspace"
+  | "search"
+  | "ask"
+  | "aura-mode"
+  | "graph"
+  | "agents"
+  | "settings";
 
 type AppShellProps = {
   activeView: ActiveView;
@@ -16,6 +23,7 @@ const navigationItems = [
   { id: "workspace", label: "Workspace", icon: "W" },
   { id: "search", label: "Arama", icon: "/" },
   { id: "ask", label: "ASK", icon: "?" },
+  { id: "aura-mode", label: "Aura modu", icon: "M" },
   { id: "graph", label: "Graf", icon: "G" },
   { id: "agents", label: "Ajanlar", icon: "A" },
   { id: "settings", label: "Ayarlar", icon: "*" },
