@@ -1,0 +1,39 @@
+# Rust / Tauri
+/src-tauri/target/
+target/
+**/*.rs.bk
+*.pdb
+
+# Node / Vite
+node_modules/
+dist/
+dist-ssr/
+.vite/
+*.local
+
+# macOS
+.DS_Store
+*.app
+*.dmg
+
+# Tauri build artifacts
+/src-tauri/gen/
+/src-tauri/WixTools/
+
+# Models / data (büyük yerel varlıklar — LFS veya dışarıda)
+/models/
+*.onnx
+*.gguf
+*.safetensors
+/vault/
+*.sqlite
+*.sqlite-*
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Logs / scratch
+*.log
+.aura/
