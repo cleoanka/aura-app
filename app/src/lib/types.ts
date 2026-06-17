@@ -64,6 +64,8 @@ export type ThemeMode = "dark" | "light";
 
 export type DefaultMode = "ask" | "aura";
 
+export type AuraMode = "plan" | "review" | "fix" | "ship";
+
 export type CacheMode = "off" | "read" | "write" | "read_write" | string;
 
 export type LaneSettings = {

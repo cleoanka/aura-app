@@ -673,14 +673,118 @@ select.text-input:focus {
   color: #82beff;
 }
 
-.lane-deep,
-.lane-consensus {
+.lane-deep {
   border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
   color: var(--accent);
 }
 
+.lane-consensus {
+  border-color: color-mix(in srgb, var(--yellow) 58%, var(--border));
+  color: var(--yellow);
+  background: color-mix(in srgb, var(--yellow) 10%, var(--bg-secondary));
+}
+
+.lane-plan,
+.lane-review,
+.lane-fix,
+.lane-ship {
+  border-color: color-mix(in srgb, var(--accent) 44%, var(--border));
+  color: var(--text);
+}
+
 .ask-actions {
   justify-content: flex-start;
+}
+
+.consensus-toggle {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 10px;
+  border: 1px solid color-mix(in srgb, var(--yellow) 38%, var(--border));
+  border-radius: var(--radius);
+  color: var(--text);
+  background: color-mix(in srgb, var(--yellow) 7%, var(--bg-secondary));
+  font-size: 13px;
+}
+
+.consensus-toggle small {
+  color: var(--yellow);
+  font-size: 12px;
+}
+
+.aura-mode-form {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.mode-selector {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.mode-selector legend {
+  margin-bottom: 8px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.mode-segmented {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.mode-option {
+  display: grid;
+  min-width: 0;
+  min-height: 74px;
+  gap: 5px;
+  align-content: center;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  background: var(--bg-secondary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.mode-option:hover:not(:disabled),
+.mode-option.is-active {
+  border-color: color-mix(in srgb, var(--accent) 48%, var(--border));
+  color: var(--text);
+  background: var(--accent-soft);
+}
+
+.mode-option span {
+  font-weight: 700;
+}
+
+.mode-option small {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.project-picker {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.aura-note {
+  margin-bottom: 0;
+  border-color: color-mix(in srgb, var(--yellow) 42%, var(--border));
+  color: var(--text);
+  background: color-mix(in srgb, var(--yellow) 8%, var(--bg-secondary));
 }
 
 .thinking {
@@ -948,7 +1052,8 @@ select.text-input:focus {
   }
 
   .workspace-layout,
-  .settings-grid {
+  .settings-grid,
+  .mode-segmented {
     grid-template-columns: 1fr;
   }
 
