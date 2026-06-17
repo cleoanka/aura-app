@@ -444,11 +444,13 @@ export function GraphView({ onOpenNote }: GraphViewProps) {
       const dimmed = neighbors ? !neighbors.has(node.id) : false;
       const focused = hoverId === node.id;
 
-      // soft glow
-      ctx.beginPath();
-      ctx.arc(x, y, r * 1.9, 0, 2 * Math.PI);
-      ctx.fillStyle = hexWithAlpha(base, dimmed ? 0.04 : focused ? 0.28 : 0.14);
-      ctx.fill();
+      // soft glow — sadece odaklı/önemli düğümler için (her-frame CPU'yu düşürür)
+      if (focused || node.degree >= 6) {
+        ctx.beginPath();
+        ctx.arc(x, y, r * 1.9, 0, 2 * Math.PI);
+        ctx.fillStyle = hexWithAlpha(base, dimmed ? 0.04 : focused ? 0.28 : 0.14);
+        ctx.fill();
+      }
 
       // node body
       ctx.beginPath();
@@ -542,10 +544,11 @@ export function GraphView({ onOpenNote }: GraphViewProps) {
             graphData={graphData}
             width={size.width}
             height={size.height}
-            cooldownTicks={120}
-            warmupTicks={40}
-            d3AlphaDecay={0.018}
-            d3VelocityDecay={0.32}
+            cooldownTicks={70}
+            cooldownTime={6000}
+            warmupTicks={0}
+            d3AlphaDecay={0.03}
+            d3VelocityDecay={0.4}
             minZoom={0.2}
             maxZoom={8}
             nodeRelSize={nodeRelSize}

@@ -58,18 +58,22 @@ pub fn run() {
                 }
                 let _ = handle.emit("index-updated", ());
 
-                // 2) Arka planda vektörleri batch-batch doldur (UI bloklamadan).
-                loop {
-                    let done = match state.lock() {
-                        Ok(mut idx) => idx.embed_pending(48).unwrap_or(0),
-                        Err(_) => 0,
-                    };
-                    if done == 0 {
-                        break;
+                // 2) Vektörleri SADECE semantic_search açıksa arka planda doldur.
+                // Kapalıyken (varsayılan) embedding yok → CPU yükü yok, arama FTS5 ile.
+                // Açıkken bile NAZİK throttle (her batch arası uyku) ile CPU pegleme yok.
+                if settings::load().semantic_search {
+                    loop {
+                        let done = match state.lock() {
+                            Ok(mut idx) => idx.embed_pending(16).unwrap_or(0),
+                            Err(_) => 0,
+                        };
+                        if done == 0 {
+                            break;
+                        }
+                        std::thread::sleep(std::time::Duration::from_millis(150));
                     }
-                    std::thread::sleep(std::time::Duration::from_millis(10));
+                    let _ = handle.emit("index-updated", ());
                 }
-                let _ = handle.emit("index-updated", ());
             });
             Ok(())
         })

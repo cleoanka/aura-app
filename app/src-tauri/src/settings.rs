@@ -34,6 +34,10 @@ pub struct Settings {
         deserialize_with = "deserialize_local_gen"
     )]
     pub local_gen: LocalGenSettings,
+    /// Yerel semantic embedding (candle e5). VARSAYILAN KAPALI: CPU yoğun olduğu için
+    /// (965 chunk'ı tek tek embed eder). Kapalıyken hızlı FTS5 araması kullanılır.
+    #[serde(default)]
+    pub semantic_search: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -81,6 +85,7 @@ impl Default for Settings {
             cache_mode: default_cache_mode(),
             theme: default_theme(),
             local_gen: default_local_gen(),
+            semantic_search: false,
         }
     }
 }
