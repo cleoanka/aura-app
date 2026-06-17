@@ -26,7 +26,7 @@ Otonom build (Opus 4.8 orkestratör + Codex implementer + Gemini verify). Ultrap
 - [x] 2a veri katmanı: SQLite (sistem libsqlite3 FFI) + FTS5 gerçek + vektör brute-force fallback + cache/cache_deps/meta şema + db_smoke test PASS
   - NOT: codex sandbox ağsız → rusqlite/sqlite-vec indiremedi; FFI ile sistem sqlite kullanıldı. Tech-debt: Faz 4'te rusqlite+sqlite-vec'e geçiş (deps'i ben ekleyeceğim).
 - [x] 2b indexer (markdown/wikilink/hierarchical chunk/petgraph graph/incremental) + Embedder trait (StubEmbedder; candle Faz2c+) ✓ cargo test PASS
-- [ ] 2c hibrit arama (FTS5 + vektör → RRF) + commands
+- [x] 2c hibrit arama (FTS5+vektör RRF) + settings(robust, consensus/lane0 default OFF) + vault picker + list_notes ✓ cargo test PASS (ben build ettim; codex offline)
 - [ ] 2d workspace layout + dosya gezgini + minimal editör
 
 ## ⚙️ SÜREÇ NOTU: codex ağsız → Rust deps'i Claude (Bash, ağlı) `cargo add` ile ekler, codex kodu yazar.

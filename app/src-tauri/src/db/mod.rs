@@ -366,6 +366,12 @@ pub struct ChunkRecord {
     pub text: String,
 }
 
+#[derive(Debug, Clone, serde::Serialize, PartialEq, Eq)]
+pub struct NoteRef {
+    pub path: String,
+    pub title: String,
+}
+
 pub fn note_content_hash(conn: &Connection, path: &str) -> Result<Option<String>> {
     let mut content_hash = None;
     conn.query(
@@ -406,6 +412,30 @@ pub fn chunk_by_id(conn: &Connection, chunk_id: i64) -> Result<Option<ChunkRecor
         },
     )?;
     Ok(chunk)
+}
+
+pub fn chunk_meta(conn: &Connection, chunk_id: i64) -> Result<Option<(String, String, String)>> {
+    Ok(chunk_by_id(conn, chunk_id)?.map(|chunk| (chunk.note_path, chunk.heading_path, chunk.text)))
+}
+
+pub fn list_notes(conn: &Connection) -> Result<Vec<NoteRef>> {
+    let mut notes = Vec::new();
+    conn.query(
+        r#"
+        SELECT path, COALESCE(NULLIF(title, ''), path) AS title
+        FROM notes
+        ORDER BY title COLLATE NOCASE, path COLLATE NOCASE
+        "#,
+        &[],
+        |statement| {
+            notes.push(NoteRef {
+                path: statement.column_text(0)?,
+                title: statement.column_text(1)?,
+            });
+            Ok(())
+        },
+    )?;
+    Ok(notes)
 }
 
 pub fn meta_value(conn: &Connection, key: &str) -> Result<Option<String>> {

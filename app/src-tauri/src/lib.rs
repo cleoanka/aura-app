@@ -8,8 +8,13 @@ mod error;
 pub mod graph;
 pub mod indexer;
 pub mod markdown;
+pub mod search;
+pub mod settings;
 
-use commands::{agent_detect, agent_install, get_graph, index_vault, search_fts};
+use commands::{
+    agent_detect, agent_install, get_graph, get_settings, index_vault, list_notes,
+    pick_vault_folder, search_fts, search_hybrid, set_settings,
+};
 use embed::StubEmbedder;
 use indexer::Indexer;
 use std::sync::Mutex;
@@ -26,6 +31,7 @@ pub fn run() {
 
     tauri::Builder::default()
         .manage(indexer)
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![
@@ -34,7 +40,12 @@ pub fn run() {
             agent_install,
             index_vault,
             get_graph,
-            search_fts
+            search_fts,
+            search_hybrid,
+            list_notes,
+            pick_vault_folder,
+            get_settings,
+            set_settings
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

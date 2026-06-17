@@ -2,6 +2,7 @@ use crate::db;
 use crate::embed::Embedder;
 use crate::graph::{self, GraphData};
 use crate::markdown;
+use crate::search;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
@@ -161,6 +162,10 @@ impl Indexer {
         }
 
         Ok(hits)
+    }
+
+    pub fn search_hybrid(&self, query: &str, k: usize) -> Result<Vec<search::SearchHit>, String> {
+        search::hybrid_search(&self.conn, self.embedder.as_ref(), query, k)
     }
 }
 
