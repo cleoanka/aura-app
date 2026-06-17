@@ -10,8 +10,14 @@ use tauri::{AppHandle, State};
 use tauri_plugin_dialog::DialogExt;
 
 #[tauri::command]
-pub fn pick_vault_folder(app: AppHandle) -> Result<Option<String>, String> {
-    let Some(folder) = app.dialog().file().blocking_pick_folder() else {
+pub async fn pick_vault_folder(app: AppHandle) -> Result<Option<String>, String> {
+    // Dialog'u callback + channel ile aç: senkron komut + blocking_pick_folder
+    // ana thread'i kilitleyip çökertiyordu. async komut + non-blocking callback güvenli.
+    let (tx, rx) = std::sync::mpsc::channel();
+    app.dialog().file().pick_folder(move |folder| {
+        let _ = tx.send(folder);
+    });
+    let Some(folder) = rx.recv().map_err(|err| err.to_string())? else {
         return Ok(None);
     };
     let path = picked_folder_to_string(folder)?;
