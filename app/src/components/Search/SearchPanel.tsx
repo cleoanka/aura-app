@@ -1,5 +1,6 @@
 import { FormEvent, useState } from "react";
 
+import { useI18n } from "../../i18n";
 import { searchHybrid } from "../../lib/ipc";
 import type { NoteRef, SearchHit } from "../../lib/types";
 
@@ -12,20 +13,22 @@ function titleFromPath(path: string) {
   return (parts[parts.length - 1] ?? path).replace(/\.md$/i, "");
 }
 
-function viaLabel(via: string) {
-  switch (via) {
-    case "fts":
-      return "FTS";
-    case "vec":
-      return "VEC";
-    case "both":
-      return "İKİSİ";
-    default:
-      return via.toUpperCase();
-  }
-}
-
 export function SearchPanel({ onOpenNote }: SearchPanelProps) {
+  const { t } = useI18n();
+
+  const viaLabel = (via: string) => {
+    switch (via) {
+      case "fts":
+        return t("search.via.fts");
+      case "vec":
+        return t("search.via.vec");
+      case "both":
+        return t("search.via.both");
+      default:
+        return via.toUpperCase();
+    }
+  };
+
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [loading, setLoading] = useState(false);
@@ -49,7 +52,7 @@ export function SearchPanel({ onOpenNote }: SearchPanelProps) {
     try {
       setHits(await searchHybrid(trimmed, 10));
     } catch {
-      setError("Arama tamamlanamadı.");
+      setError(t("ask.error"));
       setHits([]);
     } finally {
       setLoading(false);
@@ -60,14 +63,14 @@ export function SearchPanel({ onOpenNote }: SearchPanelProps) {
     <section className="task-panel search-panel" aria-labelledby="search-title">
       <header className="panel-header">
         <div>
-          <p className="eyebrow">Arama</p>
-          <h1 id="search-title">Hibrit arama</h1>
+          <p className="eyebrow">{t("nav.search")}</p>
+          <h1 id="search-title">{t("search.via.both")}</h1>
         </div>
       </header>
 
       <form className="search-form" onSubmit={submit}>
         <label className="field-label" htmlFor="hybrid-search">
-          Sorgu
+          {t("nav.search")}
         </label>
         <div className="input-row">
           <input
@@ -75,21 +78,21 @@ export function SearchPanel({ onOpenNote }: SearchPanelProps) {
             className="text-input"
             id="hybrid-search"
             onChange={(event) => setQuery(event.currentTarget.value)}
-            placeholder="Notlarda ara"
+            placeholder={t("search.placeholder")}
             type="search"
             value={query}
           />
           <button className="button primary" disabled={loading} type="submit">
-            {loading ? "Aranıyor" : "Ara"}
+            {loading ? t("common.loading") : t("search.button")}
           </button>
         </div>
       </form>
 
       {error ? <p className="notice error">{error}</p> : null}
 
-      <div className="result-list" aria-label="Arama sonuçları">
+      <div className="result-list" aria-label={t("nav.search")}>
         {searched && !loading && hits.length === 0 ? (
-          <p className="empty-state">Sonuç yok.</p>
+          <p className="empty-state">{t("search.noResults")}</p>
         ) : null}
 
         {hits.map((hit) => {
