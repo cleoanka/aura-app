@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "app",
+  "productName": "AURA Desktop",
   "version": "0.1.0",
   "identifier": "com.cleoanka.auraapp",
   "build": {
@@ -12,9 +12,12 @@
   "app": {
     "windows": [
       {
-        "title": "app",
-        "width": 800,
-        "height": 600
+        "title": "AURA Desktop",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 900,
+        "minHeight": 600,
+        "titleBarStyle": "Overlay"
       }
     ],
     "security": {

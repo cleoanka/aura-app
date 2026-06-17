@@ -36,4 +36,12 @@ Otonom build (Opus 4.8 orkestratör + Codex implementer + Gemini verify). Ultrap
 - [x] db cache get/put/deps; cache_key + vault_guard testleri PASS
 - [ ] Lane 0 (yerel üretim Ollama/MLX) — settings'te var, exec entegrasyonu sırada
 - [ ] Consensus modu (3 AI→sentez, default off)
-## Faz 4 — Cila + paketleme + notarize (bekliyor)
+## 🎉 MILESTONE: çalışan .app + .dmg üretildi (release, arm64, ad-hoc imzalı, açılıyor/çökmüyor)
+
+## Faz 4 — Cila + paketleme (DEVAM)
+- [x] productName "AURA Desktop" + pencere 1280×820 Overlay titlebar
+- [ ] CodeMirror editör + react-force-graph gerçek graf
+- [ ] aura-mode (plan/review/fix/ship app-içi)
+- [ ] Consensus (3 AI→sentez, default off) + Lane 0 (Ollama/MLX)
+- [ ] PTY login paneli
+- [ ] notarize (kullanıcı Apple ID — T4.6)
