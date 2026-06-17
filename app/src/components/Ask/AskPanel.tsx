@@ -3,6 +3,7 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { ask, askConsensus, cancelJob, getSettings } from "../../lib/ipc";
 import type { AiEvent, AiLane } from "../../lib/types";
 import { useI18n } from "../../i18n";
+import { LiveActivity } from "../LiveActivity";
 
 type TFn = (key: string, vars?: Record<string, string | number>) => string;
 
@@ -46,6 +47,8 @@ export function AskPanel() {
   const [answer, setAnswer] = useState("");
   const [lane, setLane] = useState<AiLane | null>(null);
   const [streaming, setStreaming] = useState(false);
+  const [statusText, setStatusText] = useState<string | null>(null);
+  const [statusLog, setStatusLog] = useState<string[]>([]);
   const [jobId, setJobId] = useState<string | null>(null);
   const [runDir, setRunDir] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -92,8 +95,13 @@ export function AskPanel() {
       case "chunk":
         setAnswer((current) => current + event.text);
         break;
+      case "status":
+        setStatusText(event.text);
+        setStatusLog((log) => [...log, event.text]);
+        break;
       case "cached":
         setLane(activeConsensus.current ? "consensus" : "cached");
+        setStatusText(t("ask.lane.cached"));
         setAnswer(event.text);
         break;
       case "done":
@@ -122,6 +130,8 @@ export function AskPanel() {
     setRunDir(null);
     setError(null);
     setJobId(null);
+    setStatusText(null);
+    setStatusLog([]);
     setStreaming(true);
     activeConsensus.current = consensusAvailable && consensusChecked;
 
@@ -200,9 +210,10 @@ export function AskPanel() {
           >
             {t("ask.stop")}
           </button>
-          {streaming ? <span className="thinking">{t("ask.thinking")}</span> : null}
         </div>
       </form>
+
+      <LiveActivity streaming={streaming} status={statusText} log={statusLog} />
 
       {error ? <p className="notice error">{error}</p> : null}
 

@@ -3,6 +3,7 @@ import { FormEvent, useRef, useState } from "react";
 import { useI18n } from "../../i18n";
 import { cancelJob, chat, pickVaultFolder, runMode } from "../../lib/ipc";
 import type { AiEvent, AiLane, AuraMode } from "../../lib/types";
+import { LiveActivity } from "../LiveActivity";
 
 type ModeOption = {
   id: AuraMode;
@@ -71,6 +72,8 @@ export function AuraModePanel() {
   const [output, setOutput] = useState("");
   const [lane, setLane] = useState<AiLane | null>(null);
   const [streaming, setStreaming] = useState(false);
+  const [statusText, setStatusText] = useState<string | null>(null);
+  const [statusLog, setStatusLog] = useState<string[]>([]);
   const [jobId, setJobId] = useState<string | null>(null);
   const [runDir, setRunDir] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -88,6 +91,10 @@ export function AuraModePanel() {
         break;
       case "chunk":
         setOutput((current) => current + event.text);
+        break;
+      case "status":
+        setStatusText(event.text);
+        setStatusLog((log) => [...log, event.text]);
         break;
       case "cached":
         setLane("cached");
@@ -138,6 +145,8 @@ export function AuraModePanel() {
     setRunDir(null);
     setError(null);
     setJobId(null);
+    setStatusText(null);
+    setStatusLog([]);
     setStreaming(true);
 
     try {
@@ -241,9 +250,10 @@ export function AuraModePanel() {
           >
             {t("ask.stop")}
           </button>
-          {streaming ? <span className="thinking">{t("ask.thinking")}</span> : null}
         </div>
       </form>
+
+      <LiveActivity streaming={streaming} status={statusText} log={statusLog} />
 
       {error ? <p className="notice error">{error}</p> : null}
 

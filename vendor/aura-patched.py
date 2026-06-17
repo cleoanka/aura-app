@@ -425,6 +425,11 @@ def emit_json(obj: dict) -> None:
     print(json.dumps(obj, ensure_ascii=False), flush=True)
 
 
+def emit_status(text: str, stage: str | None = None, agent: str | None = None) -> None:
+    """Verbose ilerleme bildirimi (cevap METNİ değil; UI ayrı 'aktivite' şeridinde gösterir)."""
+    emit_json({"type": "status", "text": text, "stage": stage, "agent": agent})
+
+
 def failure_taxonomy(reason: str | None, result: dict | None = None) -> str:
     blob = ((reason or "") + "\n" +
             ((result or {}).get("out", "") or "") + "\n" +
@@ -661,6 +666,7 @@ def cmd_plan_json(opts: dict) -> int:
         return json_error("plan needs a task", "config")
     lane = detect_lane(task, opts["lane_override"])
     emit_json({"type": "start", "mode": "plan", "lane": lane})
+    emit_status(f"Lane seçildi: {LANES[lane]['label']}", stage="init")
     try:
         run_dir = new_run_dir("plan")
         (run_dir / "prompt.txt").write_text(task)
@@ -669,11 +675,17 @@ def cmd_plan_json(opts: dict) -> int:
     steps = []
     research = ""
 
+    # İlk token gelince "yazıyor" durumuna geç (TTFT boşluğunu doldurur).
+    stream_state = {"first": True}
+
     def stream(t):
+        if stream_state["first"]:
+            emit_status("✍️ Yanıt yazılıyor…", stage="writing", agent="claude")
+            stream_state["first"] = False
         emit_json({"type": "chunk", "text": t})
 
     if opts["research"]:
-        emit_json({"type": "chunk", "text": "🔎 Gemini ile güncel kaynaklar araştırılıyor…\n\n"})
+        emit_status("🔎 Gemini güncel kaynakları araştırıyor…", stage="research", agent="gemini")
         rp = ("Research the following implementation task. Prioritise current, "
               "authoritative info; note versions/dates; give 2-3 viable approaches "
               "with trade-offs; flag anything deprecated. Be concise.\n\nQUESTION:\n" + task)
@@ -682,7 +694,7 @@ def cmd_plan_json(opts: dict) -> int:
         steps.append({k: r[k] for k in ("agent", "ok", "rc", "dur")})
         if r["ok"]:
             research = "Relevant up-to-date research:\n" + r["out"].strip() + "\n\n"
-            emit_json({"type": "chunk", "text": "✓ Araştırma tamam, plan hazırlanıyor…\n\n"})
+            emit_status("✓ Araştırma tamam, plan hazırlanıyor…", stage="research", agent="gemini")
 
     pp = (research +
           "You are the planner inside 'aura'. Produce a concrete, minimal plan for the "
@@ -690,6 +702,7 @@ def cmd_plan_json(opts: dict) -> int:
           "(numbered, concrete), Files to touch, Test strategy, Risks. Be specific "
           "and concise.\n\nTASK:\n" + task)
     # CANLI akış: claude'un cevabı GERÇEK token-token yayınlanır (stream-json).
+    emit_status("🧠 Claude düşünüyor…", stage="thinking", agent="claude")
     r = run_claude_stream(pp, run_dir=run_dir, step=2, lane=lane, on_delta=stream, timeout=900)
     steps.append({k: r[k] for k in ("agent", "ok", "rc", "dur")})
     if not r["ok"]:
