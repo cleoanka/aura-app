@@ -17,7 +17,7 @@ const JOB_TIMEOUT: Duration = Duration::from_secs(600);
 const MODE_PROMPT_PLACEHOLDER: &str = "<prompt-file>";
 
 #[derive(Serialize, Clone)]
-#[serde(tag = "kind")]
+#[serde(tag = "kind", rename_all = "snake_case")]
 pub enum AiEvent {
     Start { lane: String },
     /// İş kimliği baştan UI'a gönderilir → Stop butonu akış sırasında çalışır.
@@ -626,4 +626,48 @@ enum AuraJsonEvent {
     },
     #[serde(other)]
     Other,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // KRİTİK SÖZLEŞME: AiEvent.kind frontend ile birebir lowercase eşleşmeli.
+    // (PascalCase olursa UI'daki switch hiçbir case'i tutmaz → "Başlatılıyor" donar.)
+    fn kind(event: &AiEvent) -> String {
+        serde_json::to_value(event).unwrap()["kind"]
+            .as_str()
+            .unwrap()
+            .to_string()
+    }
+
+    #[test]
+    fn ai_event_kind_is_lowercase_for_frontend() {
+        assert_eq!(kind(&AiEvent::Start { lane: "fast".into() }), "start");
+        assert_eq!(kind(&AiEvent::Job { job_id: "j".into() }), "job");
+        assert_eq!(kind(&AiEvent::Chunk { text: "t".into() }), "chunk");
+        assert_eq!(kind(&AiEvent::Cached { text: "t".into() }), "cached");
+        assert_eq!(
+            kind(&AiEvent::Status {
+                text: "t".into(),
+                stage: None,
+                agent: None
+            }),
+            "status"
+        );
+        assert_eq!(kind(&AiEvent::Done { run_dir: None }), "done");
+        assert_eq!(
+            kind(&AiEvent::Error {
+                reason: "r".into(),
+                taxonomy: "t".into()
+            }),
+            "error"
+        );
+    }
+
+    #[test]
+    fn ai_event_job_carries_job_id_field() {
+        let value = serde_json::to_value(AiEvent::Job { job_id: "abc".into() }).unwrap();
+        assert_eq!(value["job_id"], "abc");
+    }
 }
