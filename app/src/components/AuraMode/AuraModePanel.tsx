@@ -1,7 +1,7 @@
 import { FormEvent, useRef, useState } from "react";
 
 import { useI18n } from "../../i18n";
-import { cancelJob, pickVaultFolder, runMode } from "../../lib/ipc";
+import { cancelJob, chat, pickVaultFolder, runMode } from "../../lib/ipc";
 import type { AiEvent, AiLane, AuraMode } from "../../lib/types";
 
 type ModeOption = {
@@ -11,6 +11,7 @@ type ModeOption = {
 };
 
 const modeOptions: ModeOption[] = [
+  { id: "chat", labelKey: "auraMode.chat", helperKey: "auraMode.chatHint" },
   { id: "plan", labelKey: "auraMode.plan", helperKey: "auraMode.planHint" },
   { id: "review", labelKey: "auraMode.review", helperKey: "auraMode.reviewHint" },
   { id: "fix", labelKey: "auraMode.fix", helperKey: "auraMode.fixHint" },
@@ -64,7 +65,7 @@ function requiresProjectDir(mode: AuraMode) {
 
 export function AuraModePanel() {
   const { t } = useI18n();
-  const [mode, setMode] = useState<AuraMode>("plan");
+  const [mode, setMode] = useState<AuraMode>("chat");
   const [projectDir, setProjectDir] = useState<string | null>(null);
   const [prompt, setPrompt] = useState("");
   const [output, setOutput] = useState("");
@@ -140,9 +141,11 @@ export function AuraModePanel() {
     setStreaming(true);
 
     try {
-      const id = await runMode(mode, trimmed, projectDir, (aiEvent) =>
-        handleAiEvent(requestId, aiEvent),
-      );
+      const onEvt = (aiEvent: AiEvent) => handleAiEvent(requestId, aiEvent);
+      const id =
+        mode === "chat"
+          ? await chat(trimmed, onEvt)
+          : await runMode(mode, trimmed, projectDir, onEvt);
 
       if (requestId === activeRequest.current && id.trim()) {
         setJobId(id);
@@ -201,12 +204,14 @@ export function AuraModePanel() {
           </div>
         </fieldset>
 
-        <div className="project-picker">
-          <button className="button" disabled={streaming} onClick={chooseProjectDir} type="button">
-            {t("auraMode.projectFolder")}
-          </button>
-          <span className="path-label mono">{projectDir ?? t("workspace.selectNote")}</span>
-        </div>
+        {requiresProjectDir(mode) ? (
+          <div className="project-picker">
+            <button className="button" disabled={streaming} onClick={chooseProjectDir} type="button">
+              {t("auraMode.projectFolder")}
+            </button>
+            <span className="path-label mono">{projectDir ?? t("workspace.selectNote")}</span>
+          </div>
+        ) : null}
 
         {mode === "fix" ? (
           <p className="notice aura-note">{t("auraMode.fixSafeNote")}</p>

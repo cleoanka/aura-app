@@ -128,7 +128,9 @@
     "graph.kind.binary": "Binary",
     "graph.kind.dangling": "Dangling",
     "settings.semanticSearch": "Semantic search (local embeddings)",
-    "settings.semanticHint": "uses CPU to embed files; off = fast FTS5 search"
+    "settings.semanticHint": "uses CPU to embed files; off = fast FTS5 search",
+    "auraMode.chat": "Chat",
+    "auraMode.chatHint": "plain chat with Claude (no notes)"
   },
   "tr": {
     "app.name": "AURA Desktop",
@@ -259,6 +261,8 @@
     "graph.kind.binary": "İkili",
     "graph.kind.dangling": "Kopuk",
     "settings.semanticSearch": "Anlamsal arama (yerel embedding)",
-    "settings.semanticHint": "dosyaları CPU ile embed eder; kapalı = hızlı FTS5 araması"
+    "settings.semanticHint": "dosyaları CPU ile embed eder; kapalı = hızlı FTS5 araması",
+    "auraMode.chat": "Sohbet",
+    "auraMode.chatHint": "Claude ile düz sohbet (notsuz)"
   }
 }

@@ -272,6 +272,20 @@ export async function askConsensus(
   }
 }
 
+export async function chat(
+  message: string,
+  onEvent: (event: AiEvent) => void,
+): Promise<string> {
+  const channel = new Channel<AiEvent>();
+  channel.onmessage = onEvent;
+
+  try {
+    return await invoke<string>("chat", { message, onEvent: channel });
+  } catch (error) {
+    throw readableError(error);
+  }
+}
+
 export async function cancelJob(id: string): Promise<void> {
   try {
     await invoke<void>("cancel_job", { jobId: id });

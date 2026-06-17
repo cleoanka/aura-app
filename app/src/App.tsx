@@ -3,6 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 
 import { AgentManager } from "./components/AgentManager";
 import { AppShell, type ActiveView } from "./components/AppShell";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { AuraModePanel } from "./components/AuraMode/AuraModePanel";
 import { AskPanel } from "./components/Ask/AskPanel";
 import { NoteEditor } from "./components/Editor/NoteEditor";
@@ -90,7 +91,7 @@ function App() {
       noteCount={noteCount}
       onActiveViewChange={setActiveView}
     >
-      {content}
+      <ErrorBoundary resetKey={activeView}>{content}</ErrorBoundary>
     </AppShell>
   );
 }
