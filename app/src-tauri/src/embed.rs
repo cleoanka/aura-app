@@ -144,7 +144,7 @@ mod candle_backend {
             let token_type_ids = Tensor::new(token_type_ids.as_slice(), &self.device)
                 .and_then(|tensor| tensor.unsqueeze(0))
                 .map_err(|err| format!("failed to create token_type_ids tensor: {err}"))?;
-            let attention_mask = Tensor::new(attention, &self.device)
+            let attention_mask = Tensor::new(attention.clone(), &self.device)
                 .and_then(|tensor| tensor.unsqueeze(0))
                 .map_err(|err| format!("failed to create attention_mask tensor: {err}"))?;
 

@@ -47,5 +47,5 @@ Otonom build (Opus 4.8 orkestratör + Codex implementer + Gemini verify). Ultrap
 - [x] PTY login paneli (xterm + portable-pty, app-içi OAuth) ✓ pty_argv test PASS
 - [x] uyarılar temizlendi (0 warning, 14 test binary OK)
 - [x] **FINAL: 'AURA Desktop.app' (14M) + .dmg (5.6M) build + smoke (açılıyor/çökmüyor) ✓**
-- [~] gerçek candle e5 embedding: feature-flag arkasında (`--features candle`), default StubEmbedder (build korunur); feature derlemesi doğrulanıyor
+- [x] gerçek candle e5 embedding: `--features candle` DERLENİYOR ✓ (default StubEmbedder korunur); runtime model-download ilk kullanımda
 - [ ] notarize: kullanıcı Apple Developer ID gerekir (T4.6) — dev build lokal çalışır
