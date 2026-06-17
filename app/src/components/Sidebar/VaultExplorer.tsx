@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { useI18n } from "../../i18n";
 import { indexVault, listNotes, pickVaultFolder } from "../../lib/ipc";
 import type { IndexStats, NoteRef } from "../../lib/types";
 
@@ -38,6 +39,7 @@ export function VaultExplorer({
   onNotesChange,
   onOpenNote,
 }: VaultExplorerProps) {
+  const { t } = useI18n();
   const [notes, setNotes] = useState<NoteRef[]>([]);
   const [loading, setLoading] = useState(true);
   const [indexing, setIndexing] = useState(false);
@@ -53,13 +55,13 @@ export function VaultExplorer({
       setNotes(nextNotes);
       onNotesChange(nextNotes.length);
     } catch {
-      setError("Notlar alınamadı. Vault seçimini veya indeks durumunu kontrol edin.");
+      setError(t("common.error"));
       setNotes([]);
       onNotesChange(0);
     } finally {
       setLoading(false);
     }
-  }, [onNotesChange]);
+  }, [onNotesChange, t]);
 
   useEffect(() => {
     void refreshNotes();
@@ -95,44 +97,43 @@ export function VaultExplorer({
       onNotesChange(stats.notes);
       await refreshNotes();
     } catch {
-      setError("Vault indekslenemedi. Klasörü ve arka uç komutlarını kontrol edin.");
+      setError(t("common.error"));
     } finally {
       setIndexing(false);
     }
   };
 
   return (
-    <aside className="vault-panel" aria-label="Vault gezgini">
+    <aside className="vault-panel" aria-label={t("nav.workspace")}>
       <div className="panel-header compact">
         <div>
-          <p className="eyebrow">Workspace</p>
-          <h2>Notlar</h2>
+          <p className="eyebrow">{t("nav.workspace")}</p>
+          <h2>{t("workspace.title")}</h2>
         </div>
         <button
-          aria-label="Vault klasörü seç"
+          aria-label={t("workspace.openFolder")}
           className="button primary"
           disabled={indexing}
           onClick={selectVault}
           type="button"
         >
-          {indexing ? "İndeksleniyor" : "Vault Seç"}
+          {indexing ? t("common.loading") : t("workspace.openFolder")}
         </button>
       </div>
 
       {indexStats ? (
-        <div className="index-stats" aria-label="İndeks özeti">
-          <span>{indexStats.notes} not</span>
-          <span>{indexStats.chunks} parça</span>
-          <span>{indexStats.skipped} atlandı</span>
+        <div className="index-stats" aria-label={t("status.indexed")}>
+          <span>{t("workspace.notesCount", { count: indexStats.notes })}</span>
+          <span>{indexStats.chunks} · {indexStats.skipped}</span>
         </div>
       ) : null}
 
       {error ? <p className="notice error">{error}</p> : null}
-      {loading ? <p className="notice">Notlar yükleniyor...</p> : null}
+      {loading ? <p className="notice">{t("common.loading")}</p> : null}
 
-      <div className="note-tree" aria-label="Not listesi">
+      <div className="note-tree" aria-label={t("workspace.title")}>
         {!loading && groups.length === 0 ? (
-          <p className="empty-state">Henüz not yok.</p>
+          <p className="empty-state">{t("workspace.noNotes")}</p>
         ) : null}
 
         {groups.map((group) => (
