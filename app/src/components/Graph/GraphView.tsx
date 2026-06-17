@@ -1,15 +1,28 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import ForceGraph2D from "react-force-graph-2d";
+import type { NodeObject } from "react-force-graph-2d";
 
 import { getGraph } from "../../lib/ipc";
-import type { GraphData, GraphNode, NoteRef } from "../../lib/types";
+import type { GraphData, GraphLink, GraphNode, NoteRef } from "../../lib/types";
 
 type GraphViewProps = {
   onOpenNote: (note: NoteRef) => void;
 };
 
-type PositionedNode = GraphNode & {
-  x: number;
-  y: number;
+type GraphCanvasNode = GraphNode & {
+  id: string;
+  title: string;
+  dangling: boolean;
+};
+
+type GraphCanvasLink = GraphLink & {
+  source: string;
+  target: string;
+};
+
+type GraphSize = {
+  width: number;
+  height: number;
 };
 
 const emptyGraph: GraphData = {
@@ -17,72 +30,126 @@ const emptyGraph: GraphData = {
   links: [],
 };
 
+const fallbackSize: GraphSize = {
+  width: 720,
+  height: 420,
+};
+
+function getCssVar(name: string, fallback: string) {
+  if (typeof window === "undefined") {
+    return fallback;
+  }
+
+  const value = window
+    .getComputedStyle(document.documentElement)
+    .getPropertyValue(name)
+    .trim();
+
+  return value || fallback;
+}
+
 export function GraphView({ onOpenNote }: GraphViewProps) {
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const requestIdRef = useRef(0);
   const [graph, setGraph] = useState<GraphData>(emptyGraph);
+  const [size, setSize] = useState<GraphSize>(fallbackSize);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let alive = true;
-
+  const fetchGraph = useCallback(async () => {
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
     setLoading(true);
     setError(null);
 
-    void getGraph()
-      .then((data) => {
-        if (alive) {
-          setGraph({
-            nodes: Array.isArray(data.nodes) ? data.nodes : [],
-            links: Array.isArray(data.links) ? data.links : [],
-          });
-        }
-      })
-      .catch(() => {
-        if (alive) {
-          setError("Graf alınamadı.");
-          setGraph(emptyGraph);
-        }
-      })
-      .finally(() => {
-        if (alive) {
-          setLoading(false);
-        }
-      });
+    try {
+      const data = await getGraph();
 
-    return () => {
-      alive = false;
-    };
+      if (requestIdRef.current !== requestId) {
+        return;
+      }
+
+      setGraph({
+        nodes: Array.isArray(data.nodes) ? data.nodes : [],
+        links: Array.isArray(data.links) ? data.links : [],
+      });
+    } catch {
+      if (requestIdRef.current !== requestId) {
+        return;
+      }
+
+      setError("Graf alınamadı.");
+      setGraph(emptyGraph);
+    } finally {
+      if (requestIdRef.current === requestId) {
+        setLoading(false);
+      }
+    }
   }, []);
 
-  const positioned = useMemo<PositionedNode[]>(() => {
-    const columns = Math.max(1, Math.ceil(Math.sqrt(graph.nodes.length || 1)));
-    const cellWidth = 150;
-    const cellHeight = 112;
+  useEffect(() => {
+    void fetchGraph();
 
-    return graph.nodes.map((node, index) => ({
-      ...node,
-      x: 78 + (index % columns) * cellWidth,
-      y: 58 + Math.floor(index / columns) * cellHeight,
-    }));
-  }, [graph.nodes]);
+    return () => {
+      requestIdRef.current += 1;
+    };
+  }, [fetchGraph]);
 
-  const nodeMap = useMemo(() => {
-    return new Map(positioned.map((node) => [node.id, node]));
-  }, [positioned]);
+  useEffect(() => {
+    const stage = stageRef.current;
 
-  const linkCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-
-    for (const link of graph.links) {
-      counts.set(link.source, (counts.get(link.source) ?? 0) + 1);
-      counts.set(link.target, (counts.get(link.target) ?? 0) + 1);
+    if (!stage) {
+      return undefined;
     }
 
-    return counts;
-  }, [graph.links]);
+    const resize = () => {
+      const rect = stage.getBoundingClientRect();
 
-  const width = Math.max(620, Math.max(...positioned.map((node) => node.x), 0) + 90);
-  const height = Math.max(360, Math.max(...positioned.map((node) => node.y), 0) + 90);
+      setSize({
+        width: Math.max(320, Math.floor(rect.width)),
+        height: Math.max(320, Math.floor(rect.height)),
+      });
+    };
+
+    resize();
+
+    const observer = new ResizeObserver(resize);
+    observer.observe(stage);
+
+    return () => observer.disconnect();
+  }, []);
+
+  const graphData = useMemo(() => {
+    const nodes: GraphCanvasNode[] = graph.nodes.map((node) => ({
+      id: node.id,
+      title: node.title,
+      dangling: node.dangling,
+    }));
+    const links: GraphCanvasLink[] = graph.links.map((link) => ({
+      source: link.source,
+      target: link.target,
+    }));
+
+    return { nodes, links };
+  }, [graph]);
+
+  const colors = useMemo(
+    () => ({
+      dangling: "#6b7280",
+      link: "rgba(167, 167, 180, 0.22)",
+      normal: getCssVar("--accent", "#7c6cff"),
+    }),
+    [],
+  );
+
+  const handleNodeClick = useCallback(
+    (node: NodeObject<GraphCanvasNode>) => {
+      onOpenNote({ path: node.id, title: node.title });
+    },
+    [onOpenNote],
+  );
+
+  const hasGraph = graphData.nodes.length > 0;
 
   return (
     <section className="task-panel graph-panel" aria-labelledby="graph-title">
@@ -91,72 +158,37 @@ export function GraphView({ onOpenNote }: GraphViewProps) {
           <p className="eyebrow">Graf</p>
           <h1 id="graph-title">Bağlantılar</h1>
         </div>
-        <span className="badge accent">Faz 4'te kuvvet-yönelimli</span>
+        <div className="toolbar graph-toolbar" aria-label="Graf işlemleri">
+          <span className="badge">
+            {graphData.nodes.length} düğüm · {graphData.links.length} bağlantı
+          </span>
+          <button className="button" disabled={loading} onClick={() => void fetchGraph()} type="button">
+            {loading ? "Yükleniyor" : "Yenile"}
+          </button>
+        </div>
       </header>
 
-      {loading ? <p className="notice">Graf yükleniyor...</p> : null}
       {error ? <p className="notice error">{error}</p> : null}
 
-      {!loading && positioned.length === 0 ? (
-        <p className="empty-state">Graf boş.</p>
-      ) : (
-        <div className="graph-stage" aria-label="Not grafiği">
-          <svg role="img" viewBox={`0 0 ${width} ${height}`}>
-            {graph.links.map((link) => {
-              const source = nodeMap.get(link.source);
-              const target = nodeMap.get(link.target);
-
-              if (!source || !target) {
-                return null;
-              }
-
-              return (
-                <line
-                  className="graph-link"
-                  key={`${link.source}->${link.target}`}
-                  x1={source.x}
-                  x2={target.x}
-                  y1={source.y}
-                  y2={target.y}
-                />
-              );
-            })}
-
-            {positioned.map((node) => (
-              <g
-                className="graph-node"
-                key={node.id}
-                onClick={() => onOpenNote({ path: node.id, title: node.title })}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    onOpenNote({ path: node.id, title: node.title });
-                  }
-                }}
-                role="button"
-                tabIndex={0}
-              >
-                <circle className={node.dangling ? "is-dangling" : ""} cx={node.x} cy={node.y} r="19" />
-                <text x={node.x} y={node.y + 37}>
-                  {node.title}
-                </text>
-              </g>
-            ))}
-          </svg>
-        </div>
-      )}
-
-      <div className="node-list" aria-label="Graf düğümleri">
-        {positioned.map((node) => (
-          <button
-            className="node-list-item"
-            key={node.id}
-            onClick={() => onOpenNote({ path: node.id, title: node.title })}
-            type="button"
-          >
-            <span>{node.title}</span>
-            <span className="badge">{linkCounts.get(node.id) ?? 0} bağlantı</span>
-          </button>
-        ))}
+      <div className="graph-stage" ref={stageRef} aria-label="Not grafiği">
+        {loading && !hasGraph ? <p className="graph-overlay">Graf yükleniyor...</p> : null}
+        {!loading && !hasGraph ? <p className="graph-overlay">Graf boş.</p> : null}
+        {hasGraph ? (
+          <ForceGraph2D<GraphCanvasNode, GraphCanvasLink>
+            backgroundColor="rgba(0,0,0,0)"
+            cooldownTicks={100}
+            graphData={graphData}
+            height={size.height}
+            linkColor={() => colors.link}
+            linkWidth={1}
+            nodeColor={(node) => (node.dangling ? colors.dangling : colors.normal)}
+            nodeLabel={(node) => node.title}
+            nodeRelSize={5.4}
+            onNodeClick={handleNodeClick}
+            showPointerCursor
+            width={size.width}
+          />
+        ) : null}
       </div>
     </section>
   );
