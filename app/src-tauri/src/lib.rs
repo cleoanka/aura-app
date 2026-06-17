@@ -20,7 +20,7 @@ use commands::{
     index_vault, list_notes, pick_vault_folder, pty_close, pty_open, pty_resize, pty_write,
     read_note, run_mode, search_fts, search_hybrid, set_settings, write_note,
 };
-use embed::StubEmbedder;
+use embed::default_embedder;
 use indexer::Indexer;
 use std::sync::Mutex;
 
@@ -75,5 +75,5 @@ fn create_indexer_state() -> Result<Mutex<Indexer>, String> {
     std::fs::create_dir_all(&db_dir).map_err(|err| err.to_string())?;
     let db_path = db_dir.join("index.sqlite3");
     let conn = db::open(&db_path).map_err(|err| err.to_string())?;
-    Ok(Mutex::new(Indexer::new(conn, Box::new(StubEmbedder), 1)))
+    Ok(Mutex::new(Indexer::new(conn, default_embedder(), 1)))
 }
