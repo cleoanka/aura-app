@@ -1,10 +1,35 @@
-use serde::Deserialize;
+use crate::env_resolver;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
+use std::io::{BufRead, BufReader};
 use std::time::Duration;
 
 #[derive(Deserialize)]
 struct OllamaGenerateResponse {
     response: String,
+}
+
+#[derive(Serialize)]
+pub struct OllamaStatus {
+    pub installed: bool,
+    pub running: bool,
+    pub models: Vec<String>,
+}
+
+#[derive(Deserialize)]
+struct OllamaTagsResponse {
+    models: Vec<OllamaModel>,
+}
+
+#[derive(Deserialize)]
+struct OllamaModel {
+    name: String,
+}
+
+#[derive(Deserialize)]
+struct OllamaPullResponse {
+    status: Option<String>,
+    error: Option<String>,
 }
 
 pub fn ollama_generate(base_url: &str, model: &str, prompt: &str) -> Result<String, String> {
@@ -33,6 +58,100 @@ pub fn ollama_available(base_url: &str) -> bool {
         .build();
     let agent = config.new_agent();
     agent.get(&url).call().is_ok()
+}
+
+pub fn ollama_status(base_url: Option<String>) -> OllamaStatus {
+    let installed = env_resolver::login_command("/bin/zsh")
+        .args(["-lc", "command -v ollama"])
+        .output()
+        .map(|output| output.status.success())
+        .unwrap_or(false);
+
+    let base_url = base_url.unwrap_or_else(default_ollama_base_url);
+    let url = format!("{}/api/tags", normalized_base_url(&base_url));
+    let config = ureq::Agent::config_builder()
+        .timeout_global(Some(Duration::from_secs(2)))
+        .build();
+    let agent = config.new_agent();
+
+    let models = match agent.get(&url).call() {
+        Ok(mut response) => match response.body_mut().read_json::<OllamaTagsResponse>() {
+            Ok(tags) => tags.models.into_iter().map(|model| model.name).collect(),
+            Err(_) => {
+                return OllamaStatus {
+                    installed,
+                    running: false,
+                    models: Vec::new(),
+                };
+            }
+        },
+        Err(_) => {
+            return OllamaStatus {
+                installed,
+                running: false,
+                models: Vec::new(),
+            };
+        }
+    };
+
+    OllamaStatus {
+        installed,
+        running: true,
+        models,
+    }
+}
+
+pub fn ollama_pull<F>(model: &str, base_url: Option<String>, mut on_status: F) -> Result<(), String>
+where
+    F: FnMut(String) -> Result<(), String>,
+{
+    let base_url = base_url.unwrap_or_else(default_ollama_base_url);
+    let url = format!("{}/api/pull", normalized_base_url(&base_url));
+    let body = json!({
+        "name": model,
+        "stream": true,
+    });
+    let config = ureq::Agent::config_builder()
+        .timeout_global(Some(Duration::from_secs(60 * 60)))
+        .build();
+    let agent = config.new_agent();
+    let mut response = agent
+        .post(&url)
+        .send_json(body)
+        .map_err(|err| friendly_ollama_error(&base_url, err))?;
+
+    let reader = BufReader::new(response.body_mut().as_reader());
+    for line in reader.lines() {
+        let line = line.map_err(|err| format!("failed to read Ollama pull stream: {err}"))?;
+        if line.trim().is_empty() {
+            continue;
+        }
+        let status = parse_pull_status_line(&line);
+        on_status(status)?;
+    }
+
+    Ok(())
+}
+
+pub fn parse_ollama_tags_json(json_text: &str) -> Vec<String> {
+    serde_json::from_str::<OllamaTagsResponse>(json_text)
+        .map(|tags| tags.models.into_iter().map(|model| model.name).collect())
+        .unwrap_or_default()
+}
+
+fn parse_pull_status_line(line: &str) -> String {
+    match serde_json::from_str::<OllamaPullResponse>(line) {
+        Ok(response) => response
+            .error
+            .map(|error| format!("error: {error}"))
+            .or(response.status)
+            .unwrap_or_else(|| line.to_string()),
+        Err(_) => line.to_string(),
+    }
+}
+
+fn default_ollama_base_url() -> String {
+    "http://localhost:11434".to_string()
 }
 
 fn normalized_base_url(base_url: &str) -> String {
