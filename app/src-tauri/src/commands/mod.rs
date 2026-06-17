@@ -6,7 +6,7 @@ pub mod settings;
 pub mod vault;
 
 pub use agents::{agent_detect, agent_install};
-pub use ai::{ask, cancel_job};
+pub use ai::{ask, ask_consensus, cancel_job};
 pub use index::{get_graph, index_vault, search_fts};
 pub use modes::run_mode;
 pub use settings::{get_settings, set_settings};
