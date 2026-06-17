@@ -1,7 +1,7 @@
 use app_lib::db;
 
 #[test]
-fn sqlite_vec_and_fts5_work() -> rusqlite::Result<()> {
+fn vector_fallback_and_fts5_work() -> db::Result<()> {
     let conn = db::open_in_memory()?;
 
     db::upsert_note(
