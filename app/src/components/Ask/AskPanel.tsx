@@ -2,42 +2,46 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 
 import { ask, askConsensus, cancelJob, getSettings } from "../../lib/ipc";
 import type { AiEvent, AiLane } from "../../lib/types";
+import { useI18n } from "../../i18n";
 
-function laneLabel(lane: AiLane | null) {
+type TFn = (key: string, vars?: Record<string, string | number>) => string;
+
+function laneLabel(lane: AiLane | null, t: TFn) {
   switch (lane) {
     case "cached":
-      return "Önbellek";
+      return t("ask.lane.cached");
     case "fast":
-      return "Hızlı";
+      return t("ask.lane.fast");
     case "deep":
-      return "Derin";
+      return t("ask.lane.deep");
     case "consensus":
-      return "Konsensüs";
+      return t("ask.lane.consensus");
     case "lane0":
-      return "Lane 0";
+      return t("ask.lane.lane0");
     case null:
-      return "Hazır";
+      return t("status.ready");
     default:
       return lane;
   }
 }
 
-function friendlyAiError(taxonomy?: string) {
+function friendlyAiError(t: TFn, taxonomy?: string) {
   switch (taxonomy) {
     case "cancelled":
-      return "Yanıt durduruldu.";
+      return t("ask.stop");
     case "auth":
-      return "AI ajanı için giriş veya yetki gerekiyor.";
+      return t("agents.auth.loggedOut");
     case "rate_limit":
-      return "AI ajanı şu anda limitte. Biraz sonra yeniden deneyin.";
+      return t("agents.auth.rateLimited");
     case "timeout":
-      return "Yanıt süresi doldu. Daha kısa bir soru deneyin.";
+      return t("ask.error");
     default:
-      return "Yanıt alınamadı. Ajan durumunu kontrol edip yeniden deneyin.";
+      return t("ask.error");
   }
 }
 
 export function AskPanel() {
+  const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [answer, setAnswer] = useState("");
   const [lane, setLane] = useState<AiLane | null>(null);
@@ -98,7 +102,7 @@ export function AskPanel() {
         break;
       case "error":
         setStreaming(false);
-        setError(friendlyAiError(event.taxonomy));
+        setError(friendlyAiError(t, event.taxonomy));
         break;
     }
   };
@@ -131,7 +135,7 @@ export function AskPanel() {
     } catch {
       if (requestId === activeRequest.current) {
         setStreaming(false);
-        setError(friendlyAiError());
+        setError(friendlyAiError(t));
       }
     }
   };
@@ -144,9 +148,9 @@ export function AskPanel() {
     try {
       await cancelJob(jobId);
       setStreaming(false);
-      setError(friendlyAiError("cancelled"));
+      setError(friendlyAiError(t, "cancelled"));
     } catch {
-      setError("Durdurma isteği gönderilemedi.");
+      setError(t("ask.error"));
     }
   };
 
@@ -154,27 +158,27 @@ export function AskPanel() {
     <section className="task-panel ask-panel" aria-labelledby="ask-title">
       <header className="panel-header">
         <div>
-          <p className="eyebrow">ASK</p>
-          <h1 id="ask-title">AI Q&amp;A</h1>
+          <p className="eyebrow">{t("nav.ask")}</p>
+          <h1 id="ask-title">{t("settings.mode.ask")}</h1>
         </div>
-        <span className={`lane-badge lane-${lane ?? "idle"}`}>{laneLabel(lane)}</span>
+        <span className={`lane-badge lane-${lane ?? "idle"}`}>{laneLabel(lane, t)}</span>
       </header>
 
       <form className="ask-form" onSubmit={submit}>
         <label className="field-label" htmlFor="ask-query">
-          Soru
+          {t("nav.ask")}
         </label>
         <textarea
           className="prompt-input"
           id="ask-query"
           onChange={(event) => setQuery(event.currentTarget.value)}
-          placeholder="Vault hakkında sor"
+          placeholder={t("ask.placeholder")}
           rows={4}
           value={query}
         />
         <div className="toolbar ask-actions">
           <button className="button primary" disabled={streaming} type="submit">
-            Sor
+            {t("ask.button")}
           </button>
           {consensusAvailable ? (
             <label className="consensus-toggle">
@@ -184,8 +188,8 @@ export function AskPanel() {
                 onChange={(event) => setConsensusChecked(event.currentTarget.checked)}
                 type="checkbox"
               />
-              <span>Consensus</span>
-              <small>3 ajan · ~3× maliyet</small>
+              <span>{t("ask.consensus")}</span>
+              <small>{t("ask.consensusHint")}</small>
             </label>
           ) : null}
           <button
@@ -194,16 +198,16 @@ export function AskPanel() {
             onClick={stop}
             type="button"
           >
-            Durdur
+            {t("ask.stop")}
           </button>
-          {streaming ? <span className="thinking">düşünüyor...</span> : null}
+          {streaming ? <span className="thinking">{t("ask.thinking")}</span> : null}
         </div>
       </form>
 
       {error ? <p className="notice error">{error}</p> : null}
 
-      <article className="answer-box" aria-live="polite" aria-label="AI yanıtı">
-        {answer ? <pre>{answer}</pre> : <p className="empty-state">Yanıt burada görünür.</p>}
+      <article className="answer-box" aria-live="polite" aria-label={t("settings.mode.ask")}>
+        {answer ? <pre>{answer}</pre> : <p className="empty-state">{t("ask.placeholder")}</p>}
       </article>
 
       {runDir ? <p className="path-label mono">Run: {runDir}</p> : null}

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ForceGraph2D from "react-force-graph-2d";
 import type { NodeObject } from "react-force-graph-2d";
 
+import { useI18n } from "../../i18n";
 import { getGraph } from "../../lib/ipc";
 import type { GraphData, GraphLink, GraphNode, NoteRef } from "../../lib/types";
 
@@ -49,6 +50,7 @@ function getCssVar(name: string, fallback: string) {
 }
 
 export function GraphView({ onOpenNote }: GraphViewProps) {
+  const { t } = useI18n();
   const stageRef = useRef<HTMLDivElement | null>(null);
   const requestIdRef = useRef(0);
   const [graph, setGraph] = useState<GraphData>(emptyGraph);
@@ -78,14 +80,14 @@ export function GraphView({ onOpenNote }: GraphViewProps) {
         return;
       }
 
-      setError("Graf alınamadı.");
+      setError(t("common.error"));
       setGraph(emptyGraph);
     } finally {
       if (requestIdRef.current === requestId) {
         setLoading(false);
       }
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void fetchGraph();
@@ -155,24 +157,24 @@ export function GraphView({ onOpenNote }: GraphViewProps) {
     <section className="task-panel graph-panel" aria-labelledby="graph-title">
       <header className="panel-header">
         <div>
-          <p className="eyebrow">Graf</p>
-          <h1 id="graph-title">Bağlantılar</h1>
+          <p className="eyebrow">{t("nav.graph")}</p>
+          <h1 id="graph-title">{t("graph.title")}</h1>
         </div>
-        <div className="toolbar graph-toolbar" aria-label="Graf işlemleri">
+        <div className="toolbar graph-toolbar" aria-label={t("graph.title")}>
           <span className="badge">
-            {graphData.nodes.length} düğüm · {graphData.links.length} bağlantı
+            {graphData.nodes.length} {t("graph.nodes")} · {graphData.links.length} {t("graph.links")}
           </span>
           <button className="button" disabled={loading} onClick={() => void fetchGraph()} type="button">
-            {loading ? "Yükleniyor" : "Yenile"}
+            {loading ? t("common.loading") : t("graph.refresh")}
           </button>
         </div>
       </header>
 
       {error ? <p className="notice error">{error}</p> : null}
 
-      <div className="graph-stage" ref={stageRef} aria-label="Not grafiği">
-        {loading && !hasGraph ? <p className="graph-overlay">Graf yükleniyor...</p> : null}
-        {!loading && !hasGraph ? <p className="graph-overlay">Graf boş.</p> : null}
+      <div className="graph-stage" ref={stageRef} aria-label={t("graph.title")}>
+        {loading && !hasGraph ? <p className="graph-overlay">{t("common.loading")}</p> : null}
+        {!loading && !hasGraph ? <p className="graph-overlay">{t("graph.empty")}</p> : null}
         {hasGraph ? (
           <ForceGraph2D<GraphCanvasNode, GraphCanvasLink>
             backgroundColor="rgba(0,0,0,0)"

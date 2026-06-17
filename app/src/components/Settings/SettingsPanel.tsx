@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 
+import { useI18n } from "../../i18n";
 import { getSettings, setSettings } from "../../lib/ipc";
 import type { CacheMode, DefaultMode, LaneSettings, Settings, ThemeMode } from "../../lib/types";
 
@@ -38,6 +39,7 @@ function normalize(settings: Settings | null): SettingsForm {
 }
 
 export function SettingsPanel() {
+  const { t } = useI18n();
   const [baseSettings, setBaseSettings] = useState<Settings>({});
   const [form, setForm] = useState<SettingsForm>(defaultForm);
   const [loading, setLoading] = useState(true);
@@ -61,7 +63,7 @@ export function SettingsPanel() {
       })
       .catch(() => {
         if (alive) {
-          setError("Ayarlar alınamadı. Varsayılanlar gösteriliyor.");
+          setError(t("common.error"));
         }
       })
       .finally(() => {
@@ -73,7 +75,7 @@ export function SettingsPanel() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [t]);
 
   const updateTheme = (theme: ThemeMode) => {
     setForm((current) => ({ ...current, theme }));
@@ -110,9 +112,9 @@ export function SettingsPanel() {
     try {
       await setSettings(nextSettings);
       setBaseSettings(nextSettings);
-      setMessage("Ayarlar kaydedildi.");
+      setMessage(t("settings.saved"));
     } catch {
-      setError("Ayarlar kaydedilemedi.");
+      setError(t("common.error"));
     } finally {
       setSaving(false);
     }
@@ -122,11 +124,11 @@ export function SettingsPanel() {
     <section className="task-panel settings-panel" aria-labelledby="settings-title">
       <header className="panel-header">
         <div>
-          <p className="eyebrow">Ayarlar</p>
-          <h1 id="settings-title">Çalışma tercihleri</h1>
+          <p className="eyebrow">{t("settings.title")}</p>
+          <h1 id="settings-title">{t("settings.title")}</h1>
         </div>
         <button className="button primary" disabled={loading || saving} onClick={save} type="button">
-          {saving ? "Kaydediliyor" : "Kaydet"}
+          {saving ? t("common.loading") : t("settings.save")}
         </button>
       </header>
 
@@ -135,7 +137,7 @@ export function SettingsPanel() {
 
       <div className="settings-grid">
         <fieldset className="settings-group">
-          <legend>Tema</legend>
+          <legend>{t("settings.theme")}</legend>
           <label className="radio-row">
             <input
               checked={form.theme === "dark"}
@@ -143,7 +145,7 @@ export function SettingsPanel() {
               onChange={() => updateTheme("dark")}
               type="radio"
             />
-            <span>Koyu</span>
+            <span>{t("settings.theme.dark")}</span>
           </label>
           <label className="radio-row">
             <input
@@ -152,12 +154,12 @@ export function SettingsPanel() {
               onChange={() => updateTheme("light")}
               type="radio"
             />
-            <span>Açık</span>
+            <span>{t("settings.theme.light")}</span>
           </label>
         </fieldset>
 
         <fieldset className="settings-group">
-          <legend>Varsayılan mod</legend>
+          <legend>{t("settings.defaultMode")}</legend>
           <label className="radio-row">
             <input
               checked={form.defaultMode === "ask"}
@@ -165,7 +167,7 @@ export function SettingsPanel() {
               onChange={() => setForm((current) => ({ ...current, defaultMode: "ask" }))}
               type="radio"
             />
-            <span>ASK</span>
+            <span>{t("settings.mode.ask")}</span>
           </label>
           <label className="radio-row">
             <input
@@ -174,14 +176,14 @@ export function SettingsPanel() {
               onChange={() => setForm((current) => ({ ...current, defaultMode: "aura" }))}
               type="radio"
             />
-            <span>Aura</span>
+            <span>{t("settings.mode.aura")}</span>
           </label>
         </fieldset>
 
         <fieldset className="settings-group">
-          <legend>Lane'ler</legend>
+          <legend>{t("settings.lanes")}</legend>
           <label className="toggle-row">
-            <span>Fast</span>
+            <span>{t("settings.lane.fast")}</span>
             <input
               checked={form.lanes.fast}
               onChange={(event) => updateLane("fast", event.currentTarget.checked)}
@@ -189,7 +191,7 @@ export function SettingsPanel() {
             />
           </label>
           <label className="toggle-row">
-            <span>Deep</span>
+            <span>{t("settings.lane.deep")}</span>
             <input
               checked={form.lanes.deep}
               onChange={(event) => updateLane("deep", event.currentTarget.checked)}
@@ -197,7 +199,7 @@ export function SettingsPanel() {
             />
           </label>
           <label className="toggle-row">
-            <span>Lane 0</span>
+            <span>{t("settings.lane.lane0")}</span>
             <input
               checked={form.lanes.lane0}
               onChange={(event) => updateLane("lane0", event.currentTarget.checked)}
@@ -207,9 +209,9 @@ export function SettingsPanel() {
         </fieldset>
 
         <fieldset className="settings-group">
-          <legend>AI çalıştırma</legend>
+          <legend>{t("settings.localGen")}</legend>
           <label className="toggle-row">
-            <span>Konsensüs <small>3x maliyet</small></span>
+            <span>{t("settings.consensus")} <small>{t("settings.consensusCostHint")}</small></span>
             <input
               checked={form.consensusEnabled}
               onChange={(event) =>
@@ -223,7 +225,7 @@ export function SettingsPanel() {
           </label>
 
           <label className="field-label" htmlFor="cache-mode">
-            Önbellek
+            {t("settings.cacheMode")}
           </label>
           <select
             className="text-input"
@@ -233,7 +235,7 @@ export function SettingsPanel() {
             }
             value={form.cacheMode}
           >
-            <option value="off">Kapalı</option>
+            <option value="off">{t("settings.cache.off")}</option>
             <option value="read">Oku</option>
             <option value="write">Yaz</option>
             <option value="read_write">Oku + yaz</option>

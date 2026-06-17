@@ -4,6 +4,7 @@ import CodeMirror, { EditorView } from "@uiw/react-codemirror";
 
 import { readNote, writeNote } from "../../lib/ipc";
 import type { NoteRef } from "../../lib/types";
+import { useI18n } from "../../i18n";
 
 type NoteEditorProps = {
   note: NoteRef | null;
@@ -15,6 +16,7 @@ function basename(path: string) {
 }
 
 export function NoteEditor({ note }: NoteEditorProps) {
+  const { t } = useI18n();
   const [content, setContent] = useState("");
   const [savedContent, setSavedContent] = useState("");
   const [loading, setLoading] = useState(false);
@@ -28,11 +30,11 @@ export function NoteEditor({ note }: NoteEditorProps) {
   const editorExtensions = useMemo(() => [markdown(), EditorView.lineWrapping], []);
   const title = useMemo(() => {
     if (!note) {
-      return "Not editörü";
+      return t("workspace.selectNote");
     }
 
     return note.title || basename(note.path);
-  }, [note]);
+  }, [note, t]);
 
   useEffect(() => {
     let alive = true;
@@ -62,7 +64,7 @@ export function NoteEditor({ note }: NoteEditorProps) {
       })
       .catch(() => {
         if (alive) {
-          setError("Not açılamadı.");
+          setError(t("common.error"));
           setContent("");
           setSavedContent("");
         }
@@ -76,7 +78,7 @@ export function NoteEditor({ note }: NoteEditorProps) {
     return () => {
       alive = false;
     };
-  }, [note]);
+  }, [note, t]);
 
   const save = useCallback(async () => {
     if (!note || savingRef.current || content === savedContent) {
@@ -97,12 +99,12 @@ export function NoteEditor({ note }: NoteEditorProps) {
         minute: "2-digit",
       }).format(new Date()));
     } catch {
-      setError("Not kaydedilemedi.");
+      setError(t("common.error"));
     } finally {
       savingRef.current = false;
       setSaving(false);
     }
-  }, [content, note, savedContent]);
+  }, [content, note, savedContent, t]);
 
   useEffect(() => {
     if (saveTimerRef.current !== null) {
@@ -129,38 +131,38 @@ export function NoteEditor({ note }: NoteEditorProps) {
 
   if (!note) {
     return (
-      <section className="editor-pane empty-editor" aria-label="Not editörü">
-        <div className="empty-state large">Bir not seçin.</div>
+      <section className="editor-pane empty-editor" aria-label={t("workspace.selectNote")}>
+        <div className="empty-state large">{t("workspace.selectNote")}</div>
       </section>
     );
   }
 
   return (
-    <section className="editor-pane" aria-label="Not editörü">
+    <section className="editor-pane" aria-label={t("nav.workspace")}>
       <header className="editor-header">
         <div className="editor-title">
-          <p className="eyebrow">Editör</p>
+          <p className="eyebrow">{t("nav.workspace")}</p>
           <h1>{title}</h1>
           <p className="path-label mono">{note.path}</p>
         </div>
-        <div className="toolbar" aria-label="Not işlemleri">
+        <div className="toolbar" aria-label={t("nav.workspace")}>
           <span className={`save-state ${isDirty ? "is-dirty" : ""}`}>
             {loading
-              ? "Yükleniyor"
+              ? t("common.loading")
               : isDirty
                 ? "Kaydedilmedi"
                 : savedAt
-                  ? `Kaydedildi ${savedAt}`
-                  : "Kaydedildi"}
+                  ? `${t("editor.saved")} ${savedAt}`
+                  : t("editor.saved")}
           </span>
           <button
-            aria-label="Notu kaydet"
+            aria-label={t("editor.save")}
             className="button primary"
             disabled={loading || saving || !isDirty}
             onClick={save}
             type="button"
           >
-            {saving ? "Kaydediliyor" : "Kaydet"}
+            {saving ? t("editor.save") : t("editor.save")}
           </button>
         </div>
       </header>
@@ -168,7 +170,7 @@ export function NoteEditor({ note }: NoteEditorProps) {
       {error ? <p className="notice error">{error}</p> : null}
 
       <CodeMirror
-        aria-label={`${title} içeriği`}
+        aria-label={title}
         basicSetup={{
           foldGutter: false,
           highlightActiveLineGutter: false,

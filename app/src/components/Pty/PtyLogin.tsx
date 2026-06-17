@@ -5,6 +5,7 @@ import "@xterm/xterm/css/xterm.css";
 
 import { ptyClose, ptyOpen, ptyResize, ptyWrite } from "../../lib/ipc";
 import type { AgentId } from "../../lib/types";
+import { useI18n } from "../../i18n";
 
 type PtyLoginProps = {
   agent: AgentId;
@@ -23,6 +24,7 @@ function agentLabel(agent: AgentId) {
 }
 
 export function PtyLogin({ agent, onClose }: PtyLoginProps) {
+  const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const terminalRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -92,7 +94,7 @@ export function PtyLogin({ agent, onClose }: PtyLoginProps) {
       terminalRef.current = terminal;
       fitAddonRef.current = fitAddon;
 
-      terminal.writeln(`${agentLabel(agent)} giriş oturumu açılıyor...`);
+      terminal.writeln(`${agentLabel(agent)} — ${t("common.loading")}`);
       fitAddon.fit();
 
       try {
@@ -120,9 +122,7 @@ export function PtyLogin({ agent, onClose }: PtyLoginProps) {
         window.addEventListener("resize", fitAndResize);
       } catch {
         if (!disposed) {
-          setError(
-            "Giriş terminali açılamadı. Ajan kurulumunu ve arka uç PTY komutlarını kontrol edip yeniden deneyin.",
-          );
+          setError(t("common.error"));
           terminal.dispose();
           terminalRef.current = null;
           fitAddonRef.current = null;
@@ -141,7 +141,7 @@ export function PtyLogin({ agent, onClose }: PtyLoginProps) {
       terminalRef.current = null;
       fitAddonRef.current = null;
     };
-  }, [agent]);
+  }, [agent, t]);
 
   const close = async () => {
     const sessionId = sessionIdRef.current;
@@ -169,26 +169,25 @@ export function PtyLogin({ agent, onClose }: PtyLoginProps) {
     >
       <section className="pty-panel">
         <header className="pty-header">
-          <h2 id="pty-login-title">{agentLabel(agent)} girişi</h2>
+          <h2 id="pty-login-title">{`${agentLabel(agent)} — ${t("agents.login")}`}</h2>
           <button className="button ghost" onClick={close} type="button">
-            Kapat
+            {t("common.close")}
           </button>
         </header>
         <p className="pty-instructions">
-          {agent} girişi — tarayıcıda OAuth tamamlanınca bu pencereyi kapatın,
-          sonra Agent Manager'da 'Yeniden Dene'.
+          {`${agentLabel(agent)} — ${t("agents.login")} · ${t("agents.retry")}`}
         </p>
 
         {error ? (
           <div className="pty-error" role="alert">
             <p>{error}</p>
             <button className="button primary" onClick={close} type="button">
-              Kapat
+              {t("common.close")}
             </button>
           </div>
         ) : (
           <div
-            aria-label={`${agentLabel(agent)} giriş terminali`}
+            aria-label={`${agentLabel(agent)} — ${t("agents.login")}`}
             className="pty-terminal"
             ref={containerRef}
           />

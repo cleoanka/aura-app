@@ -1,59 +1,60 @@
 import { FormEvent, useRef, useState } from "react";
 
+import { useI18n } from "../../i18n";
 import { cancelJob, pickVaultFolder, runMode } from "../../lib/ipc";
 import type { AiEvent, AiLane, AuraMode } from "../../lib/types";
 
 type ModeOption = {
   id: AuraMode;
-  label: string;
-  helper: string;
+  labelKey: string;
+  helperKey: string;
 };
 
 const modeOptions: ModeOption[] = [
-  { id: "plan", label: "Plan", helper: "oku-planla (yazmaz)" },
-  { id: "review", label: "Review", helper: "git diff incele" },
-  { id: "fix", label: "Fix", helper: "yamayı önizle (güvenli, --apply yok)" },
-  { id: "ship", label: "Ship", helper: "plan -> uygula -> review" },
+  { id: "plan", labelKey: "auraMode.plan", helperKey: "auraMode.planHint" },
+  { id: "review", labelKey: "auraMode.review", helperKey: "auraMode.reviewHint" },
+  { id: "fix", labelKey: "auraMode.fix", helperKey: "auraMode.fixHint" },
+  { id: "ship", labelKey: "auraMode.ship", helperKey: "auraMode.shipHint" },
 ];
 
-function modeLabel(mode: AuraMode) {
+function modeLabelKey(mode: AuraMode) {
   const option = modeOptions.find((item) => item.id === mode);
-  return option?.label ?? mode;
+  return option?.labelKey ?? mode;
 }
 
-function laneLabel(lane: AiLane | null) {
+function laneLabelKey(lane: AiLane | null) {
   if (!lane) {
-    return "Hazır";
+    return "status.ready";
   }
 
   switch (lane) {
     case "cached":
-      return "Önbellek";
+      return "ask.lane.cached";
     case "fast":
-      return "Hızlı";
+      return "ask.lane.fast";
     case "deep":
-      return "Derin";
+      return "ask.lane.deep";
     case "consensus":
-      return "Konsensüs";
+      return "ask.lane.consensus";
     case "lane0":
-      return "Lane 0";
+      return "ask.lane.lane0";
     default:
       return lane;
   }
 }
 
-function friendlyAiError(taxonomy?: string) {
+function friendlyAiErrorKey(taxonomy?: string) {
   switch (taxonomy) {
     case "cancelled":
-      return "Çalışma durduruldu.";
+      return "ask.stop";
     case "auth":
-      return "AI ajanı için giriş veya yetki gerekiyor.";
+      return "agents.auth.loggedOut";
     case "rate_limit":
-      return "AI ajanı şu anda limitte. Biraz sonra yeniden deneyin.";
+      return "agents.auth.rateLimited";
     case "timeout":
-      return "Çalışma süresi doldu. Daha dar bir istek deneyin.";
+      return "common.error";
     default:
-      return "Aura modu çalıştırılamadı. Ajan durumunu kontrol edip yeniden deneyin.";
+      return "ask.error";
   }
 }
 
@@ -62,6 +63,7 @@ function requiresProjectDir(mode: AuraMode) {
 }
 
 export function AuraModePanel() {
+  const { t } = useI18n();
   const [mode, setMode] = useState<AuraMode>("plan");
   const [projectDir, setProjectDir] = useState<string | null>(null);
   const [prompt, setPrompt] = useState("");
@@ -96,7 +98,7 @@ export function AuraModePanel() {
         break;
       case "error":
         setStreaming(false);
-        setError(friendlyAiError(event.taxonomy));
+        setError(t(friendlyAiErrorKey(event.taxonomy)));
         break;
     }
   };
@@ -110,7 +112,7 @@ export function AuraModePanel() {
         setProjectDir(picked);
       }
     } catch {
-      setError("Proje klasörü seçilemedi.");
+      setError(t("common.error"));
     }
   };
 
@@ -124,7 +126,7 @@ export function AuraModePanel() {
     }
 
     if (requiresProjectDir(mode) && !projectDir) {
-      setError(`${modeLabel(mode)} için proje klasörü gerekli.`);
+      setError(`${t(modeLabelKey(mode))} · ${t("auraMode.projectFolder")}`);
       return;
     }
 
@@ -148,7 +150,7 @@ export function AuraModePanel() {
     } catch {
       if (requestId === activeRequest.current) {
         setStreaming(false);
-        setError(friendlyAiError());
+        setError(t(friendlyAiErrorKey()));
       }
     }
   };
@@ -161,9 +163,9 @@ export function AuraModePanel() {
     try {
       await cancelJob(jobId);
       setStreaming(false);
-      setError(friendlyAiError("cancelled"));
+      setError(t(friendlyAiErrorKey("cancelled")));
     } catch {
-      setError("Durdurma isteği gönderilemedi.");
+      setError(t("common.error"));
     }
   };
 
@@ -172,17 +174,17 @@ export function AuraModePanel() {
       <header className="panel-header">
         <div>
           <p className="eyebrow">AURA-MODE</p>
-          <h1 id="aura-mode-title">Aura modu</h1>
+          <h1 id="aura-mode-title">{t("auraMode.title")}</h1>
         </div>
         <span className={`lane-badge lane-${lane ?? mode}`}>
-          {modeLabel(mode)} · {laneLabel(lane)}
+          {t(modeLabelKey(mode))} · {t(laneLabelKey(lane))}
         </span>
       </header>
 
       <form className="aura-mode-form" onSubmit={submit}>
-        <fieldset className="mode-selector" aria-label="Aura modu seçimi">
-          <legend>Mod</legend>
-          <div className="mode-segmented" role="group" aria-label="Mod seç">
+        <fieldset className="mode-selector" aria-label={t("auraMode.title")}>
+          <legend>{t("settings.defaultMode")}</legend>
+          <div className="mode-segmented" role="group" aria-label={t("auraMode.title")}>
             {modeOptions.map((option) => (
               <button
                 aria-pressed={mode === option.id}
@@ -192,8 +194,8 @@ export function AuraModePanel() {
                 onClick={() => setMode(option.id)}
                 type="button"
               >
-                <span>{option.label}</span>
-                <small>{option.helper}</small>
+                <span>{t(option.labelKey)}</span>
+                <small>{t(option.helperKey)}</small>
               </button>
             ))}
           </div>
@@ -201,33 +203,30 @@ export function AuraModePanel() {
 
         <div className="project-picker">
           <button className="button" disabled={streaming} onClick={chooseProjectDir} type="button">
-            Proje Klasörü
+            {t("auraMode.projectFolder")}
           </button>
-          <span className="path-label mono">
-            {projectDir ?? "Seçilmedi"}
-            {requiresProjectDir(mode) ? " · gerekli" : ""}
-          </span>
+          <span className="path-label mono">{projectDir ?? t("workspace.selectNote")}</span>
         </div>
 
         {mode === "fix" ? (
-          <p className="notice aura-note">Fix yalnız ÖNİZLER; dosya değiştirmez (güvenli).</p>
+          <p className="notice aura-note">{t("auraMode.fixSafeNote")}</p>
         ) : null}
 
         <label className="field-label" htmlFor="aura-mode-prompt">
-          Prompt
+          {t("ask.button")}
         </label>
         <textarea
           className="prompt-input"
           id="aura-mode-prompt"
           onChange={(event) => setPrompt(event.currentTarget.value)}
-          placeholder="Bu proje için ne yapılacağını yaz"
+          placeholder={t("ask.placeholder")}
           rows={6}
           value={prompt}
         />
 
         <div className="toolbar ask-actions">
           <button className="button primary" disabled={streaming || !prompt.trim()} type="submit">
-            Çalıştır
+            {t("auraMode.run")}
           </button>
           <button
             className="button"
@@ -235,16 +234,16 @@ export function AuraModePanel() {
             onClick={stop}
             type="button"
           >
-            Durdur
+            {t("ask.stop")}
           </button>
-          {streaming ? <span className="thinking">çalışıyor...</span> : null}
+          {streaming ? <span className="thinking">{t("ask.thinking")}</span> : null}
         </div>
       </form>
 
       {error ? <p className="notice error">{error}</p> : null}
 
-      <article className="answer-box" aria-live="polite" aria-label="Aura modu çıktısı">
-        {output ? <pre>{output}</pre> : <p className="empty-state">Çıktı burada görünür.</p>}
+      <article className="answer-box" aria-live="polite" aria-label={t("auraMode.title")}>
+        {output ? <pre>{output}</pre> : <p className="empty-state">{t("graph.empty")}</p>}
       </article>
 
       {runDir ? <p className="path-label mono">Run: {runDir}</p> : null}
