@@ -55,7 +55,9 @@ function App() {
     setActiveView("workspace");
   }, []);
 
-  const content = (() => {
+  // Ask + Aura-mode HEP MOUNT kalır (sadece gizlenir) → sekme değişince
+  // çalışan AI süreci/akışı DURMAZ, geri dönünce kaldığı yerden görünür.
+  const switched = (() => {
     switch (activeView) {
       case "workspace":
         return (
@@ -71,16 +73,14 @@ function App() {
         );
       case "search":
         return <SearchPanel onOpenNote={openNote} />;
-      case "ask":
-        return <AskPanel />;
-      case "aura-mode":
-        return <AuraModePanel />;
       case "graph":
         return <GraphView key={dataVersion} onOpenNote={openNote} />;
       case "agents":
         return <AgentManager onReportChange={setDoctorReport} />;
       case "settings":
         return <SettingsPanel />;
+      default:
+        return null;
     }
   })();
 
@@ -91,7 +91,24 @@ function App() {
       noteCount={noteCount}
       onActiveViewChange={setActiveView}
     >
-      <ErrorBoundary resetKey={activeView}>{content}</ErrorBoundary>
+      <div className="view-host" style={{ display: activeView === "ask" ? "block" : "none" }}>
+        <ErrorBoundary resetKey="ask">
+          <AskPanel />
+        </ErrorBoundary>
+      </div>
+      <div
+        className="view-host"
+        style={{ display: activeView === "aura-mode" ? "block" : "none" }}
+      >
+        <ErrorBoundary resetKey="aura-mode">
+          <AuraModePanel />
+        </ErrorBoundary>
+      </div>
+      {switched ? (
+        <div className="view-host">
+          <ErrorBoundary resetKey={activeView}>{switched}</ErrorBoundary>
+        </div>
+      ) : null}
     </AppShell>
   );
 }
