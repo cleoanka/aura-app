@@ -1,0 +1,32 @@
+{
+  "schema": "aura.doctor.v1",
+  "agents": {
+    "claude": {
+      "installed": true,
+      "path": "/Users/example/.local/bin/claude",
+      "version": "2.1.179 (Claude Code)",
+      "auth": "logged_in",
+      "token_location": "keychain",
+      "can_invoke": null,
+      "last_error": null
+    },
+    "gemini": {
+      "installed": true,
+      "path": "/Users/example/.npm-global/bin/gemini",
+      "version": "0.46.0",
+      "auth": "logged_in",
+      "token_location": "file",
+      "can_invoke": null,
+      "last_error": null
+    },
+    "codex": {
+      "installed": true,
+      "path": "/Users/example/.local/bin/codex",
+      "version": "codex-cli 0.140.0",
+      "auth": "logged_in",
+      "token_location": "file",
+      "can_invoke": null,
+      "last_error": null
+    }
+  }
+}

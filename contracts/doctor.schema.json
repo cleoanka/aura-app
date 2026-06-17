@@ -1,0 +1,34 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "aura.doctor.v1",
+  "description": "aura doctor --json çıktısı. Python (aura) ve Rust (DoctorReport) tek kaynak.",
+  "type": "object",
+  "required": ["schema", "agents"],
+  "properties": {
+    "schema": { "const": "aura.doctor.v1" },
+    "agents": {
+      "type": "object",
+      "required": ["claude", "gemini", "codex"],
+      "properties": {
+        "claude": { "$ref": "#/$defs/agent" },
+        "gemini": { "$ref": "#/$defs/agent" },
+        "codex": { "$ref": "#/$defs/agent" }
+      }
+    }
+  },
+  "$defs": {
+    "agent": {
+      "type": "object",
+      "required": ["installed", "path", "version", "auth", "token_location", "can_invoke", "last_error"],
+      "properties": {
+        "installed": { "type": "boolean" },
+        "path": { "type": ["string", "null"] },
+        "version": { "type": ["string", "null"] },
+        "auth": { "enum": ["logged_in", "logged_out", "rate_limited", "unknown"] },
+        "token_location": { "enum": ["keychain", "file", "unknown"] },
+        "can_invoke": { "type": ["boolean", "null"] },
+        "last_error": { "type": ["string", "null"] }
+      }
+    }
+  }
+}
