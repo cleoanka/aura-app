@@ -50,10 +50,24 @@ pub fn run() {
                     return;
                 }
                 let state = handle.state::<Mutex<Indexer>>();
-                for root in roots {
+                // 1) Hızlı indeksleme (embedding YOK) → dosyalar/graph/FTS hemen hazır.
+                for root in &roots {
                     if let Ok(mut idx) = state.lock() {
-                        let _ = idx.index_vault(&std::path::PathBuf::from(&root));
+                        let _ = idx.index_vault(&std::path::PathBuf::from(root));
                     }
+                }
+                let _ = handle.emit("index-updated", ());
+
+                // 2) Arka planda vektörleri batch-batch doldur (UI bloklamadan).
+                loop {
+                    let done = match state.lock() {
+                        Ok(mut idx) => idx.embed_pending(48).unwrap_or(0),
+                        Err(_) => 0,
+                    };
+                    if done == 0 {
+                        break;
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(10));
                 }
                 let _ = handle.emit("index-updated", ());
             });
