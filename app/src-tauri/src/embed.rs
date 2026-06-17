@@ -269,9 +269,11 @@ pub use candle_backend::CandleEmbedder;
 /// kullanılır (cache kontrolü, İNDİRME YOK → app anında açılır). Model yoksa
 /// StubEmbedder + FTS5 ana arama; kullanıcı Model Manager'dan indirince candle'a geçilir.
 pub fn default_embedder() -> Box<dyn Embedder> {
+    // candle (gerçek e5) SADECE kullanıcı Settings'ten semantic_search'ü açtıysa VE model
+    // cache'liyse kullanılır. Varsayılan KAPALI → StubEmbedder (sıfıra yakın CPU; FTS5 arama).
     #[cfg(feature = "candle")]
     {
-        if candle_backend::model_is_cached() {
+        if crate::settings::load().semantic_search && candle_backend::model_is_cached() {
             match CandleEmbedder::new() {
                 Ok(embedder) => return Box::new(embedder),
                 Err(err) => {

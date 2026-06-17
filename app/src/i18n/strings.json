@@ -126,7 +126,9 @@
     "graph.kind.markdown": "Markdown",
     "graph.kind.code": "Code",
     "graph.kind.binary": "Binary",
-    "graph.kind.dangling": "Dangling"
+    "graph.kind.dangling": "Dangling",
+    "settings.semanticSearch": "Semantic search (local embeddings)",
+    "settings.semanticHint": "uses CPU to embed files; off = fast FTS5 search"
   },
   "tr": {
     "app.name": "AURA Desktop",
@@ -255,6 +257,8 @@
     "graph.kind.markdown": "Markdown",
     "graph.kind.code": "Kod",
     "graph.kind.binary": "İkili",
-    "graph.kind.dangling": "Kopuk"
+    "graph.kind.dangling": "Kopuk",
+    "settings.semanticSearch": "Anlamsal arama (yerel embedding)",
+    "settings.semanticHint": "dosyaları CPU ile embed eder; kapalı = hızlı FTS5 araması"
   }
 }

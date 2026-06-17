@@ -52,6 +52,7 @@ fn partial_settings_fill_defaults_and_round_trip() {
             ollama_url: "http://localhost:11434".to_string(),
             model: "nomic".to_string(),
         },
+        semantic_search: false,
     };
     assert_eq!(loaded, expected);
 

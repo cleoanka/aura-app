@@ -80,6 +80,7 @@ export type Settings = {
   lanes?: LaneSettings;
   consensus_enabled?: boolean;
   cache_mode?: CacheMode;
+  semantic_search?: boolean;
   [key: string]: unknown;
 };
 

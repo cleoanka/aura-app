@@ -10,6 +10,7 @@ type SettingsForm = {
   lanes: Required<LaneSettings>;
   consensusEnabled: boolean;
   cacheMode: CacheMode;
+  semanticSearch: boolean;
 };
 
 const defaultForm: SettingsForm = {
@@ -21,6 +22,7 @@ const defaultForm: SettingsForm = {
     lane0: false,
   },
   consensusEnabled: false,
+  semanticSearch: false,
   cacheMode: "read_write",
 };
 
@@ -35,6 +37,7 @@ function normalize(settings: Settings | null): SettingsForm {
     },
     consensusEnabled: settings?.consensus_enabled ?? defaultForm.consensusEnabled,
     cacheMode: settings?.cache_mode ?? defaultForm.cacheMode,
+    semanticSearch: settings?.semantic_search ?? defaultForm.semanticSearch,
   };
 }
 
@@ -107,6 +110,7 @@ export function SettingsPanel() {
       },
       consensus_enabled: form.consensusEnabled,
       cache_mode: form.cacheMode,
+      semantic_search: form.semanticSearch,
     };
 
     try {
@@ -218,6 +222,20 @@ export function SettingsPanel() {
                 setForm((current) => ({
                   ...current,
                   consensusEnabled: event.currentTarget.checked,
+                }))
+              }
+              type="checkbox"
+            />
+          </label>
+
+          <label className="toggle-row">
+            <span>{t("settings.semanticSearch")} <small>{t("settings.semanticHint")}</small></span>
+            <input
+              checked={form.semanticSearch}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  semanticSearch: event.currentTarget.checked,
                 }))
               }
               type="checkbox"
