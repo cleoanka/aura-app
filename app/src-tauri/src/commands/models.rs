@@ -39,12 +39,13 @@ pub async fn prepare_embedding_model(
         .map_err(|err| format!("failed to send embedding event: {err}"))?;
 
     let result = tokio::task::spawn_blocking(move || {
-        let _embedder = embed::default_embedder();
+        // AÇIKÇA indir (default_embedder indirme yapmaz). candle yoksa hata döner.
+        embed::force_prepare_candle()?;
         let status = embedding_status();
-        if status.ready || status.backend == "stub" {
+        if status.ready {
             Ok(status)
         } else {
-            Err("embedding model is not ready after preparation".to_string())
+            Err("indirme sonrası model hazır görünmüyor".to_string())
         }
     })
     .await

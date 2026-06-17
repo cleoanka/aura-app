@@ -175,6 +175,16 @@ mod candle_backend {
         }
     }
 
+    /// Model hf-hub cache'inde HAZIR mı (İNDİRMEDEN kontrol). default_embedder
+    /// başlangıçta bunu kontrol eder; cache yoksa indirme TETİKLENMEZ (app anında açılır).
+    pub fn model_is_cached() -> bool {
+        let cache = hf_hub::Cache::default();
+        let repo = cache.model(MODEL_ID.to_string());
+        let has_weights =
+            repo.get("model.safetensors").is_some() || repo.get("pytorch_model.bin").is_some();
+        has_weights && repo.get("tokenizer.json").is_some() && repo.get("config.json").is_some()
+    }
+
     impl CandleEmbedder {
         fn embed_with_prefix(&self, prefix: &str, text: &str) -> Vec<f32> {
             match self.embed_inner(prefix, text) {
@@ -255,18 +265,34 @@ mod candle_backend {
 #[cfg(feature = "candle")]
 pub use candle_backend::CandleEmbedder;
 
+/// Başlangıç-güvenli embedder seçimi: candle SADECE model zaten indirilmişse
+/// kullanılır (cache kontrolü, İNDİRME YOK → app anında açılır). Model yoksa
+/// StubEmbedder + FTS5 ana arama; kullanıcı Model Manager'dan indirince candle'a geçilir.
 pub fn default_embedder() -> Box<dyn Embedder> {
     #[cfg(feature = "candle")]
     {
-        match CandleEmbedder::new() {
-            Ok(embedder) => return Box::new(embedder),
-            Err(err) => {
-                eprintln!("warning: failed to initialize CandleEmbedder; falling back to StubEmbedder: {err}");
+        if candle_backend::model_is_cached() {
+            match CandleEmbedder::new() {
+                Ok(embedder) => return Box::new(embedder),
+                Err(err) => {
+                    eprintln!("warning: CandleEmbedder init failed; StubEmbedder kullanılıyor: {err}");
+                }
             }
         }
     }
 
     Box::new(StubEmbedder)
+}
+
+/// Model Manager "indir" akışı: candle modelini AÇIKÇA indirir/yükler (cache'e yazar).
+/// default_embedder() indirme yapmaz; indirme yalnız buradan (kullanıcı tıkladığında).
+#[cfg(feature = "candle")]
+pub fn force_prepare_candle() -> Result<(), String> {
+    candle_backend::CandleEmbedder::new().map(|_| ())
+}
+#[cfg(not(feature = "candle"))]
+pub fn force_prepare_candle() -> Result<(), String> {
+    Err("candle özelliği bu derlemede etkin değil".to_string())
 }
 
 fn tokens(text: &str) -> Vec<String> {
