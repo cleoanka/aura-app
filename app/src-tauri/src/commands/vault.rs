@@ -1,8 +1,10 @@
 use crate::db::NoteRef;
 use crate::indexer::Indexer;
 use crate::search::SearchHit;
-use crate::settings;
+use crate::settings::{self, Settings};
 use serde::Serialize;
+use std::fs;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tauri::{AppHandle, State};
 use tauri_plugin_dialog::DialogExt;
@@ -37,6 +39,74 @@ pub fn search_hybrid(
 ) -> Result<Vec<SearchHit>, String> {
     let indexer = indexer.lock().map_err(|err| err.to_string())?;
     indexer.search_hybrid(&query, k as usize)
+}
+
+#[tauri::command]
+pub fn read_note(path: String) -> Result<String, String> {
+    let settings = settings::load();
+    let path = resolve_note_path(&path, &settings)?;
+    fs::read_to_string(&path).map_err(|err| format!("failed to read {}: {err}", path.display()))
+}
+
+#[tauri::command]
+pub fn write_note(path: String, content: String) -> Result<(), String> {
+    let settings = settings::load();
+    let path = resolve_note_path_for_write(&path, &settings)?;
+    fs::write(&path, content).map_err(|err| format!("failed to write {}: {err}", path.display()))
+}
+
+pub fn resolve_note_path(path: &str, settings: &Settings) -> Result<PathBuf, String> {
+    let requested = PathBuf::from(path);
+    let canonical = requested
+        .canonicalize()
+        .map_err(|err| format!("failed to resolve note path: {err}"))?;
+
+    if is_under_vault_root(&canonical, settings)? {
+        Ok(canonical)
+    } else {
+        Err("note path is outside configured vault roots".to_string())
+    }
+}
+
+pub fn resolve_note_path_for_write(path: &str, settings: &Settings) -> Result<PathBuf, String> {
+    let requested = PathBuf::from(path);
+    if requested.exists() {
+        return resolve_note_path(path, settings);
+    }
+
+    let parent = requested
+        .parent()
+        .ok_or_else(|| "note path has no parent directory".to_string())?;
+    let filename = requested
+        .file_name()
+        .ok_or_else(|| "note path has no file name".to_string())?;
+    let canonical_parent = parent
+        .canonicalize()
+        .map_err(|err| format!("failed to resolve note parent path: {err}"))?;
+
+    if !is_under_vault_root(&canonical_parent, settings)? {
+        return Err("note path is outside configured vault roots".to_string());
+    }
+
+    Ok(canonical_parent.join(filename))
+}
+
+fn is_under_vault_root(path: &Path, settings: &Settings) -> Result<bool, String> {
+    if settings.vault_roots.is_empty() {
+        return Ok(false);
+    }
+
+    for root in &settings.vault_roots {
+        let root = PathBuf::from(root);
+        let Ok(root) = root.canonicalize() else {
+            continue;
+        };
+        if path.starts_with(root) {
+            return Ok(true);
+        }
+    }
+
+    Ok(false)
 }
 
 fn picked_folder_to_string(folder: impl Serialize) -> Result<String, String> {

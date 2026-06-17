@@ -5,6 +5,7 @@ use std::os::raw::{c_char, c_double, c_int, c_void};
 use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 use std::ptr::{self, NonNull};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 pub const EMBEDDING_DIM: usize = 384;
 const EMBEDDING_BYTES: usize = EMBEDDING_DIM * std::mem::size_of::<f32>();
@@ -449,6 +450,135 @@ pub fn meta_value(conn: &Connection, key: &str) -> Result<Option<String>> {
         },
     )?;
     Ok(value)
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CacheDep {
+    pub note_path: String,
+    pub chunk_stable_id: String,
+    pub content_hash: String,
+}
+
+pub fn chunk_ai_meta(
+    conn: &Connection,
+    chunk_id: i64,
+) -> Result<Option<(String, String, String, String, String)>> {
+    let mut chunk = None;
+    conn.query(
+        r#"
+        SELECT c.note_path, c.heading_path, c.text, c.chunk_stable_id, n.content_hash
+        FROM chunks c
+        JOIN notes n ON n.path = c.note_path
+        WHERE c.id = ?1
+        "#,
+        &[Bind::I64(chunk_id)],
+        |statement| {
+            chunk = Some((
+                statement.column_text(0)?,
+                statement.column_text(1)?,
+                statement.column_text(2)?,
+                statement.column_text(3)?,
+                statement.column_text(4)?,
+            ));
+            Ok(())
+        },
+    )?;
+    Ok(chunk)
+}
+
+pub fn cache_get_valid(conn: &Connection, key: &str) -> Result<Option<String>> {
+    let mut response = None;
+    conn.query(
+        "SELECT response FROM cache WHERE key = ?1",
+        &[Bind::Text(key)],
+        |statement| {
+            response = Some(statement.column_text(0)?);
+            Ok(())
+        },
+    )?;
+
+    let Some(response) = response else {
+        return Ok(None);
+    };
+
+    let mut valid = true;
+    conn.query(
+        r#"
+        SELECT d.note_path, d.chunk_stable_id, d.content_hash, n.content_hash, c.note_path
+        FROM cache_deps d
+        LEFT JOIN notes n ON n.path = d.note_path
+        LEFT JOIN chunks c ON c.chunk_stable_id = d.chunk_stable_id
+        WHERE d.cache_key = ?1
+        "#,
+        &[Bind::Text(key)],
+        |statement| {
+            let dep_note_path = statement.column_text(0)?;
+            let expected = statement.column_text(2)?;
+            let actual = statement.column_text(3)?;
+            let chunk_note_path = statement.column_text(4)?;
+            if expected != actual || chunk_note_path != dep_note_path {
+                valid = false;
+            }
+            Ok(())
+        },
+    )?;
+
+    if valid {
+        Ok(Some(response))
+    } else {
+        Ok(None)
+    }
+}
+
+pub fn cache_put(
+    conn: &Connection,
+    key: &str,
+    response: &str,
+    model_ver: &str,
+    deps: &[CacheDep],
+) -> Result<()> {
+    let created_at = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_secs() as i64)
+        .unwrap_or_default();
+
+    conn.execute(
+        r#"
+        INSERT INTO cache(key, response, model_ver, created_at)
+        VALUES (?1, ?2, ?3, ?4)
+        ON CONFLICT(key) DO UPDATE SET
+            response = excluded.response,
+            model_ver = excluded.model_ver,
+            created_at = excluded.created_at
+        "#,
+        &[
+            Bind::Text(key),
+            Bind::Text(response),
+            Bind::Text(model_ver),
+            Bind::I64(created_at),
+        ],
+    )?;
+    conn.execute(
+        "DELETE FROM cache_deps WHERE cache_key = ?1",
+        &[Bind::Text(key)],
+    )?;
+
+    for dep in deps {
+        conn.execute(
+            r#"
+            INSERT INTO cache_deps(cache_key, note_path, chunk_stable_id, content_hash)
+            VALUES (?1, ?2, ?3, ?4)
+            "#,
+            &[
+                Bind::Text(key),
+                Bind::Text(&dep.note_path),
+                Bind::Text(&dep.chunk_stable_id),
+                Bind::Text(&dep.content_hash),
+            ],
+        )?;
+    }
+
+    Ok(())
 }
 
 impl Connection {
