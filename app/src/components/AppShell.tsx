@@ -1,14 +1,22 @@
+import type { ReactNode } from "react";
+
 import type { DoctorReport } from "../lib/types";
 
+export type ActiveView = "workspace" | "search" | "ask" | "graph" | "agents" | "settings";
+
 type AppShellProps = {
-  activeView: string;
+  activeView: ActiveView;
   doctorReport: DoctorReport | null;
-  children: React.ReactNode;
+  noteCount: number;
+  onActiveViewChange: (view: ActiveView) => void;
+  children: ReactNode;
 };
 
 const navigationItems = [
-  { id: "vault", label: "Vault", icon: "V" },
+  { id: "workspace", label: "Workspace", icon: "W" },
   { id: "search", label: "Arama", icon: "/" },
+  { id: "ask", label: "ASK", icon: "?" },
+  { id: "graph", label: "Graf", icon: "G" },
   { id: "agents", label: "Ajanlar", icon: "A" },
   { id: "settings", label: "Ayarlar", icon: "*" },
 ] as const;
@@ -31,7 +39,15 @@ function healthClass(report: DoctorReport | null, id: keyof DoctorReport["agents
   return "is-bad";
 }
 
-export function AppShell({ activeView, doctorReport, children }: AppShellProps) {
+export function AppShell({
+  activeView,
+  doctorReport,
+  noteCount,
+  onActiveViewChange,
+  children,
+}: AppShellProps) {
+  const activeItem = navigationItems.find((item) => item.id === activeView);
+
   return (
     <div className="app-shell">
       <aside className="icon-rail" aria-label="Ana gezinme">
@@ -41,9 +57,10 @@ export function AppShell({ activeView, doctorReport, children }: AppShellProps) 
         {navigationItems.map((item) => (
           <button
             aria-label={item.label}
-            className={`rail-button ${item.id === "agents" ? "is-active" : ""}`}
-            disabled={item.id !== "agents"}
+            aria-pressed={item.id === activeView}
+            className={`rail-button ${item.id === activeView ? "is-active" : ""}`}
             key={item.id}
+            onClick={() => onActiveViewChange(item.id)}
             title={item.label}
             type="button"
           >
@@ -65,7 +82,8 @@ export function AppShell({ activeView, doctorReport, children }: AppShellProps) 
           ))}
         </div>
         <div className="status-group">
-          <span>{activeView}</span>
+          <span>{activeItem?.label ?? "Workspace"}</span>
+          <span>{noteCount} not</span>
         </div>
       </footer>
     </div>
