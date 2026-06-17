@@ -105,6 +105,10 @@ pub struct Connection {
     raw: NonNull<sqlite3>,
 }
 
+// Connections are opened with SQLITE_OPEN_FULLMUTEX and app access is guarded by
+// a single-writer Mutex in the indexer state.
+unsafe impl Send for Connection {}
+
 impl Drop for Connection {
     fn drop(&mut self) {
         unsafe {
@@ -354,12 +358,66 @@ pub fn fts_search(conn: &Connection, query: &str, k: usize) -> Result<Vec<(i64, 
     Ok(matches)
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ChunkRecord {
+    pub id: i64,
+    pub note_path: String,
+    pub heading_path: String,
+    pub text: String,
+}
+
+pub fn note_content_hash(conn: &Connection, path: &str) -> Result<Option<String>> {
+    let mut content_hash = None;
+    conn.query(
+        "SELECT content_hash FROM notes WHERE path = ?1",
+        &[Bind::Text(path)],
+        |statement| {
+            content_hash = Some(statement.column_text(0)?);
+            Ok(())
+        },
+    )?;
+    Ok(content_hash)
+}
+
+pub fn delete_chunks_for_note(conn: &Connection, note_path: &str) -> Result<usize> {
+    conn.execute(
+        "DELETE FROM chunks WHERE note_path = ?1",
+        &[Bind::Text(note_path)],
+    )
+}
+
+pub fn chunk_by_id(conn: &Connection, chunk_id: i64) -> Result<Option<ChunkRecord>> {
+    let mut chunk = None;
+    conn.query(
+        r#"
+        SELECT id, note_path, heading_path, text
+        FROM chunks
+        WHERE id = ?1
+        "#,
+        &[Bind::I64(chunk_id)],
+        |statement| {
+            chunk = Some(ChunkRecord {
+                id: unsafe { sqlite3_column_int64(statement.raw, 0) },
+                note_path: statement.column_text(1)?,
+                heading_path: statement.column_text(2)?,
+                text: statement.column_text(3)?,
+            });
+            Ok(())
+        },
+    )?;
+    Ok(chunk)
+}
+
 pub fn meta_value(conn: &Connection, key: &str) -> Result<Option<String>> {
     let mut value = None;
-    conn.query("SELECT v FROM meta WHERE k = ?1", &[Bind::Text(key)], |statement| {
-        value = Some(statement.column_text(0)?);
-        Ok(())
-    })?;
+    conn.query(
+        "SELECT v FROM meta WHERE k = ?1",
+        &[Bind::Text(key)],
+        |statement| {
+            value = Some(statement.column_text(0)?);
+            Ok(())
+        },
+    )?;
     Ok(value)
 }
 
@@ -491,28 +549,12 @@ impl Statement<'_> {
             Bind::Text(value) => {
                 self.text_params.push(cstring(value)?);
                 let value = self.text_params.last().expect("just pushed text param");
-                unsafe {
-                    sqlite3_bind_text(
-                        self.raw,
-                        index,
-                        value.as_ptr(),
-                        -1,
-                        None,
-                    )
-                }
+                unsafe { sqlite3_bind_text(self.raw, index, value.as_ptr(), -1, None) }
             }
             Bind::OptionalText(Some(value)) => {
                 self.text_params.push(cstring(value)?);
                 let value = self.text_params.last().expect("just pushed text param");
-                unsafe {
-                    sqlite3_bind_text(
-                        self.raw,
-                        index,
-                        value.as_ptr(),
-                        -1,
-                        None,
-                    )
-                }
+                unsafe { sqlite3_bind_text(self.raw, index, value.as_ptr(), -1, None) }
             }
             Bind::Blob(value) => {
                 self.blob_params.push(value.to_vec());
@@ -619,7 +661,12 @@ fn cosine_distance(left: &[f32], right: &[f32]) -> f64 {
     if left_norm == 0.0 || right_norm == 0.0 {
         f64::INFINITY
     } else {
-        1.0 - (dot / (left_norm.sqrt() * right_norm.sqrt()))
+        let distance = 1.0 - (dot / (left_norm.sqrt() * right_norm.sqrt()));
+        if distance.abs() < 1e-12 {
+            0.0
+        } else {
+            distance
+        }
     }
 }
 

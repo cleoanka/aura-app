@@ -25,7 +25,7 @@ Otonom build (Opus 4.8 orkestratör + Codex implementer + Gemini verify). Ultrap
 ## Faz 2 — Index + hibrit arama (DEVAM)
 - [x] 2a veri katmanı: SQLite (sistem libsqlite3 FFI) + FTS5 gerçek + vektör brute-force fallback + cache/cache_deps/meta şema + db_smoke test PASS
   - NOT: codex sandbox ağsız → rusqlite/sqlite-vec indiremedi; FFI ile sistem sqlite kullanıldı. Tech-debt: Faz 4'te rusqlite+sqlite-vec'e geçiş (deps'i ben ekleyeceğim).
-- [ ] 2b indexer (markdown/wikilink/chunk/petgraph/watcher) + Embedder trait (stub→candle)
+- [x] 2b indexer (markdown/wikilink/hierarchical chunk/petgraph graph/incremental) + Embedder trait (StubEmbedder; candle Faz2c+) ✓ cargo test PASS
 - [ ] 2c hibrit arama (FTS5 + vektör → RRF) + commands
 - [ ] 2d workspace layout + dosya gezgini + minimal editör
 
