@@ -44,5 +44,5 @@ Otonom build (Opus 4.8 orkestratör + Codex implementer + Gemini verify). Ultrap
 - [x] aura-mode (plan/review/fix/ship app-içi, fix=dry-run güvenli) ✓
 - [x] Lane 0 (Ollama ureq, default off) ✓
 - [x] Consensus (3 AI paralel→claude sentezi, graceful degrade, default off) ✓ test PASS
-- [ ] PTY login paneli
+- [x] PTY login paneli (xterm + portable-pty, app-içi OAuth) ✓ pty_argv test PASS
 - [ ] notarize (kullanıcı Apple ID — T4.6)
