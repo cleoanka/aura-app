@@ -22,6 +22,11 @@ pub enum AiEvent {
     Start { lane: String },
     Chunk { text: String },
     Cached { text: String },
+    Status {
+        text: String,
+        stage: Option<String>,
+        agent: Option<String>,
+    },
     Done { run_dir: Option<String> },
     Error { reason: String, taxonomy: String },
 }
@@ -416,8 +421,15 @@ fn read_jsonl(
 
     for line in lines {
         let line = line.map_err(|err| format!("failed to read aura output: {err}"))?;
-        let event: AuraJsonEvent = serde_json::from_str(&line)
-            .map_err(|err| format!("failed to parse aura JSONL event: {err}"))?;
+        if line.trim().is_empty() {
+            continue;
+        }
+        // DAYANIKLILIK: JSON olmayan satır akışı ÖLDÜRMESİN — atla, devam et.
+        // (eski hali parse hatasında tüm streaming'i bitiriyordu.)
+        let event: AuraJsonEvent = match serde_json::from_str(&line) {
+            Ok(event) => event,
+            Err(_) => continue,
+        };
 
         match event {
             AuraJsonEvent::Start { lane, .. } => {
@@ -431,6 +443,9 @@ fn read_jsonl(
             AuraJsonEvent::Chunk { text: chunk } => {
                 text.push_str(&chunk);
                 send_event(&on_event, AiEvent::Chunk { text: chunk })?;
+            }
+            AuraJsonEvent::Status { text, stage, agent } => {
+                send_event(&on_event, AiEvent::Status { text, stage, agent })?;
             }
             AuraJsonEvent::Done { ok, run_dir } => {
                 if ok.unwrap_or(true) {
@@ -566,6 +581,14 @@ enum AuraJsonEvent {
     },
     #[serde(rename = "chunk")]
     Chunk { text: String },
+    #[serde(rename = "status")]
+    Status {
+        text: String,
+        #[serde(default)]
+        stage: Option<String>,
+        #[serde(default)]
+        agent: Option<String>,
+    },
     #[serde(rename = "done")]
     Done {
         #[serde(default)]

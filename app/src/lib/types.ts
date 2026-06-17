@@ -90,5 +90,6 @@ export type AiEvent =
   | { kind: "start"; lane: AiLane }
   | { kind: "chunk"; text: string }
   | { kind: "cached"; text: string }
+  | { kind: "status"; text: string; stage?: string | null; agent?: string | null }
   | { kind: "done"; run_dir?: string }
   | { kind: "error"; reason: string; taxonomy: string };
