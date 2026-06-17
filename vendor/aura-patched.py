@@ -19,6 +19,7 @@ import shlex
 import signal
 import subprocess
 import sys
+import threading
 import time
 from datetime import datetime
 from pathlib import Path
@@ -121,8 +122,9 @@ def _login_cmd(argv: list[str], prompt_file: Path) -> list[str]:
 
 def run_agent(agent: str, prompt: str, *, run_dir: Path, step: int, label: str,
               lane: str = "fast", sandbox: str | None = None,
-              timeout: int = 900, quiet: bool = False) -> dict:
-    """Run one child CLI. Prompt -> file -> stdin. Returns a result dict."""
+              timeout: int = 900, quiet: bool = False, on_chunk=None) -> dict:
+    """Run one child CLI. Prompt -> file -> stdin. Returns a result dict.
+    on_chunk(text): varsa, alt-CLI çıktısı geldikçe CANLI olarak çağrılır (streaming)."""
     base = run_dir / f"{step:02d}_{agent}"
     pfile = base.with_suffix(".prompt.txt")
     ofile = base.with_suffix(".out.txt")
@@ -134,12 +136,34 @@ def run_agent(agent: str, prompt: str, *, run_dir: Path, step: int, label: str,
     start = time.monotonic()
     timed_out = False
     spin_i = 0
+    reader = {"fh": None}
+
+    def _pump():
+        # Çıktı dosyasını büyüdükçe oku → canlı streaming (on_chunk).
+        if not on_chunk:
+            return
+        if reader["fh"] is None:
+            try:
+                reader["fh"] = open(ofile, "r", errors="replace")
+            except OSError:
+                return
+        try:
+            new = reader["fh"].read()
+        except OSError:
+            return
+        if new:
+            try:
+                on_chunk(new)
+            except Exception:
+                pass
+
     with open(ofile, "wb") as fout, open(efile, "wb") as ferr:
         proc = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=fout,
                                 stderr=ferr, start_new_session=True)
         while True:
             rc = proc.poll()
             elapsed = time.monotonic() - start
+            _pump()
             if rc is not None:
                 break
             if elapsed > timeout:
@@ -159,6 +183,12 @@ def run_agent(agent: str, prompt: str, *, run_dir: Path, step: int, label: str,
                 print(f"\r  {CYAN(ch)} {label} {DIM(f'{int(elapsed)}s')}   ",
                       end="", flush=True)
             time.sleep(0.12)
+    _pump()  # kalan çıktı
+    if reader["fh"] is not None:
+        try:
+            reader["fh"].close()
+        except OSError:
+            pass
     dur = time.monotonic() - start
     if _TTY and not quiet:
         print("\r" + " " * 60 + "\r", end="", flush=True)
@@ -199,6 +229,94 @@ def run_agent(agent: str, prompt: str, *, run_dir: Path, step: int, label: str,
             "dur": dur, "timed_out": timed_out, "auth_fail": auth_fail,
             "limit_fail": limit_fail, "reason": reason, "suggest": suggest,
             "files": {"prompt": str(pfile), "out": str(ofile), "err": str(efile)}}
+
+
+def run_claude_stream(prompt: str, *, run_dir: Path, step: int, lane: str,
+                      on_delta, timeout: int = 900) -> dict:
+    """claude'u GERÇEK token-token akışla çalıştırır (--output-format stream-json).
+    on_delta(text) her metin parçası geldikçe çağrılır. run_agent ile uyumlu dict döner."""
+    base = run_dir / f"{step:02d}_claude"
+    pfile = base.with_suffix(".prompt.txt")
+    ofile = base.with_suffix(".out.txt")
+    pfile.write_text(prompt)
+    argv = ["claude", "-p", "--output-format", "stream-json", "--verbose",
+            "--include-partial-messages"] + LANES[lane]["claude"]
+    cmd = _login_cmd(argv, pfile)
+    start = time.monotonic()
+    parts: list[str] = []
+    stderr_box = {"txt": ""}
+    proc = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE, text=True, start_new_session=True)
+
+    def _read_stdout():
+        for line in proc.stdout:  # type: ignore[union-attr]
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                ev = json.loads(line)
+            except (json.JSONDecodeError, ValueError):
+                continue
+            if ev.get("type") == "stream_event":
+                e = ev.get("event", {})
+                if e.get("type") == "content_block_delta":
+                    d = e.get("delta", {})
+                    if d.get("type") == "text_delta":
+                        t = d.get("text", "")
+                        if t:
+                            parts.append(t)
+                            try:
+                                on_delta(t)
+                            except Exception:
+                                pass
+
+    th = threading.Thread(target=_read_stdout, daemon=True)
+    th.start()
+    th.join(timeout)
+    timed_out = th.is_alive()
+    if timed_out:
+        try:
+            os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+            time.sleep(2)
+            if proc.poll() is None:
+                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+    try:
+        stderr_box["txt"] = proc.stderr.read() if proc.stderr else ""  # type: ignore[union-attr]
+    except OSError:
+        pass
+    proc.wait()
+    dur = time.monotonic() - start
+    text = "".join(parts)
+    try:
+        ofile.write_text(text)
+    except OSError:
+        pass
+    rc = proc.returncode
+    low = (text + "\n" + stderr_box["txt"]).lower()
+    auth_fail = ("not logged in" in low or "please run /login" in low
+                 or ("authentication" in low and "browser" in low))
+    limit_fail = ("session limit" in low or "usage limit" in low
+                  or "rate limit" in low or "quota" in low
+                  or ("limit" in low and "resets" in low))
+    ok = (rc == 0) and not timed_out and not auth_fail and not limit_fail and bool(text.strip())
+    reason, suggest = None, None
+    if auth_fail:
+        reason, suggest = "claude is not logged in", "run `claude` once in your terminal to sign in"
+    elif limit_fail:
+        m = re.search(r"(resets[^\n.]*)", stderr_box["txt"], re.I)
+        reason = "claude usage limit reached" + (f" — {m.group(1).strip()}" if m else "")
+        suggest = "wait for the reset, or try again later"
+    elif timed_out:
+        reason, suggest = f"claude timed out after {timeout}s", "retry"
+    elif not ok:
+        reason = (stderr_box["txt"].strip().splitlines() or ["claude returned no output"])[0][:140]
+        suggest = "aura doctor"
+    return {"agent": "claude", "ok": ok, "out": text, "err": stderr_box["txt"], "rc": rc,
+            "dur": dur, "timed_out": timed_out, "auth_fail": auth_fail,
+            "limit_fail": limit_fail, "reason": reason, "suggest": suggest,
+            "files": {"prompt": str(pfile), "out": str(ofile)}}
 
 
 # ============================================================ helpers
@@ -551,7 +669,11 @@ def cmd_plan_json(opts: dict) -> int:
     steps = []
     research = ""
 
+    def stream(t):
+        emit_json({"type": "chunk", "text": t})
+
     if opts["research"]:
+        emit_json({"type": "chunk", "text": "🔎 Gemini ile güncel kaynaklar araştırılıyor…\n\n"})
         rp = ("Research the following implementation task. Prioritise current, "
               "authoritative info; note versions/dates; give 2-3 viable approaches "
               "with trade-offs; flag anything deprecated. Be concise.\n\nQUESTION:\n" + task)
@@ -560,14 +682,15 @@ def cmd_plan_json(opts: dict) -> int:
         steps.append({k: r[k] for k in ("agent", "ok", "rc", "dur")})
         if r["ok"]:
             research = "Relevant up-to-date research:\n" + r["out"].strip() + "\n\n"
+            emit_json({"type": "chunk", "text": "✓ Araştırma tamam, plan hazırlanıyor…\n\n"})
 
     pp = (research +
           "You are the planner inside 'aura'. Produce a concrete, minimal plan for the "
           "task. Do NOT write the full code. Use sections: Assumptions, Steps "
           "(numbered, concrete), Files to touch, Test strategy, Risks. Be specific "
           "and concise.\n\nTASK:\n" + task)
-    r = run_agent("claude", pp, run_dir=run_dir, step=2, label="claude plan",
-                  lane=lane, timeout=900, quiet=True)
+    # CANLI akış: claude'un cevabı GERÇEK token-token yayınlanır (stream-json).
+    r = run_claude_stream(pp, run_dir=run_dir, step=2, lane=lane, on_delta=stream, timeout=900)
     steps.append({k: r[k] for k in ("agent", "ok", "rc", "dur")})
     if not r["ok"]:
         write_meta(run_dir, mode="plan", task=task, lane=lane, steps=steps, status="failed")
@@ -575,7 +698,7 @@ def cmd_plan_json(opts: dict) -> int:
         return json_error(r["reason"] or "planning failed", failure_taxonomy(r["reason"], r))
 
     text = r["out"].strip()
-    emit_json({"type": "chunk", "text": text})
+    # Zaten on_chunk ile canlı yayınlandı; tekrar tam metin EMIT ETME.
     save_result(run_dir, text)
     write_meta(run_dir, mode="plan", task=task, lane=lane, steps=steps, status="ok",
                git=git_context())

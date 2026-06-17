@@ -1284,3 +1284,10 @@ select.text-input:focus {
   word-break: break-word;
 }
 .error-actions { display: flex; gap: 10px; margin-top: 12px; }
+
+/* Sekme değişince Ask/Aura-mode mount kalır; görünüm host'u main-view'i doldurur */
+.view-host {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
