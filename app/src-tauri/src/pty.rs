@@ -1,6 +1,6 @@
 use crate::env_resolver;
 use portable_pty::{
-    native_pty_system, Child, CommandBuilder, MasterPty, PtySize, PtySystem, SlavePty,
+    native_pty_system, Child, CommandBuilder, MasterPty, PtySize,
 };
 use std::collections::HashMap;
 use std::io::{Read, Write};

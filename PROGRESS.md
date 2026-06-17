@@ -45,4 +45,6 @@ Otonom build (Opus 4.8 orkestratör + Codex implementer + Gemini verify). Ultrap
 - [x] Lane 0 (Ollama ureq, default off) ✓
 - [x] Consensus (3 AI paralel→claude sentezi, graceful degrade, default off) ✓ test PASS
 - [x] PTY login paneli (xterm + portable-pty, app-içi OAuth) ✓ pty_argv test PASS
-- [ ] notarize (kullanıcı Apple ID — T4.6)
+- [x] uyarılar temizlendi (0 warning, 14 test binary OK)
+- [x] **FINAL: 'AURA Desktop.app' (14M) + .dmg (5.6M) build + smoke (açılıyor/çökmüyor) ✓**
+- [ ] notarize: kullanıcı Apple Developer ID gerekir (T4.6) — dev build lokal çalışır
