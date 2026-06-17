@@ -9,6 +9,8 @@ pub struct SearchHit {
     pub note_path: String,
     pub heading_path: String,
     pub snippet: String,
+    pub chunk_stable_id: String,
+    pub content_hash: String,
     pub score: f64,
     pub via: String,
 }
@@ -44,8 +46,8 @@ pub fn hybrid_search(
     let mut hits = Vec::new();
 
     for (chunk_id, score) in fused {
-        let Some((note_path, heading_path, text)) =
-            db::chunk_meta(conn, chunk_id).map_err(|err| err.to_string())?
+        let Some((note_path, heading_path, text, chunk_stable_id, content_hash)) =
+            db::chunk_ai_meta(conn, chunk_id).map_err(|err| err.to_string())?
         else {
             continue;
         };
@@ -59,6 +61,8 @@ pub fn hybrid_search(
             note_path,
             heading_path,
             snippet: snippet(&text),
+            chunk_stable_id,
+            content_hash,
             score,
             via: via.to_string(),
         });

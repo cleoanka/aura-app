@@ -27,8 +27,13 @@ Otonom build (Opus 4.8 orkestratör + Codex implementer + Gemini verify). Ultrap
   - NOT: codex sandbox ağsız → rusqlite/sqlite-vec indiremedi; FFI ile sistem sqlite kullanıldı. Tech-debt: Faz 4'te rusqlite+sqlite-vec'e geçiş (deps'i ben ekleyeceğim).
 - [x] 2b indexer (markdown/wikilink/hierarchical chunk/petgraph graph/incremental) + Embedder trait (StubEmbedder; candle Faz2c+) ✓ cargo test PASS
 - [x] 2c hibrit arama (FTS5+vektör RRF) + settings(robust, consensus/lane0 default OFF) + vault picker + list_notes ✓ cargo test PASS (ben build ettim; codex offline)
-- [ ] 2d workspace layout + dosya gezgini + minimal editör
+- [x] 2d workspace UI + Ask AI paneli (streaming) ✓ npm build PASS
 
 ## ⚙️ SÜREÇ NOTU: codex ağsız → Rust deps'i Claude (Bash, ağlı) `cargo add` ile ekler, codex kodu yazar.
-## Faz 3 — AI akışı + Lane 0 + Consensus (bekliyor)
+## Faz 3 — AI akışı (DEVAM)
+- [x] exec.rs per-job aura runner (json-events→Channel) + pgid cancel + temp prompt/context 0600
+- [x] commands/ai.rs ask (exact cache→retrieve→lane→stream) + cancel_job; vault.rs read/write guard (traversal blok)
+- [x] db cache get/put/deps; cache_key + vault_guard testleri PASS
+- [ ] Lane 0 (yerel üretim Ollama/MLX) — settings'te var, exec entegrasyonu sırada
+- [ ] Consensus modu (3 AI→sentez, default off)
 ## Faz 4 — Cila + paketleme + notarize (bekliyor)

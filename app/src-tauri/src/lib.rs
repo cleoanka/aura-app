@@ -1,10 +1,11 @@
 pub mod agent;
 mod agent_manager;
-mod commands;
+pub mod commands;
 pub mod db;
 pub mod embed;
 mod env_resolver;
 mod error;
+pub mod exec;
 pub mod graph;
 pub mod indexer;
 pub mod markdown;
@@ -12,8 +13,8 @@ pub mod search;
 pub mod settings;
 
 use commands::{
-    agent_detect, agent_install, get_graph, get_settings, index_vault, list_notes,
-    pick_vault_folder, search_fts, search_hybrid, set_settings,
+    agent_detect, agent_install, ask, cancel_job, get_graph, get_settings, index_vault, list_notes,
+    pick_vault_folder, read_note, search_fts, search_hybrid, set_settings, write_note,
 };
 use embed::StubEmbedder;
 use indexer::Indexer;
@@ -31,6 +32,7 @@ pub fn run() {
 
     tauri::Builder::default()
         .manage(indexer)
+        .manage(exec::new_job_registry())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
@@ -38,11 +40,15 @@ pub fn run() {
             greet,
             agent_detect,
             agent_install,
+            ask,
+            cancel_job,
             index_vault,
             get_graph,
             search_fts,
             search_hybrid,
             list_notes,
+            read_note,
+            write_note,
             pick_vault_folder,
             get_settings,
             set_settings
