@@ -20,6 +20,8 @@ const MODE_PROMPT_PLACEHOLDER: &str = "<prompt-file>";
 #[serde(tag = "kind")]
 pub enum AiEvent {
     Start { lane: String },
+    /// İş kimliği baştan UI'a gönderilir → Stop butonu akış sırasında çalışır.
+    Job { job_id: String },
     Chunk { text: String },
     Cached { text: String },
     Status {
@@ -154,9 +156,8 @@ pub fn build_mode_argv(mode: &str, has_prompt: bool) -> Result<Vec<String>, Stri
         argv.push("--prompt-file".to_string());
         argv.push(MODE_PROMPT_PLACEHOLDER.to_string());
     }
-    if matches!(mode, "plan" | "fix") {
-        argv.push("--json-events".to_string());
-    }
+    // Tüm modlar artık --json-events (verbose status + canlı token akışı).
+    argv.push("--json-events".to_string());
     Ok(argv)
 }
 
@@ -213,29 +214,22 @@ async fn run_aura_mode_with_argv(
         .stdout
         .take()
         .ok_or_else(|| "failed to capture aura stdout".to_string())?;
-    let raw_stdout_mode = matches!(mode, "review" | "ship");
+    // Tüm modlar artık json-events → her zaman read_jsonl (verbose + canlı).
+    let raw_stdout_mode = false;
     let handle = JobHandle::new();
     let child = handle.add_child(child);
 
     jobs.lock()
         .map_err(|err| err.to_string())?
         .insert(job_id.clone(), handle.clone());
+    send_event(&on_event, AiEvent::Job { job_id: job_id.clone() })?;
 
-    let read_task = if matches!(mode, "plan" | "fix") {
-        tokio::task::spawn_blocking({
-            let on_event = on_event.clone();
-            let cancelled = handle.cancelled();
-            let lane = mode.to_string();
-            move || read_jsonl(stdout, lane, on_event, cancelled)
-        })
-    } else {
-        tokio::task::spawn_blocking({
-            let on_event = on_event.clone();
-            let cancelled = handle.cancelled();
-            let lane = mode.to_string();
-            move || read_stdout_lines(stdout, lane, on_event, cancelled)
-        })
-    };
+    let read_task = tokio::task::spawn_blocking({
+        let on_event = on_event.clone();
+        let cancelled = handle.cancelled();
+        let lane = mode.to_string();
+        move || read_jsonl(stdout, lane, on_event, cancelled)
+    });
 
     let read_result = match tokio::time::timeout(JOB_TIMEOUT, read_task).await {
         Ok(Ok(result)) => result,
@@ -339,6 +333,7 @@ async fn run_aura_with_files(
     jobs.lock()
         .map_err(|err| err.to_string())?
         .insert(job_id.clone(), handle.clone());
+    send_event(&on_event, AiEvent::Job { job_id: job_id.clone() })?;
 
     let read_task = tokio::task::spawn_blocking({
         let on_event = on_event.clone();
@@ -377,6 +372,8 @@ async fn run_aura_with_files(
     read_result
 }
 
+// Tüm modlar artık json-events kullanıyor; ham-satır modu ileride lazım olursa diye duruyor.
+#[allow(dead_code)]
 fn read_stdout_lines(
     stdout: ChildStdout,
     lane: String,
@@ -389,7 +386,18 @@ fn read_stdout_lines(
     let mut text = String::new();
 
     for line in lines {
-        let mut line = line.map_err(|err| format!("failed to read aura output: {err}"))?;
+        if cancelled.load(Ordering::SeqCst) {
+            break;
+        }
+        let mut line = match line {
+            Ok(line) => line,
+            Err(err) => {
+                if cancelled.load(Ordering::SeqCst) {
+                    break;
+                }
+                return Err(format!("failed to read aura output: {err}"));
+            }
+        };
         line.push('\n');
         text.push_str(&line);
         send_event(&on_event, AiEvent::Chunk { text: line })?;
@@ -420,7 +428,20 @@ fn read_jsonl(
     let mut text = String::new();
 
     for line in lines {
-        let line = line.map_err(|err| format!("failed to read aura output: {err}"))?;
+        // İptal/timeout sonrası (cancel() cancelled=true yapar) artık event YAYMA.
+        if cancelled.load(Ordering::SeqCst) {
+            break;
+        }
+        let line = match line {
+            Ok(line) => line,
+            Err(err) => {
+                // kill stdout'u kestiyse: IO hatası DEĞİL, iptal say.
+                if cancelled.load(Ordering::SeqCst) {
+                    break;
+                }
+                return Err(format!("failed to read aura output: {err}"));
+            }
+        };
         if line.trim().is_empty() {
             continue;
         }

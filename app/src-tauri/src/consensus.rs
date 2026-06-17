@@ -80,6 +80,7 @@ pub async fn run_consensus(
     jobs.lock()
         .map_err(|err| err.to_string())?
         .insert(job_id.clone(), handle.clone());
+    send_event(&on_event, AiEvent::Job { job_id: job_id.clone() })?;
 
     let result = tokio::time::timeout(
         TOTAL_TIMEOUT,
@@ -124,6 +125,22 @@ async fn run_consensus_inner(
     let available_agents = tokio::task::spawn_blocking(detect_usable_agents)
         .await
         .unwrap_or_else(|_| fallback_usable_agents());
+
+    if !available_agents.is_empty() {
+        let names = available_agents
+            .iter()
+            .map(|agent| agent.name)
+            .collect::<Vec<_>>()
+            .join(", ");
+        let _ = on_event.send(AiEvent::Status {
+            text: format!(
+                "🔵 {} ajana paralel soruluyor: {names}…",
+                available_agents.len()
+            ),
+            stage: Some("consensus".to_string()),
+            agent: None,
+        });
+    }
 
     let mut tasks = Vec::new();
     for agent in available_agents.iter().copied() {
@@ -203,6 +220,11 @@ async fn run_consensus_inner(
                 .find(|agent| agent.name == synthesizer)
                 .copied()
                 .ok_or_else(|| format!("selected synthesizer {synthesizer} was not available"))?;
+            let _ = on_event.send(AiEvent::Status {
+                text: format!("🧠 {synthesizer} yanıtları sentezliyor…"),
+                stage: Some("synthesize".to_string()),
+                agent: Some(synthesizer.to_string()),
+            });
             match run_synthesis(
                 agent,
                 &synthesis_prompt_path,
@@ -264,8 +286,10 @@ async fn run_agent(
         return None;
     }
 
-    let _ = on_event.send(AiEvent::Chunk {
-        text: format!("\n— {} yanıtladı —\n", agent.name),
+    let _ = on_event.send(AiEvent::Status {
+        text: format!("✓ {} yanıtladı", agent.name),
+        stage: Some("consensus".to_string()),
+        agent: Some(agent.name.to_string()),
     });
     Some((agent.name.to_string(), output))
 }

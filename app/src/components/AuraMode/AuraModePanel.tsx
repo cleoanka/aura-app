@@ -89,12 +89,15 @@ export function AuraModePanel() {
         setLane(event.lane);
         setStreaming(true);
         break;
+      case "job":
+        setJobId(event.job_id);
+        break;
       case "chunk":
         setOutput((current) => current + event.text);
         break;
       case "status":
         setStatusText(event.text);
-        setStatusLog((log) => [...log, event.text]);
+        setStatusLog((log) => [...log.slice(-40), event.text]);
         break;
       case "cached":
         setLane("cached");
@@ -151,13 +154,11 @@ export function AuraModePanel() {
 
     try {
       const onEvt = (aiEvent: AiEvent) => handleAiEvent(requestId, aiEvent);
-      const id =
-        mode === "chat"
-          ? await chat(trimmed, onEvt)
-          : await runMode(mode, trimmed, projectDir, onEvt);
-
-      if (requestId === activeRequest.current && id.trim()) {
-        setJobId(id);
+      // job_id artık "job" event'inden gelir (akış sırasında); dönüş = çıktı metni.
+      if (mode === "chat") {
+        await chat(trimmed, onEvt);
+      } else {
+        await runMode(mode, trimmed, projectDir, onEvt);
       }
     } catch {
       if (requestId === activeRequest.current) {
@@ -172,9 +173,11 @@ export function AuraModePanel() {
       return;
     }
 
+    activeRequest.current += 1;
+    setStreaming(false);
+
     try {
       await cancelJob(jobId);
-      setStreaming(false);
       setError(t(friendlyAiErrorKey("cancelled")));
     } catch {
       setError(t("common.error"));

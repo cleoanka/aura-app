@@ -721,6 +721,8 @@ def cmd_plan_json(opts: dict) -> int:
 
 
 def cmd_review(opts: dict) -> int:
+    if opts.get("json_events"):
+        return cmd_review_json(opts)
     ensure_home()
     if not in_git_repo():
         return die("review needs a git repo", "not inside a git working tree",
@@ -899,6 +901,7 @@ def cmd_fix_json(opts: dict) -> int:
         return json_error("fix needs a task", "config")
     lane = detect_lane(task, opts["lane_override"])
     emit_json({"type": "start", "mode": "fix", "lane": lane})
+    emit_status(f"Lane seçildi: {LANES[lane]['label']}", stage="init")
     try:
         run_dir = new_run_dir("fix")
         (run_dir / "prompt.txt").write_text(task)
@@ -906,7 +909,16 @@ def cmd_fix_json(opts: dict) -> int:
         return json_error(str(e), "permission")
     gctx = git_context()
 
+    fix_state = {"first": True}
+
+    def fix_stream(t):
+        if fix_state["first"]:
+            emit_status("✍️ Codex yazıyor…", stage="writing", agent="codex")
+            fix_state["first"] = False
+        emit_json({"type": "chunk", "text": t})
+
     if opts["dry"]:
+        emit_status("🔎 Codex minimal farkı hesaplıyor…", stage="thinking", agent="codex")
         cp = ("You are the implementer inside 'aura'. Read the project and produce the MINIMAL "
               "change for the task. OUTPUT REQUIREMENT: print ONLY a single unified diff in "
               "`git diff` format (root-relative paths, ---/+++/@@ hunks). No prose, no markdown "
@@ -932,15 +944,17 @@ def cmd_fix_json(opts: dict) -> int:
 
     cp = ("You are the implementer inside 'aura'. Make the change for the task directly in the "
           "working files. " + IMPLEMENT_RULES + "\n\nTASK:\n" + task)
+    emit_status("🛠️ Codex değişikliği uyguluyor…", stage="thinking", agent="codex")
     r = run_agent("codex", cp, run_dir=run_dir, step=1, label="codex (edit)",
-                  lane=lane, sandbox="workspace-write", timeout=1200, quiet=True)
+                  lane=lane, sandbox="workspace-write", timeout=1200, quiet=True,
+                  on_chunk=fix_stream)
     write_meta(run_dir, mode="fix", task=task, lane=lane, dry=False,
                status="ok" if r["ok"] else "failed", git=gctx)
     point_latest(run_dir)
     if not r["ok"]:
         return json_error(r["reason"] or "fix failed", failure_taxonomy(r["reason"], r))
     text = r["out"].strip()
-    emit_json({"type": "chunk", "text": text})
+    # Zaten fix_stream ile canlı yayınlandı; tekrar tam metin EMIT ETME.
     save_result(run_dir, text)
     emit_json({"type": "done", "ok": True, "run_dir": str(run_dir)})
     return 0
@@ -948,6 +962,8 @@ def cmd_fix_json(opts: dict) -> int:
 
 def cmd_ship(opts: dict) -> int:
     """Autopilot: plan -> implement -> review, in one command. Writes; never commits."""
+    if opts.get("json_events"):
+        return cmd_ship_json(opts)
     ensure_home()
     task = _resolve_prompt(opts["prompt"], "ship", opts)
     if not task:
@@ -1012,6 +1028,142 @@ def cmd_ship(opts: dict) -> int:
     post_edit_summary(run_dir, git_repo)
     save_result(run_dir, text)
     next_line("Yours to commit:", "aura review   # or: git diff" if git_repo else "git init  # to track")
+    return 0
+
+
+def cmd_review_json(opts: dict) -> int:
+    """review (verbose/streaming): status + canlı token akışı."""
+    try:
+        ensure_home(quiet=True)
+    except PermissionError as e:
+        return json_error(str(e), "permission")
+    if not in_git_repo():
+        return json_error("review needs a git repo", "config")
+    diff = git("diff").stdout
+    if not diff.strip():
+        diff = git("diff", "--staged").stdout
+    if not diff.strip():
+        emit_json({"type": "start", "mode": "review", "lane": "fast"})
+        emit_status("Çalışma ağacında değişiklik yok — incelenecek bir şey yok.", stage="init")
+        emit_json({"type": "chunk", "text": "Değişiklik yok."})
+        emit_json({"type": "done", "ok": True, "run_dir": None})
+        return 0
+    lane = detect_lane(diff, opts["lane_override"])
+    emit_json({"type": "start", "mode": "review", "lane": lane})
+    emit_status(f"Lane seçildi: {LANES[lane]['label']}", stage="init")
+    try:
+        run_dir = new_run_dir("review")
+        (run_dir / "diff.patch").write_text(diff)
+        (run_dir / "prompt.txt").write_text("(review of working git diff)")
+    except PermissionError as e:
+        return json_error(str(e), "permission")
+
+    rstate = {"first": True}
+
+    def stream(t):
+        if rstate["first"]:
+            emit_status("✍️ İnceleme yazılıyor…", stage="writing", agent="claude")
+            rstate["first"] = False
+        emit_json({"type": "chunk", "text": t})
+
+    rp = ("You are a senior code reviewer inside 'aura'. Review the following git diff "
+          "for correctness bugs, regressions, security issues, missing tests, and "
+          "maintainability. Output findings ordered by severity as: "
+          "[SEVERITY] file:line — issue — suggested fix. If there are no issues, say "
+          "so clearly. Do not rewrite the code wholesale.\n\nDIFF:\n" + diff)
+    emit_status("🧠 Claude diff'i inceliyor…", stage="thinking", agent="claude")
+    r = run_claude_stream(rp, run_dir=run_dir, step=1, lane=lane, on_delta=stream, timeout=900)
+    if not r["ok"]:
+        point_latest(run_dir)
+        return json_error(r["reason"] or "review failed", failure_taxonomy(r["reason"], r))
+    save_result(run_dir, r["out"].strip())
+    write_meta(run_dir, mode="review", lane=lane, status="ok", git=git_context())
+    point_latest(run_dir)
+    emit_json({"type": "done", "ok": True, "run_dir": str(run_dir)})
+    return 0
+
+
+def cmd_ship_json(opts: dict) -> int:
+    """ship (verbose/streaming): 3 adım, her birinde status + canlı akış."""
+    try:
+        ensure_home(quiet=True)
+    except PermissionError as e:
+        return json_error(str(e), "permission")
+    task = _resolve_prompt(opts["prompt"], "ship", opts)
+    if not task:
+        return json_error("ship needs a task", "config")
+    git_repo = in_git_repo()
+    lane = detect_lane(task, opts["lane_override"])
+    emit_json({"type": "start", "mode": "ship", "lane": lane})
+    emit_status(f"Lane seçildi: {LANES[lane]['label']}", stage="init")
+    if not git_repo:
+        emit_status("⚠ git deposu değil — codex doğrudan yazar, geri-alma yok.", stage="init")
+    try:
+        run_dir = new_run_dir("ship")
+        (run_dir / "prompt.txt").write_text(task)
+    except PermissionError as e:
+        return json_error(str(e), "permission")
+
+    def staged_stream(label, agent):
+        st = {"first": True}
+
+        def s(t):
+            if st["first"]:
+                emit_status(f"✍️ {label} yazılıyor…", stage="writing", agent=agent)
+                st["first"] = False
+            emit_json({"type": "chunk", "text": t})
+
+        return s
+
+    # 1/3 plan (claude, canlı)
+    emit_status("📋 Adım 1/3 — Claude planlıyor…", stage="step", agent="claude")
+    emit_json({"type": "chunk", "text": "══ PLAN ══\n"})
+    pp = ("You are the planner inside 'aura'. Give a tight, concrete implementation plan for "
+          "the task: numbered steps, files to touch, and the test strategy. No code dumps.\n\n"
+          "TASK:\n" + task)
+    rp = run_claude_stream(pp, run_dir=run_dir, step=1, lane=lane,
+                           on_delta=staged_stream("Plan", "claude"), timeout=900)
+    if not rp["ok"]:
+        point_latest(run_dir)
+        return json_error(rp["reason"] or "planning failed", failure_taxonomy(rp["reason"], rp))
+    plan = rp["out"].strip()
+
+    # 2/3 implement (codex, canlı)
+    emit_status("🛠️ Adım 2/3 — Codex uyguluyor…", stage="step", agent="codex")
+    emit_json({"type": "chunk", "text": "\n\n══ UYGULAMA ══\n"})
+    cp = ("You are the implementer inside 'aura'. Implement the task directly in the working "
+          "files, following the plan. " + IMPLEMENT_RULES +
+          "\n\nPLAN:\n" + plan + "\n\nTASK:\n" + task)
+    rc = run_agent("codex", cp, run_dir=run_dir, step=2, label="codex (edit)",
+                   lane=lane, sandbox="workspace-write", timeout=1200, quiet=True,
+                   on_chunk=staged_stream("Uygulama", "codex"))
+    if not rc["ok"]:
+        write_meta(run_dir, mode="ship", task=task, lane=lane, status="failed", git=gctx_safe())
+        point_latest(run_dir)
+        return json_error(rc["reason"] or "implementation failed", failure_taxonomy(rc["reason"], rc))
+
+    # 3/3 review (claude, canlı)
+    emit_status("🔎 Adım 3/3 — Claude inceliyor…", stage="step", agent="claude")
+    emit_json({"type": "chunk", "text": "\n\n══ İNCELEME ══\n"})
+    if git_repo:
+        changes = git("diff").stdout or "(codex reported no diff)\n" + rc["out"]
+        rv_in = "DIFF:\n" + changes
+    else:
+        rv_in = "CHANGES REPORTED BY THE IMPLEMENTER:\n" + rc["out"].strip()
+    rvp = ("You are a senior reviewer inside 'aura'. Review the change just made for the task. "
+           "List findings by severity ([SEVERITY] file:line — issue — fix). If it's solid, say "
+           "so.\n\nTASK:\n" + task + "\n\n" + rv_in)
+    rv = run_claude_stream(rvp, run_dir=run_dir, step=3, lane=lane,
+                           on_delta=staged_stream("İnceleme", "claude"), timeout=900)
+
+    out = ["══ PLAN ══", plan, "", "══ IMPLEMENTED ══", rc["out"].strip()]
+    if rv["ok"]:
+        out += ["", "══ REVIEW ══", rv["out"].strip()]
+    text = "\n".join(out)
+    save_result(run_dir, text)
+    write_meta(run_dir, mode="ship", task=task, lane=lane, status="ok", git=gctx_safe())
+    point_latest(run_dir)
+    emit_json({"type": "done", "ok": True, "run_dir": str(run_dir)})
     return 0
 
 

@@ -88,6 +88,7 @@ export type AiLane = "cached" | "fast" | "deep" | "consensus" | "lane0" | string
 
 export type AiEvent =
   | { kind: "start"; lane: AiLane }
+  | { kind: "job"; job_id: string }
   | { kind: "chunk"; text: string }
   | { kind: "cached"; text: string }
   | { kind: "status"; text: string; stage?: string | null; agent?: string | null }
