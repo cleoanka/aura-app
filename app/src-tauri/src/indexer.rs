@@ -155,6 +155,19 @@ impl Indexer {
             .map_err(|err| err.to_string())
     }
 
+    /// Embedding'i olmayan chunk'lardan en fazla `limit` tanesini embed eder.
+    /// Arka planda tekrar tekrar çağrılır (0 dönene kadar). İndekslemeyi yavaşlatmaz.
+    pub fn embed_pending(&mut self, limit: usize) -> Result<usize, String> {
+        let pending =
+            db::chunks_missing_embedding(&self.conn, limit as i64).map_err(|err| err.to_string())?;
+        let count = pending.len();
+        for (chunk_id, text) in pending {
+            let embedding = self.embedder.embed_passage(&text);
+            db::insert_embedding(&self.conn, chunk_id, &embedding).map_err(|err| err.to_string())?;
+        }
+        Ok(count)
+    }
+
     fn reindex_links(
         &self,
         root: &Path,
@@ -229,14 +242,8 @@ impl Indexer {
             )
             .map_err(|err| err.to_string())?;
 
-            let embedding_exists =
-                db::embedding_exists_for_chunk(&self.conn, chunk_id, &chunk_hash)
-                    .map_err(|err| err.to_string())?;
-            if !embedding_exists {
-                let embedding = self.embedder.embed_passage(&chunk.text);
-                db::insert_embedding(&self.conn, chunk_id, &embedding)
-                    .map_err(|err| err.to_string())?;
-            }
+            // Embedding INLINE yapılmaz (yavaş, candle CPU): indeksleme hızlı kalsın,
+            // dosyalar/graph/FTS anında gelsin. Vektörler embed_pending ile arka planda dolar.
             kept_stable_ids.insert(stable_id);
             chunk_ids.insert(chunk.ordinal, chunk_id);
             chunk_count += 1;

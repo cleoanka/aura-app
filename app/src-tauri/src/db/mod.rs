@@ -566,6 +566,28 @@ pub fn embedding_exists_for_chunk(
     Ok(exists)
 }
 
+/// Henüz embedding'i olmayan chunk'lar (decoupled background embedding için).
+pub fn chunks_missing_embedding(conn: &Connection, limit: i64) -> Result<Vec<(i64, String)>> {
+    let mut rows = Vec::new();
+    conn.query(
+        r#"
+        SELECT c.id, c.text
+        FROM chunks c
+        LEFT JOIN vec_chunks v ON v.chunk_id = c.id
+        WHERE v.chunk_id IS NULL
+        LIMIT ?1
+        "#,
+        &[Bind::I64(limit)],
+        |statement| {
+            let id = unsafe { sqlite3_column_int64(statement.raw, 0) };
+            let text = statement.column_text(1)?;
+            rows.push((id, text));
+            Ok(())
+        },
+    )?;
+    Ok(rows)
+}
+
 pub fn list_chunk_stable_ids_for_note(conn: &Connection, note_path: &str) -> Result<Vec<String>> {
     let mut stable_ids = Vec::new();
     conn.query(
