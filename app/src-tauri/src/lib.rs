@@ -25,6 +25,7 @@ use commands::{
 use embed::default_embedder;
 use indexer::Indexer;
 use std::sync::Mutex;
+use tauri::{Emitter, Manager};
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -39,6 +40,25 @@ pub fn run() {
     tauri::Builder::default()
         .manage(indexer)
         .manage(exec::new_job_registry())
+        .setup(|app| {
+            // Başlangıçta kayıtlı proje klasörlerini ARKA PLANDA yeniden indeksle
+            // (güncel code-aware kodla; stale veriyi self-heal eder). Pencereyi bloklamaz.
+            let handle = app.handle().clone();
+            std::thread::spawn(move || {
+                let roots = settings::load().vault_roots;
+                if roots.is_empty() {
+                    return;
+                }
+                let state = handle.state::<Mutex<Indexer>>();
+                for root in roots {
+                    if let Ok(mut idx) = state.lock() {
+                        let _ = idx.index_vault(&std::path::PathBuf::from(&root));
+                    }
+                }
+                let _ = handle.emit("index-updated", ());
+            });
+            Ok(())
+        })
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
