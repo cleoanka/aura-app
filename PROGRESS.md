@@ -67,3 +67,14 @@ Headless yapılamayan (kullanıcı): canlı GUI tıklama akışı (vault→index
 - 'Vault Seç' jargonu → 'Not Klasörü Aç' (gemini EN/TR string tablosu).
 - **EN/TR dil desteği**: i18n (97 anahtar), rail'de canlı toggle, 10 panel t()'ye geçti (paralel claude workflow).
 - Ekranlar: docs/ui-after-redesign.png, docs/ui-final.png.
+
+## 🔧 v2 oturumu (proje second-brain + model yönetimi + bug fix)
+- Code-aware indexer: TÜM dosya tipleri + diller-arası graf (py/c/rust/js/ts/go import + [[wikilink]] + generic .o mention); db v2 links tablosu.
+- Vektör optimizasyonu: e5 passage/query prefix, Device::Cpu (Accelerate), L2-normalized + partial top-k, chunk content_hash incremental, code-aware chunking.
+- candle gerçek embedding DEFAULT (opt-in değil); başlangıç-güvenli: model cache'liyse candle, yoksa Stub+FTS5 (İNDİRME YOK).
+- Model Manager: embedding indir/durum (force_prepare_candle) + Ollama durum/pull + cloud agent install/PTY-login — 3 net bölüm.
+- Consensus graceful-degrade: tek ajan→direkt, sentez yoksa başlıklı birleştirme, sadece-claude çalışır.
+- GraphView Obsidian-overhaul: kind/dosya-tipi renkleri, degree-boyut, kontrol paneli (node boyutu/link mesafesi/etiket/fit/legend).
+- i18n: 'Proje' reframe (Not→Proje/Project) + 30 model/graph anahtarı; EN/TR.
+- **KRİTİK fix:** başlangıçta candle model indirme pencereyi açmıyordu (hang) → default_embedder artık indirmez.
+- Doğrulama: cargo build + 17 test PASS; npm build temiz; .app açılıyor (37 dosyalı proje indexlendi, multi-filetype çalışıyor); /Applications kurulu.
