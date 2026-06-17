@@ -8,13 +8,14 @@ mod error;
 pub mod exec;
 pub mod graph;
 pub mod indexer;
+pub mod lane0;
 pub mod markdown;
 pub mod search;
 pub mod settings;
 
 use commands::{
     agent_detect, agent_install, ask, cancel_job, get_graph, get_settings, index_vault, list_notes,
-    pick_vault_folder, read_note, search_fts, search_hybrid, set_settings, write_note,
+    pick_vault_folder, read_note, run_mode, search_fts, search_hybrid, set_settings, write_note,
 };
 use embed::StubEmbedder;
 use indexer::Indexer;
@@ -42,6 +43,7 @@ pub fn run() {
             agent_install,
             ask,
             cancel_job,
+            run_mode,
             index_vault,
             get_graph,
             search_fts,
