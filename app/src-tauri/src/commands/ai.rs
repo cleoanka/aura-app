@@ -1,6 +1,7 @@
 use crate::db::{self, CacheDep};
 use crate::exec::{self, AiEvent, JobRegistry};
 use crate::indexer::Indexer;
+use crate::lane0;
 use crate::search::SearchHit;
 use crate::settings::{self, Settings};
 use sha2::{Digest, Sha256};
@@ -47,6 +48,61 @@ pub async fn ask(
             .send(AiEvent::Cached { text: text.clone() })
             .map_err(|err| format!("failed to send cached AI event: {err}"))?;
         return Ok(text);
+    }
+
+    if lane0_candidate(&settings, &query) {
+        let ollama_url = settings.local_gen.ollama_url.clone();
+        let ollama_available =
+            tokio::task::spawn_blocking(move || lane0::ollama_available(&ollama_url))
+                .await
+                .map_err(|err| format!("lane0 availability check failed: {err}"))?;
+
+        if ollama_available {
+            on_event
+                .send(AiEvent::Start {
+                    lane: "lane0".to_string(),
+                })
+                .map_err(|err| format!("failed to send lane0 start AI event: {err}"))?;
+
+            let prompt = build_lane0_prompt(&context, &query);
+            let ollama_url = settings.local_gen.ollama_url.clone();
+            let model = settings.local_gen.model.clone();
+            let response = match tokio::task::spawn_blocking(move || {
+                lane0::ollama_generate(&ollama_url, &model, &prompt)
+            })
+            .await
+            .map_err(|err| format!("lane0 generation task failed: {err}"))?
+            {
+                Ok(response) => response,
+                Err(reason) => {
+                    on_event
+                        .send(AiEvent::Error {
+                            reason: reason.clone(),
+                            taxonomy: "local".to_string(),
+                        })
+                        .map_err(|err| format!("failed to send lane0 error AI event: {err}"))?;
+                    return Err(reason);
+                }
+            };
+
+            on_event
+                .send(AiEvent::Chunk {
+                    text: response.clone(),
+                })
+                .map_err(|err| format!("failed to send lane0 chunk AI event: {err}"))?;
+            on_event
+                .send(AiEvent::Done { run_dir: None })
+                .map_err(|err| format!("failed to send lane0 done AI event: {err}"))?;
+
+            if settings.cache_mode == "exact" {
+                let key = cache_key(&normalized_query, &fingerprint, &model_ver, &vault_epoch);
+                let indexer = indexer.lock().map_err(|err| err.to_string())?;
+                db::cache_put(indexer.conn(), &key, &response, &model_ver, &deps)
+                    .map_err(|err| err.to_string())?;
+            }
+
+            return Ok(response);
+        }
     }
 
     on_event
@@ -153,8 +209,25 @@ fn choose_lane(settings: &Settings, query: &str) -> Result<String, String> {
         return Ok("fast".to_string());
     }
 
+    if deep_query(query) {
+        Ok("deep".to_string())
+    } else {
+        Ok("fast".to_string())
+    }
+}
+
+fn lane0_candidate(settings: &Settings, query: &str) -> bool {
+    settings.lanes.lane0_enabled
+        && settings.local_gen.provider == "ollama"
+        && !settings.local_gen.model.trim().is_empty()
+        && !query.trim().is_empty()
+        && query.chars().count() < 200
+        && !deep_query(query)
+}
+
+fn deep_query(query: &str) -> bool {
     let lower = query.to_ascii_lowercase();
-    let wants_deep = query.len() > 240
+    query.len() > 240
         || [
             "analyze",
             "compare",
@@ -166,13 +239,11 @@ fn choose_lane(settings: &Settings, query: &str) -> Result<String, String> {
             "explain",
         ]
         .iter()
-        .any(|keyword| lower.contains(keyword));
+        .any(|keyword| lower.contains(keyword))
+}
 
-    if wants_deep {
-        Ok("deep".to_string())
-    } else {
-        Ok("fast".to_string())
-    }
+fn build_lane0_prompt(context: &str, query: &str) -> String {
+    format!("{context}\n\nQUESTION:\n{query}")
 }
 
 fn model_ver(settings: &Settings, lane: &str) -> String {

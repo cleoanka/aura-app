@@ -14,6 +14,7 @@ use std::time::Duration;
 use tauri::ipc::Channel;
 
 const JOB_TIMEOUT: Duration = Duration::from_secs(600);
+const MODE_PROMPT_PLACEHOLDER: &str = "<prompt-file>";
 
 #[derive(Serialize, Clone)]
 #[serde(tag = "kind")]
@@ -61,6 +62,58 @@ pub async fn run_aura(
     result
 }
 
+pub async fn run_aura_mode(
+    job_id: String,
+    mode: &str,
+    prompt: &str,
+    project_dir: Option<&str>,
+    on_event: Channel<AiEvent>,
+    jobs: JobRegistry,
+) -> Result<String, String> {
+    let has_prompt = !prompt.trim().is_empty();
+    let argv = build_mode_argv(mode, has_prompt)?;
+    let prompt_path = if has_prompt {
+        let path = mode_prompt_path(&job_id)?;
+        write_private_file(&path, prompt)?;
+        Some(path)
+    } else {
+        None
+    };
+
+    let result = run_aura_mode_with_argv(
+        job_id,
+        mode,
+        &argv,
+        prompt_path.as_ref(),
+        project_dir,
+        on_event,
+        jobs,
+    )
+    .await;
+
+    if let Some(path) = prompt_path {
+        let _ = fs::remove_file(path);
+    }
+
+    result
+}
+
+pub fn build_mode_argv(mode: &str, has_prompt: bool) -> Result<Vec<String>, String> {
+    if !matches!(mode, "plan" | "review" | "fix" | "ship") {
+        return Err(format!("unsupported aura mode: {mode}"));
+    }
+
+    let mut argv = vec!["aura".to_string(), mode.to_string()];
+    if has_prompt {
+        argv.push("--prompt-file".to_string());
+        argv.push(MODE_PROMPT_PLACEHOLDER.to_string());
+    }
+    if matches!(mode, "plan" | "fix") {
+        argv.push("--json-events".to_string());
+    }
+    Ok(argv)
+}
+
 pub fn cancel(jobs: JobRegistry, job_id: &str) {
     let handle = jobs.lock().ok().and_then(|jobs| jobs.get(job_id).cloned());
 
@@ -69,6 +122,147 @@ pub fn cancel(jobs: JobRegistry, job_id: &str) {
         if let Ok(mut child) = handle.child.lock() {
             let _ = child.kill();
         }
+    }
+}
+
+async fn run_aura_mode_with_argv(
+    job_id: String,
+    mode: &str,
+    argv: &[String],
+    prompt_path: Option<&PathBuf>,
+    project_dir: Option<&str>,
+    on_event: Channel<AiEvent>,
+    jobs: JobRegistry,
+) -> Result<String, String> {
+    let program = argv
+        .first()
+        .ok_or_else(|| "aura mode argv is empty".to_string())?;
+    let prompt_arg = prompt_path.map(|path| path.to_string_lossy().into_owned());
+    let args = argv
+        .iter()
+        .skip(1)
+        .map(|arg| {
+            if arg == MODE_PROMPT_PLACEHOLDER {
+                prompt_arg.clone().unwrap_or_default()
+            } else {
+                arg.clone()
+            }
+        })
+        .collect::<Vec<_>>();
+
+    let mut command = Command::new(program);
+    command
+        .env_clear()
+        .envs(env_resolver::login_env())
+        .args(args)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .stdin(Stdio::null());
+    if let Some(project_dir) = project_dir.filter(|dir| !dir.trim().is_empty()) {
+        command.current_dir(project_dir);
+    }
+
+    let mut child = command
+        .group_spawn()
+        .map_err(|err| format!("failed to start aura: {err}"))?;
+    let stdout = child
+        .inner()
+        .stdout
+        .take()
+        .ok_or_else(|| "failed to capture aura stdout".to_string())?;
+    let raw_stdout_mode = matches!(mode, "review" | "ship");
+    let handle = JobHandle {
+        child: Arc::new(Mutex::new(child)),
+        cancelled: Arc::new(AtomicBool::new(false)),
+    };
+
+    jobs.lock()
+        .map_err(|err| err.to_string())?
+        .insert(job_id.clone(), handle.clone());
+
+    let read_task = if matches!(mode, "plan" | "fix") {
+        tokio::task::spawn_blocking({
+            let on_event = on_event.clone();
+            let cancelled = handle.cancelled.clone();
+            let lane = mode.to_string();
+            move || read_jsonl(stdout, lane, on_event, cancelled)
+        })
+    } else {
+        tokio::task::spawn_blocking({
+            let on_event = on_event.clone();
+            let cancelled = handle.cancelled.clone();
+            let lane = mode.to_string();
+            move || read_stdout_lines(stdout, lane, on_event, cancelled)
+        })
+    };
+
+    let read_result = match tokio::time::timeout(JOB_TIMEOUT, read_task).await {
+        Ok(Ok(result)) => result,
+        Ok(Err(err)) => Err(format!("aura reader task failed: {err}")),
+        Err(_) => {
+            handle.cancelled.store(true, Ordering::SeqCst);
+            if let Ok(mut child) = handle.child.lock() {
+                let _ = child.kill();
+            }
+            let event = AiEvent::Error {
+                reason: "aura timed out".to_string(),
+                taxonomy: "network".to_string(),
+            };
+            let _ = on_event.send(event);
+            Err("aura timed out".to_string())
+        }
+    };
+
+    if let Ok(mut jobs) = jobs.lock() {
+        jobs.remove(&job_id);
+    }
+
+    let wait_result = {
+        let child = handle.child.clone();
+        tokio::task::spawn_blocking(move || {
+            if let Ok(mut child) = child.lock() {
+                child
+                    .wait()
+                    .map_err(|err| format!("failed to wait for aura: {err}"))
+            } else {
+                Err("failed to lock aura process while waiting".to_string())
+            }
+        })
+        .await
+        .map_err(|err| format!("aura wait task failed: {err}"))?
+    };
+
+    if raw_stdout_mode {
+        match (read_result, wait_result) {
+            (Ok(text), Ok(status)) if status.success() => {
+                send_event(&on_event, AiEvent::Done { run_dir: None })?;
+                Ok(text)
+            }
+            (Ok(_), Ok(status)) => {
+                let reason = format!("aura exited with status {status}");
+                send_event(
+                    &on_event,
+                    AiEvent::Error {
+                        reason: reason.clone(),
+                        taxonomy: "process".to_string(),
+                    },
+                )?;
+                Err(reason)
+            }
+            (Ok(_), Err(reason)) => {
+                send_event(
+                    &on_event,
+                    AiEvent::Error {
+                        reason: reason.clone(),
+                        taxonomy: "process".to_string(),
+                    },
+                )?;
+                Err(reason)
+            }
+            (Err(reason), _) => Err(reason),
+        }
+    } else {
+        read_result
     }
 }
 
@@ -150,6 +344,39 @@ async fn run_aura_with_files(
     }
 
     read_result
+}
+
+fn read_stdout_lines(
+    stdout: ChildStdout,
+    lane: String,
+    on_event: Channel<AiEvent>,
+    cancelled: Arc<AtomicBool>,
+) -> Result<String, String> {
+    send_event(&on_event, AiEvent::Start { lane })?;
+
+    let lines = BufReader::new(stdout).lines();
+    let mut text = String::new();
+
+    for line in lines {
+        let mut line = line.map_err(|err| format!("failed to read aura output: {err}"))?;
+        line.push('\n');
+        text.push_str(&line);
+        send_event(&on_event, AiEvent::Chunk { text: line })?;
+    }
+
+    if cancelled.load(Ordering::SeqCst) {
+        let reason = "aura job cancelled".to_string();
+        send_event(
+            &on_event,
+            AiEvent::Error {
+                reason: reason.clone(),
+                taxonomy: "cancelled".to_string(),
+            },
+        )?;
+        Err(reason)
+    } else {
+        Ok(text)
+    }
 }
 
 fn read_jsonl(
@@ -252,6 +479,13 @@ fn write_job_files(job_id: &str, prompt: &str, context: &str) -> Result<JobTempP
         prompt: prompt_path,
         context: context_path,
     })
+}
+
+fn mode_prompt_path(job_id: &str) -> Result<PathBuf, String> {
+    let dir = temp_dir()?;
+    fs::create_dir_all(&dir).map_err(|err| format!("failed to create aura temp dir: {err}"))?;
+    set_dir_permissions(&dir)?;
+    Ok(dir.join(format!("{}.mode.prompt", safe_job_id(job_id))))
 }
 
 fn temp_dir() -> Result<PathBuf, String> {
