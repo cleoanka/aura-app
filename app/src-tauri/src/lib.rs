@@ -17,9 +17,10 @@ pub mod search;
 pub mod settings;
 
 use commands::{
-    agent_detect, agent_install, ask, ask_consensus, cancel_job, get_graph, get_settings,
-    index_vault, list_notes, pick_vault_folder, pty_close, pty_open, pty_resize, pty_write,
-    read_note, run_mode, search_fts, search_hybrid, set_settings, write_note,
+    agent_detect, agent_install, ask, ask_consensus, cancel_job, embedding_status, get_graph,
+    get_settings, index_vault, list_notes, ollama_pull, ollama_status, pick_vault_folder,
+    prepare_embedding_model, pty_close, pty_open, pty_resize, pty_write, read_note, run_mode,
+    search_fts, search_hybrid, set_settings, write_note,
 };
 use embed::default_embedder;
 use indexer::Indexer;
@@ -45,6 +46,10 @@ pub fn run() {
             greet,
             agent_detect,
             agent_install,
+            embedding_status,
+            prepare_embedding_model,
+            ollama_status,
+            ollama_pull,
             ask,
             ask_consensus,
             cancel_job,

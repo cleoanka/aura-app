@@ -1,5 +1,6 @@
-use crate::env_resolver;
+use crate::agent::AgentAuth;
 use crate::exec::{AiEvent, JobHandle, JobRegistry};
+use crate::{agent_manager, env_resolver};
 use command_group::{CommandGroup, GroupChild};
 use std::fs::{self, File, OpenOptions};
 use std::io::{BufRead, BufReader, Read, Write};
@@ -12,6 +13,13 @@ use tauri::ipc::Channel;
 const TOTAL_TIMEOUT: Duration = Duration::from_secs(600);
 const AGENT_TIMEOUT: Duration = Duration::from_secs(420);
 const SYNTHESIS_TIMEOUT: Duration = Duration::from_secs(240);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConsensusAnswerMode {
+    NoAnswers,
+    SingleAgent,
+    Synthesize,
+}
 
 pub fn synth_prompt(query: &str, answers: &[(String, String)]) -> String {
     let mut prompt = String::new();
@@ -34,6 +42,20 @@ pub fn synth_prompt(query: &str, answers: &[(String, String)]) -> String {
 
     prompt.push_str("SYNTHESIZED CONSENSUS ANSWER:\n");
     prompt
+}
+
+pub fn pick_synthesizer<'a>(available: &'a [&'a str]) -> Option<&'a str> {
+    ["claude", "gemini", "codex"]
+        .into_iter()
+        .find(|candidate| available.iter().any(|agent| agent == candidate))
+}
+
+pub fn consensus_answer_mode(answer_count: usize) -> ConsensusAnswerMode {
+    match answer_count {
+        0 => ConsensusAnswerMode::NoAnswers,
+        1 => ConsensusAnswerMode::SingleAgent,
+        _ => ConsensusAnswerMode::Synthesize,
+    }
 }
 
 pub async fn run_consensus(
@@ -99,8 +121,12 @@ async fn run_consensus_inner(
     on_event: Channel<AiEvent>,
     handle: JobHandle,
 ) -> Result<String, String> {
+    let available_agents = tokio::task::spawn_blocking(detect_usable_agents)
+        .await
+        .unwrap_or_else(|_| fallback_usable_agents());
+
     let mut tasks = Vec::new();
-    for agent in consensus_agents() {
+    for agent in available_agents.iter().copied() {
         tasks.push(tokio::spawn(run_agent(
             agent,
             shared_prompt_path.clone(),
@@ -131,7 +157,7 @@ async fn run_consensus_inner(
     }
 
     if answers.is_empty() {
-        let reason = "all consensus agents failed".to_string();
+        let reason = "no AI agents available".to_string();
         send_event(
             &on_event,
             AiEvent::Error {
@@ -142,9 +168,65 @@ async fn run_consensus_inner(
         return Err(reason);
     }
 
+    match consensus_answer_mode(answers.len()) {
+        ConsensusAnswerMode::NoAnswers => {
+            let reason = "no AI agents available".to_string();
+            send_event(
+                &on_event,
+                AiEvent::Error {
+                    reason: reason.clone(),
+                    taxonomy: "model".to_string(),
+                },
+            )?;
+            return Err(reason);
+        }
+        ConsensusAnswerMode::SingleAgent => {
+            let (agent, answer) = answers
+                .into_iter()
+                .next()
+                .ok_or_else(|| "no AI agents available".to_string())?;
+            return stream_single_agent_answer(&agent, &answer, on_event);
+        }
+        ConsensusAnswerMode::Synthesize => {}
+    }
+
     let synthesis_prompt = synth_prompt(&query, &answers);
     write_private_file(&synthesis_prompt_path, &synthesis_prompt)?;
-    run_synthesis(&synthesis_prompt_path, on_event, handle).await
+    let available_names = available_agents
+        .iter()
+        .map(|agent| agent.name)
+        .collect::<Vec<_>>();
+    match pick_synthesizer(&available_names) {
+        Some(synthesizer) => {
+            let agent = available_agents
+                .iter()
+                .find(|agent| agent.name == synthesizer)
+                .copied()
+                .ok_or_else(|| format!("selected synthesizer {synthesizer} was not available"))?;
+            match run_synthesis(
+                agent,
+                &synthesis_prompt_path,
+                on_event.clone(),
+                handle.clone(),
+            )
+            .await
+            {
+                Ok(text) => Ok(text),
+                Err(reason) if handle.is_cancelled() => {
+                    send_event(
+                        &on_event,
+                        AiEvent::Error {
+                            reason: reason.clone(),
+                            taxonomy: "cancelled".to_string(),
+                        },
+                    )?;
+                    Err(reason)
+                }
+                Err(_) => stream_concatenated_answers(&answers, on_event),
+            }
+        }
+        None => stream_concatenated_answers(&answers, on_event),
+    }
 }
 
 async fn run_agent(
@@ -189,6 +271,7 @@ async fn run_agent(
 }
 
 async fn run_synthesis(
+    agent: AgentSpec,
     prompt_path: &Path,
     on_event: Channel<AiEvent>,
     handle: JobHandle,
@@ -197,21 +280,16 @@ async fn run_synthesis(
         return Err("consensus job cancelled".to_string());
     }
 
-    let agent = AgentSpec {
-        name: "claude",
-        program: "claude",
-        args: &["-p"],
-    };
     let child = spawn_agent(&agent, prompt_path, &handle)?;
     let stdout = {
         let mut child = child
             .lock()
-            .map_err(|_| "failed to lock claude synthesis process".to_string())?;
+            .map_err(|_| format!("failed to lock {} synthesis process", agent.name))?;
         child
             .inner()
             .stdout
             .take()
-            .ok_or_else(|| "failed to capture claude synthesis stdout".to_string())?
+            .ok_or_else(|| format!("failed to capture {} synthesis stdout", agent.name))?
     };
 
     let read_task = tokio::task::spawn_blocking({
@@ -220,14 +298,15 @@ async fn run_synthesis(
         move || stream_stdout(stdout, on_event, cancelled)
     });
 
-    let mut timed_out = false;
     let read_result = match tokio::time::timeout(SYNTHESIS_TIMEOUT, read_task).await {
         Ok(Ok(result)) => result,
-        Ok(Err(err)) => Err(format!("claude synthesis reader task failed: {err}")),
+        Ok(Err(err)) => Err(format!(
+            "{} synthesis reader task failed: {err}",
+            agent.name
+        )),
         Err(_) => {
-            timed_out = true;
-            handle.cancel();
-            Err("claude synthesis timed out".to_string())
+            kill_child(&child);
+            Err(format!("{} synthesis timed out", agent.name))
         }
     };
 
@@ -239,44 +318,14 @@ async fn run_synthesis(
             Ok(text)
         }
         (Ok(_), Some(status)) => {
-            let reason = format!("claude synthesis exited with status {status}");
-            send_event(
-                &on_event,
-                AiEvent::Error {
-                    reason: reason.clone(),
-                    taxonomy: "process".to_string(),
-                },
-            )?;
+            let reason = format!("{} synthesis exited with status {status}", agent.name);
             Err(reason)
         }
         (Ok(_), None) => {
-            let reason = "failed to wait for claude synthesis".to_string();
-            send_event(
-                &on_event,
-                AiEvent::Error {
-                    reason: reason.clone(),
-                    taxonomy: "process".to_string(),
-                },
-            )?;
+            let reason = format!("failed to wait for {} synthesis", agent.name);
             Err(reason)
         }
-        (Err(reason), _) => {
-            let taxonomy = if timed_out {
-                "network"
-            } else if handle.is_cancelled() {
-                "cancelled"
-            } else {
-                "model"
-            };
-            send_event(
-                &on_event,
-                AiEvent::Error {
-                    reason: reason.clone(),
-                    taxonomy: taxonomy.to_string(),
-                },
-            )?;
-            Err(reason)
-        }
+        (Err(reason), _) => Err(reason),
     }
 }
 
@@ -316,8 +365,7 @@ fn stream_stdout(
 ) -> Result<String, String> {
     let mut text = String::new();
     for line in BufReader::new(stdout).lines() {
-        let mut line =
-            line.map_err(|err| format!("failed to read claude synthesis output: {err}"))?;
+        let mut line = line.map_err(|err| format!("failed to read synthesis output: {err}"))?;
         line.push('\n');
         text.push_str(&line);
         send_event(&on_event, AiEvent::Chunk { text: line })?;
@@ -346,6 +394,35 @@ fn kill_child(child: &Arc<Mutex<GroupChild>>) {
     }
 }
 
+fn stream_single_agent_answer(
+    agent: &str,
+    answer: &str,
+    on_event: Channel<AiEvent>,
+) -> Result<String, String> {
+    let text = format!("({agent}: tek ajan / single agent)\n{answer}");
+    send_event(&on_event, AiEvent::Chunk { text: text.clone() })?;
+    send_event(&on_event, AiEvent::Done { run_dir: None })?;
+    Ok(text)
+}
+
+fn stream_concatenated_answers(
+    answers: &[(String, String)],
+    on_event: Channel<AiEvent>,
+) -> Result<String, String> {
+    let mut text = String::new();
+    for (agent, answer) in answers {
+        text.push_str("\n## ");
+        text.push_str(agent);
+        text.push_str("\n");
+        text.push_str(answer.trim());
+        text.push('\n');
+    }
+    let text = text.trim_start().to_string();
+    send_event(&on_event, AiEvent::Chunk { text: text.clone() })?;
+    send_event(&on_event, AiEvent::Done { run_dir: None })?;
+    Ok(text)
+}
+
 fn consensus_agents() -> [AgentSpec; 3] {
     [
         AgentSpec {
@@ -364,6 +441,42 @@ fn consensus_agents() -> [AgentSpec; 3] {
             args: &["exec", "-s", "read-only", "--skip-git-repo-check", "-"],
         },
     ]
+}
+
+fn detect_usable_agents() -> Vec<AgentSpec> {
+    let all_agents = consensus_agents();
+    match agent_manager::detect(false) {
+        Ok(report) => all_agents
+            .into_iter()
+            .filter(|agent| {
+                report
+                    .agents
+                    .get(agent.name)
+                    .map(|status| {
+                        status.installed
+                            && !matches!(status.auth, AgentAuth::LoggedOut)
+                            && status.can_invoke != Some(false)
+                    })
+                    .unwrap_or_else(|| command_available(agent.program))
+            })
+            .collect(),
+        Err(_) => fallback_usable_agents(),
+    }
+}
+
+fn fallback_usable_agents() -> Vec<AgentSpec> {
+    consensus_agents()
+        .into_iter()
+        .filter(|agent| command_available(agent.program))
+        .collect()
+}
+
+fn command_available(program: &str) -> bool {
+    env_resolver::login_command("/bin/zsh")
+        .args(["-lc", &format!("command -v {program}")])
+        .output()
+        .map(|output| output.status.success())
+        .unwrap_or(false)
 }
 
 #[derive(Clone, Copy)]
