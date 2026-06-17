@@ -36,7 +36,7 @@ const navigationItems = [
   { id: "ask", key: "nav.ask", Icon: AskIcon },
   { id: "aura-mode", key: "nav.auraMode", Icon: AuraModeIcon },
   { id: "graph", key: "nav.graph", Icon: GraphIcon },
-  { id: "agents", key: "nav.agents", Icon: AgentsIcon },
+  { id: "agents", key: "nav.models", Icon: AgentsIcon },
   { id: "settings", key: "nav.settings", Icon: SettingsIcon },
 ] as const;
 
