@@ -852,12 +852,21 @@ select.text-input:focus {
   font-size: 16px;
 }
 
+/* Graph paneli pencereyi doldursun (sabit yükseklik değil, flex ile büyür). */
+.graph-panel {
+  display: flex;
+  flex-direction: column;
+  max-width: none;
+}
+.graph-panel .panel-header {
+  flex: 0 0 auto;
+}
 .graph-stage {
   position: relative;
   overflow: hidden;
   width: 100%;
-  height: min(680px, calc(100vh - 190px));
-  min-height: 360px;
+  flex: 1 1 auto;
+  min-height: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background:
