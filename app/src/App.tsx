@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { listen } from "@tauri-apps/api/event";
 
 import { AgentManager } from "./components/AgentManager";
 import { AppShell, type ActiveView } from "./components/AppShell";
@@ -17,6 +18,16 @@ function App() {
   const [selectedNote, setSelectedNote] = useState<NoteRef | null>(null);
   const [noteCount, setNoteCount] = useState(0);
   const [doctorReport, setDoctorReport] = useState<DoctorReport | null>(null);
+  // Arka plan otomatik-reindex bitince (backend "index-updated" emit eder)
+  // ilgili görünümler remount olup yeniden veri çeker.
+  const [dataVersion, setDataVersion] = useState(0);
+
+  useEffect(() => {
+    const unlisten = listen("index-updated", () => setDataVersion((v) => v + 1));
+    return () => {
+      void unlisten.then((dispose) => dispose());
+    };
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -49,6 +60,7 @@ function App() {
         return (
           <div className="workspace-layout">
             <VaultExplorer
+              key={dataVersion}
               activePath={selectedNote?.path ?? null}
               onNotesChange={setNoteCount}
               onOpenNote={openNote}
@@ -63,7 +75,7 @@ function App() {
       case "aura-mode":
         return <AuraModePanel />;
       case "graph":
-        return <GraphView onOpenNote={openNote} />;
+        return <GraphView key={dataVersion} onOpenNote={openNote} />;
       case "agents":
         return <AgentManager onReportChange={setDoctorReport} />;
       case "settings":
