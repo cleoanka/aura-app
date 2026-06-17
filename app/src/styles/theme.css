@@ -490,6 +490,56 @@ code,
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
+.note-codemirror {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--bg-secondary) 74%, var(--bg));
+}
+
+.note-codemirror:focus-within {
+  border-color: color-mix(in srgb, var(--accent) 48%, var(--border));
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.note-codemirror .cm-editor {
+  height: 100%;
+  color: var(--text);
+  background: transparent;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.note-codemirror .cm-scroller {
+  overflow: auto;
+  padding: 18px;
+  font-family: inherit;
+}
+
+.note-codemirror .cm-content {
+  padding: 0;
+}
+
+.note-codemirror .cm-line {
+  padding: 0;
+}
+
+.note-codemirror .cm-focused {
+  outline: none;
+}
+
+.note-codemirror .cm-activeLine {
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.note-codemirror .cm-selectionBackground,
+.note-codemirror .cm-focused .cm-selectionBackground {
+  background: color-mix(in srgb, var(--accent) 36%, transparent);
+}
+
 .task-panel,
 .agent-manager {
   width: 100%;
@@ -665,72 +715,37 @@ select.text-input:focus {
 }
 
 .graph-stage {
-  overflow: auto;
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  height: min(680px, calc(100vh - 190px));
   min-height: 360px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: color-mix(in srgb, var(--bg-secondary) 64%, var(--bg));
+  background:
+    radial-gradient(circle at 24px 24px, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    color-mix(in srgb, var(--bg-secondary) 48%, var(--bg));
+  background-size: 28px 28px;
 }
 
-.graph-stage svg {
+.graph-stage canvas {
   display: block;
-  width: 100%;
-  min-width: 620px;
-  height: auto;
 }
 
-.graph-link {
-  stroke: color-mix(in srgb, var(--border) 78%, var(--text-muted));
-  stroke-width: 1.4;
-}
-
-.graph-node {
-  cursor: pointer;
-  outline: none;
-}
-
-.graph-node circle {
-  fill: var(--accent-soft);
-  stroke: color-mix(in srgb, var(--accent) 52%, var(--border));
-  stroke-width: 1.4;
-}
-
-.graph-node circle.is-dangling {
-  fill: color-mix(in srgb, var(--yellow) 12%, var(--bg-secondary));
-  stroke: color-mix(in srgb, var(--yellow) 50%, var(--border));
-}
-
-.graph-node:hover circle,
-.graph-node:focus-visible circle {
-  stroke: var(--accent);
-  stroke-width: 2;
-}
-
-.graph-node text {
-  fill: var(--text);
-  font-size: 11px;
-  text-anchor: middle;
+.graph-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  margin: 0;
+  place-items: center;
+  color: var(--text-muted);
+  font-size: 13px;
   pointer-events: none;
 }
 
-.node-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 8px;
-  margin-top: 14px;
-}
-
-.node-list-item {
+.graph-toolbar {
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 9px 10px;
-  border-color: var(--border);
-  background: var(--bg-secondary);
-}
-
-.node-list-item:hover {
-  border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
 }
 
 .settings-grid {

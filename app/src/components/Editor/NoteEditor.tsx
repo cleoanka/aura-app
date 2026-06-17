@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { markdown } from "@codemirror/lang-markdown";
+import CodeMirror, { EditorView } from "@uiw/react-codemirror";
 
 import { readNote, writeNote } from "../../lib/ipc";
 import type { NoteRef } from "../../lib/types";
@@ -19,8 +21,11 @@ export function NoteEditor({ note }: NoteEditorProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedAt, setSavedAt] = useState<string | null>(null);
+  const saveTimerRef = useRef<number | null>(null);
+  const savingRef = useRef(false);
 
   const isDirty = content !== savedContent;
+  const editorExtensions = useMemo(() => [markdown(), EditorView.lineWrapping], []);
   const title = useMemo(() => {
     if (!note) {
       return "Not editörü";
@@ -73,17 +78,20 @@ export function NoteEditor({ note }: NoteEditorProps) {
     };
   }, [note]);
 
-  const save = async () => {
-    if (!note || saving || !isDirty) {
+  const save = useCallback(async () => {
+    if (!note || savingRef.current || content === savedContent) {
       return;
     }
 
+    const path = note.path;
+    const contentToSave = content;
+    savingRef.current = true;
     setSaving(true);
     setError(null);
 
     try {
-      await writeNote(note.path, content);
-      setSavedContent(content);
+      await writeNote(path, contentToSave);
+      setSavedContent(contentToSave);
       setSavedAt(new Intl.DateTimeFormat("tr-TR", {
         hour: "2-digit",
         minute: "2-digit",
@@ -91,9 +99,33 @@ export function NoteEditor({ note }: NoteEditorProps) {
     } catch {
       setError("Not kaydedilemedi.");
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
-  };
+  }, [content, note, savedContent]);
+
+  useEffect(() => {
+    if (saveTimerRef.current !== null) {
+      window.clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+
+    if (!note || loading || !isDirty) {
+      return undefined;
+    }
+
+    saveTimerRef.current = window.setTimeout(() => {
+      saveTimerRef.current = null;
+      void save();
+    }, 800);
+
+    return () => {
+      if (saveTimerRef.current !== null) {
+        window.clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+    };
+  }, [isDirty, loading, note, save]);
 
   if (!note) {
     return (
@@ -135,12 +167,20 @@ export function NoteEditor({ note }: NoteEditorProps) {
 
       {error ? <p className="notice error">{error}</p> : null}
 
-      <textarea
+      <CodeMirror
         aria-label={`${title} içeriği`}
-        className="note-textarea mono"
-        disabled={loading}
-        onChange={(event) => setContent(event.currentTarget.value)}
-        spellCheck={false}
+        basicSetup={{
+          foldGutter: false,
+          highlightActiveLineGutter: false,
+          lineNumbers: false,
+        }}
+        className="note-codemirror"
+        editable={!loading}
+        extensions={editorExtensions}
+        height="100%"
+        onChange={setContent}
+        readOnly={loading}
+        theme="dark"
         value={content}
       />
     </section>
