@@ -48,6 +48,48 @@ export async function agentInstall(id: AgentId): Promise<string> {
   }
 }
 
+export async function ptyOpen(
+  agent: AgentId,
+  onOutput: (s: string) => void,
+): Promise<string> {
+  const channel = new Channel<string>();
+  channel.onmessage = onOutput;
+
+  try {
+    return await invoke<string>("pty_open", { agent, onOutput: channel });
+  } catch (error) {
+    throw readableError(error);
+  }
+}
+
+export async function ptyWrite(sessionId: string, data: string): Promise<void> {
+  try {
+    await invoke<void>("pty_write", { sessionId, data });
+  } catch (error) {
+    throw readableError(error);
+  }
+}
+
+export async function ptyResize(
+  sessionId: string,
+  rows: number,
+  cols: number,
+): Promise<void> {
+  try {
+    await invoke<void>("pty_resize", { sessionId, rows, cols });
+  } catch (error) {
+    throw readableError(error);
+  }
+}
+
+export async function ptyClose(sessionId: string): Promise<void> {
+  try {
+    await invoke<void>("pty_close", { sessionId });
+  } catch (error) {
+    throw readableError(error);
+  }
+}
+
 export async function listNotes(): Promise<NoteRef[]> {
   try {
     return await invoke<NoteRef[]>("list_notes");
