@@ -60,7 +60,8 @@ pub async fn ask(
             .map_err(|err| err.to_string())?
             .unwrap_or_else(|| "0".to_string());
         let key = cache_key(&normalized_query, &fingerprint, &model_ver, &vault_epoch);
-        let cache_hit = if settings.cache_mode == "exact" {
+        // audit #7: 'semantic' için ayrı yol yok → exact cache kullan (sessiz no-op yerine).
+        let cache_hit = if settings.cache_mode != "off" {
             db::cache_get_valid(indexer.conn(), &key).map_err(|err| err.to_string())?
         } else {
             None
@@ -119,7 +120,7 @@ pub async fn ask(
                 .send(AiEvent::Done { run_dir: None })
                 .map_err(|err| format!("failed to send lane0 done AI event: {err}"))?;
 
-            if settings.cache_mode == "exact" {
+            if settings.cache_mode != "off" {
                 let key = cache_key(&normalized_query, &fingerprint, &model_ver, &vault_epoch);
                 let indexer = indexer.lock().map_err(|err| err.to_string())?;
                 db::cache_put(indexer.conn(), &key, &response, &model_ver, &deps)
@@ -145,7 +146,7 @@ pub async fn ask(
     )
     .await?;
 
-    if settings.cache_mode == "exact" {
+    if settings.cache_mode != "off" {
         let key = cache_key(&normalized_query, &fingerprint, &model_ver, &vault_epoch);
         let indexer = indexer.lock().map_err(|err| err.to_string())?;
         db::cache_put(indexer.conn(), &key, &response, &model_ver, &deps)
@@ -343,9 +344,11 @@ fn new_job_id() -> String {
 }
 
 fn hex_digest(bytes: &[u8]) -> String {
+    use std::fmt::Write;
+    // audit #12: byte başına format! geçici String alloc'u yerine önceden ayrılmış String'e yaz.
     let mut value = String::with_capacity(bytes.len() * 2);
     for byte in bytes {
-        value.push_str(&format!("{byte:02x}"));
+        let _ = write!(value, "{byte:02x}");
     }
     value
 }

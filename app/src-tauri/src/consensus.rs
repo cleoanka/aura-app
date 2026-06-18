@@ -373,10 +373,14 @@ fn spawn_agent(
     Ok(handle.add_child(child))
 }
 
+/// OOM koruması (audit #4): kaçak/anormal ajan GB'larca stdout üretirse belleği şişirmesin.
+/// exec.rs::read_jsonl ile aynı 16MB sınırı.
+const MAX_OUTPUT_BYTES: usize = 16 * 1024 * 1024;
+
 fn read_stdout_to_string(stdout: ChildStdout) -> Result<String, String> {
-    let mut reader = BufReader::new(stdout);
     let mut text = String::new();
-    reader
+    BufReader::new(stdout)
+        .take(MAX_OUTPUT_BYTES as u64)
         .read_to_string(&mut text)
         .map_err(|err| format!("failed to read agent output: {err}"))?;
     Ok(text)
@@ -388,9 +392,13 @@ fn stream_stdout(
     cancelled: Arc<std::sync::atomic::AtomicBool>,
 ) -> Result<String, String> {
     let mut text = String::new();
-    for line in BufReader::new(stdout).lines() {
+    // .take() TOPLAM okunan baytı sınırlar → tek bir devasa satır bile OOM yapamaz (codex).
+    for line in BufReader::new(stdout.take(MAX_OUTPUT_BYTES as u64)).lines() {
         let mut line = line.map_err(|err| format!("failed to read synthesis output: {err}"))?;
         line.push('\n');
+        if text.len() + line.len() > MAX_OUTPUT_BYTES {
+            break;
+        }
         text.push_str(&line);
         send_event(&on_event, AiEvent::Chunk { text: line })?;
     }

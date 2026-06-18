@@ -70,20 +70,21 @@ pub fn extract_links_with_mentions(
     known_basenames: &HashMap<String, Vec<String>>,
 ) -> Vec<RawLink> {
     let mut links = extract_links(path, content);
+    // audit #8: unicode-aware (is_alphanumeric + to_lowercase) → 'günlük.md'/'café.md' gibi
+    // non-ASCII not adlarına düz-metin mention bağlantıları da kurulabilsin (Türkçe vault).
     let self_name = path
         .file_name()
         .and_then(|name| name.to_str())
         .unwrap_or_default()
-        .to_ascii_lowercase();
+        .to_lowercase();
 
     let mut seen_mentions = HashSet::new();
-    for token in content
-        .split(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '.' || ch == '_' || ch == '-'))
+    for token in content.split(|ch: char| !(ch.is_alphanumeric() || ch == '.' || ch == '_' || ch == '-'))
     {
         if token.is_empty() {
             continue;
         }
-        let key = token.to_ascii_lowercase();
+        let key = token.to_lowercase();
         if key == self_name {
             continue;
         }
@@ -95,7 +96,9 @@ pub fn extract_links_with_mentions(
         }
     }
 
-    dedupe_links(links)
+    // audit #10: mention'lar seen_mentions ile, diğerleri extract_links içinde zaten dedup edilmiş;
+    // kind'lar ayrık → ikinci dedupe_links saf no-op idi, kaldırıldı.
+    links
 }
 
 pub fn known_basename_index(paths: &[PathBuf]) -> HashMap<String, Vec<String>> {
@@ -105,7 +108,7 @@ pub fn known_basename_index(paths: &[PathBuf]) -> HashMap<String, Vec<String>> {
             continue;
         };
         basenames
-            .entry(name.to_ascii_lowercase())
+            .entry(name.to_lowercase())
             .or_default()
             .push(path.to_string_lossy().into_owned());
     }

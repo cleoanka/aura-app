@@ -448,7 +448,9 @@ pub fn vec_search(conn: &Connection, query_vec: &[f32], k: usize) -> Result<Vec<
         return Ok(Vec::new());
     }
     let query_vec = normalize_embedding(query_vec);
-    let mut best: Vec<(i64, f32)> = Vec::with_capacity(k);
+    // Bellek koruması (audit #2): k yanlış-yapılandırma ile dev olabilir → eager kapasiteyi sınırla
+    // (vec zaten gerektikçe büyür; sonuç değişmez).
+    let mut best: Vec<(i64, f32)> = Vec::with_capacity(k.min(4096));
 
     conn.query(
         "SELECT chunk_id, embedding FROM vec_chunks",
@@ -993,43 +995,56 @@ pub fn cache_put(
         .map(|duration| duration.as_secs() as i64)
         .unwrap_or_default();
 
-    conn.execute(
-        r#"
-        INSERT INTO cache(key, response, model_ver, created_at)
-        VALUES (?1, ?2, ?3, ?4)
-        ON CONFLICT(key) DO UPDATE SET
-            response = excluded.response,
-            model_ver = excluded.model_ver,
-            created_at = excluded.created_at
-        "#,
-        &[
-            Bind::Text(key),
-            Bind::Text(response),
-            Bind::Text(model_ver),
-            Bind::I64(created_at),
-        ],
-    )?;
-    conn.execute(
-        "DELETE FROM cache_deps WHERE cache_key = ?1",
-        &[Bind::Text(key)],
-    )?;
-
-    for dep in deps {
+    // Atomiklik (audit #3): cache satırı + deps TEK transaction'da. Kısmi yazımda (IO/FK hatası)
+    // rollback → cache_get_valid eksik-dep'li 'valid' stale cevap döndürmez.
+    conn.begin_immediate()?;
+    let write = || -> Result<()> {
         conn.execute(
             r#"
-            INSERT INTO cache_deps(cache_key, note_path, chunk_stable_id, content_hash)
+            INSERT INTO cache(key, response, model_ver, created_at)
             VALUES (?1, ?2, ?3, ?4)
+            ON CONFLICT(key) DO UPDATE SET
+                response = excluded.response,
+                model_ver = excluded.model_ver,
+                created_at = excluded.created_at
             "#,
             &[
                 Bind::Text(key),
-                Bind::Text(&dep.note_path),
-                Bind::Text(&dep.chunk_stable_id),
-                Bind::Text(&dep.content_hash),
+                Bind::Text(response),
+                Bind::Text(model_ver),
+                Bind::I64(created_at),
             ],
         )?;
+        conn.execute(
+            "DELETE FROM cache_deps WHERE cache_key = ?1",
+            &[Bind::Text(key)],
+        )?;
+        for dep in deps {
+            conn.execute(
+                r#"
+                INSERT INTO cache_deps(cache_key, note_path, chunk_stable_id, content_hash)
+                VALUES (?1, ?2, ?3, ?4)
+                "#,
+                &[
+                    Bind::Text(key),
+                    Bind::Text(&dep.note_path),
+                    Bind::Text(&dep.chunk_stable_id),
+                    Bind::Text(&dep.content_hash),
+                ],
+            )?;
+        }
+        Ok(())
+    };
+    match write() {
+        Ok(()) => {
+            conn.commit()?;
+            Ok(())
+        }
+        Err(err) => {
+            let _ = conn.rollback();
+            Err(err)
+        }
     }
-
-    Ok(())
 }
 
 impl Connection {

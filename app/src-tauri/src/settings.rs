@@ -207,16 +207,14 @@ pub fn load_from(path: &Path) -> Settings {
         Ok(content) => match serde_json::from_str::<Settings>(&content) {
             Ok(settings) => settings.normalized(),
             Err(_) => {
-                let settings = Settings::default();
-                let _ = save_to(path, &settings);
-                settings
+                // Bozuk ama kurtarılabilir config'i EZME (audit #13): .bak'a yedekle,
+                // bellekte default dön. Dosya bir sonraki set_settings'e kadar korunur.
+                let _ = fs::write(path.with_extension("json.bak"), &content);
+                Settings::default()
             }
         },
-        Err(_) => {
-            let settings = Settings::default();
-            let _ = save_to(path, &settings);
-            settings
-        }
+        // Dosya yok/okunamıyor: bellekte default (ilk set_settings yazar) — clobber yok.
+        Err(_) => Settings::default(),
     }
 }
 
@@ -259,6 +257,15 @@ impl Settings {
         if settings.theme.trim().is_empty() {
             settings.theme = default_theme();
         }
+        // Bellek/DoS koruması (audit #2): advanced retrieval k-değerlerini makul aralığa sıkıştır
+        // → bozuk config dev allocation (vec_search) / SQLite değişken limiti aşımı yapamaz.
+        let adv = &mut settings.advanced_retrieval;
+        adv.seed_k = adv.seed_k.clamp(1, 128);
+        adv.candidate_k = adv.candidate_k.clamp(1, 512);
+        adv.final_k = adv.final_k.clamp(1, 64);
+        adv.graph_hops = adv.graph_hops.clamp(0, 4);
+        adv.graph_neighbors_per_seed = adv.graph_neighbors_per_seed.clamp(0, 64);
+        adv.semantic_cache_threshold = adv.semantic_cache_threshold.clamp(50, 100);
         settings.local_gen = settings.local_gen.normalized();
         settings
     }

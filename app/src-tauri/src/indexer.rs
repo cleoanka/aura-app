@@ -106,8 +106,13 @@ impl Indexer {
         for project_file in project_files {
             let path = project_file.path;
             let note_path = path.to_string_lossy().into_owned();
-            let metadata = fs::metadata(&path)
-                .map_err(|err| format!("failed to stat {}: {err}", path.display()))?;
+            // Dayanıklılık (audit #5): tarama↔stat arası dosya silinirse/erişilemezse (TOCTOU:
+            // editör temp, .lock, FS hiccup) TÜM indekslemeyi düşürme — sadece o dosyayı atla
+            // (read_to_string Err kolundaki davranışla tutarlı).
+            let Ok(metadata) = fs::metadata(&path) else {
+                stats.skipped += 1;
+                continue;
+            };
             let file_id = file_id(&path, &metadata);
             let mtime = mtime(&metadata);
             stats.notes += 1;
