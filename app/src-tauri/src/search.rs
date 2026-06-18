@@ -47,9 +47,13 @@ pub fn hybrid_search(
     let vec_set = vec_ids.iter().copied().collect::<HashSet<_>>();
     let mut hits = Vec::new();
 
+    // PERF (codex #3): tüm metadata'yı TEK sorguda çek (N+1 değil), sonra fused sırasını koru.
+    let fused_ids = fused.iter().map(|(id, _)| *id).collect::<Vec<_>>();
+    let meta = db::chunk_ai_meta_batch(conn, &fused_ids).map_err(|err| err.to_string())?;
+
     for (chunk_id, score) in fused {
         let Some((note_path, heading_path, text, chunk_stable_id, content_hash)) =
-            db::chunk_ai_meta(conn, chunk_id).map_err(|err| err.to_string())?
+            meta.get(&chunk_id).cloned()
         else {
             continue;
         };
