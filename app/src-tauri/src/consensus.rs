@@ -437,7 +437,7 @@ fn stream_concatenated_answers(
     for (agent, answer) in answers {
         text.push_str("\n## ");
         text.push_str(agent);
-        text.push_str("\n");
+        text.push('\n');
         text.push_str(answer.trim());
         text.push('\n');
     }

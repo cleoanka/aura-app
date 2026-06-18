@@ -5,7 +5,7 @@ pub mod consensus;
 pub mod db;
 pub mod embed;
 mod env_resolver;
-mod error;
+pub mod error;
 pub mod exec;
 pub mod graph;
 pub mod indexer;
