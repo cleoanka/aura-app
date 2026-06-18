@@ -217,7 +217,7 @@ export async function getSettings(): Promise<Settings> {
 
 export async function setSettings(settings: Settings): Promise<void> {
   try {
-    await invoke<void>("set_settings", { s: settings });
+    await invoke<void>("set_settings", { settings });
   } catch (error) {
     throw readableError(error);
   }

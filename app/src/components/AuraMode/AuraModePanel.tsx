@@ -102,6 +102,7 @@ export function AuraModePanel() {
       case "cached":
         setLane("cached");
         setOutput(event.text);
+        setStreaming(false); // cache hit terminaldir → spinner'ı durdur
         break;
       case "done":
         setStreaming(false);
