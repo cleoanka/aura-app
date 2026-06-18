@@ -15,14 +15,23 @@ pub struct QueryPlan {
     pub keywords: Vec<String>,
 }
 
-#[derive(Deserialize)]
-struct RawPlan {
-    #[serde(default)]
-    canonical: String,
-    #[serde(default)]
-    expansions: Vec<String>,
-    #[serde(default)]
-    keywords: Vec<String>,
+// Küçük model JSON şemasına tam uymayabilir (ör. expansions'ı [["..."]] iç içe verir).
+// Bu yüzden serde_json::Value'ya parse edip stringleri DÜZLEŞTİREREK toplarız.
+fn flatten_strings(value: Option<&serde_json::Value>, out: &mut Vec<String>) {
+    match value {
+        Some(serde_json::Value::String(s)) => {
+            let s = s.trim();
+            if !s.is_empty() {
+                out.push(s.to_string());
+            }
+        }
+        Some(serde_json::Value::Array(items)) => {
+            for it in items {
+                flatten_strings(Some(it), out);
+            }
+        }
+        _ => {}
+    }
 }
 
 const PLANNER_FALLBACK_MODEL: &str = "qwen2.5:3b";
@@ -53,19 +62,26 @@ No prose, no markdown fences. Keep the user's language.\n\nQUESTION:\n{query}"
     );
     let raw = lane0::ollama_generate(&settings.local_gen.ollama_url, &model, &prompt).ok()?;
     let json = extract_json(&raw)?;
-    let parsed: RawPlan = serde_json::from_str(&json).ok()?;
-    let clean = |items: Vec<String>, cap: usize| -> Vec<String> {
-        items
-            .into_iter()
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .take(cap)
-            .collect()
-    };
+    let value: serde_json::Value = serde_json::from_str(&json).ok()?;
+    let canonical = value
+        .get("canonical")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_string();
+    let mut expansions = Vec::new();
+    flatten_strings(value.get("expansions"), &mut expansions);
+    expansions.truncate(4);
+    let mut keywords = Vec::new();
+    flatten_strings(value.get("keywords"), &mut keywords);
+    keywords.truncate(8);
+    if canonical.is_empty() && expansions.is_empty() && keywords.is_empty() {
+        return None;
+    }
     Some(QueryPlan {
-        canonical: parsed.canonical.trim().to_string(),
-        expansions: clean(parsed.expansions, 4),
-        keywords: clean(parsed.keywords, 8),
+        canonical,
+        expansions,
+        keywords,
     })
 }
 
