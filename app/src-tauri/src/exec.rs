@@ -223,7 +223,6 @@ async fn run_aura_mode_with_argv(
         .take()
         .ok_or_else(|| "failed to capture aura stdout".to_string())?;
     // Tüm modlar artık json-events → her zaman read_jsonl (verbose + canlı).
-    let raw_stdout_mode = false;
     let handle = JobHandle::new();
     let child = handle.add_child(child);
 
@@ -253,56 +252,32 @@ async fn run_aura_mode_with_argv(
         }
     };
 
+    // Bounded reap (codex #5): 'done' sonrası asılı child UI'ı KİLİTLEMESİN; job'ı reap'TEN
+    // SONRA kaldır → wait sırasında cancel hâlâ bulabilir. (run_aura_with_files ile aynı desen.)
+    let mut reaped = false;
+    for _ in 0..150 {
+        let done = match child.lock() {
+            Ok(mut c) => matches!(c.try_wait(), Ok(Some(_))),
+            Err(_) => true,
+        };
+        if done {
+            reaped = true;
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    if !reaped {
+        if let Ok(mut c) = child.lock() {
+            let _ = c.kill();
+            let _ = c.wait();
+        }
+    }
     if let Ok(mut jobs) = jobs.lock() {
         jobs.remove(&job_id);
     }
 
-    let wait_result = {
-        tokio::task::spawn_blocking(move || {
-            if let Ok(mut child) = child.lock() {
-                child
-                    .wait()
-                    .map_err(|err| format!("failed to wait for aura: {err}"))
-            } else {
-                Err("failed to lock aura process while waiting".to_string())
-            }
-        })
-        .await
-        .map_err(|err| format!("aura wait task failed: {err}"))?
-    };
-
-    if raw_stdout_mode {
-        match (read_result, wait_result) {
-            (Ok(text), Ok(status)) if status.success() => {
-                send_event(&on_event, AiEvent::Done { run_dir: None })?;
-                Ok(text)
-            }
-            (Ok(_), Ok(status)) => {
-                let reason = format!("aura exited with status {status}");
-                send_event(
-                    &on_event,
-                    AiEvent::Error {
-                        reason: reason.clone(),
-                        taxonomy: "process".to_string(),
-                    },
-                )?;
-                Err(reason)
-            }
-            (Ok(_), Err(reason)) => {
-                send_event(
-                    &on_event,
-                    AiEvent::Error {
-                        reason: reason.clone(),
-                        taxonomy: "process".to_string(),
-                    },
-                )?;
-                Err(reason)
-            }
-            (Err(reason), _) => Err(reason),
-        }
-    } else {
-        read_result
-    }
+    // Tüm modlar json-events → read_jsonl terminal event'i (done/error) zaten yolladı.
+    read_result
 }
 
 async fn run_aura_with_files(
