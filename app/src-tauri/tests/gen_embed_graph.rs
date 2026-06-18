@@ -27,6 +27,17 @@ fn stub_embedder_deterministic_and_distinct() {
 }
 
 #[test]
+fn stub_embed_passages_batch_equals_single() {
+    // #7: embed_pending artık batch kullanıyor; default (stub) yolda batch == tek-tek olmalı.
+    let e = StubEmbedder;
+    let texts = vec!["alpha passage".to_string(), "beta different text".to_string()];
+    let batch = e.embed_passages_batch(&texts);
+    assert_eq!(batch.len(), 2);
+    assert_eq!(batch[0], e.embed_passage("alpha passage"));
+    assert_eq!(batch[1], e.embed_passage("beta different text"));
+}
+
+#[test]
 fn graph_build_links_existing_notes() {
     let notes = vec![
         ("a.md".to_string(), vec!["b.md".to_string()], "A".to_string()),
