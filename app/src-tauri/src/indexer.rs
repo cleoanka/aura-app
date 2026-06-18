@@ -198,10 +198,26 @@ impl Indexer {
     pub fn embed_pending(&mut self, limit: usize) -> Result<usize, String> {
         let pending =
             db::chunks_missing_embedding(&self.conn, limit as i64).map_err(|err| err.to_string())?;
+        if pending.is_empty() {
+            return Ok(0);
+        }
         let count = pending.len();
-        for (chunk_id, text) in pending {
-            let embedding = self.embedder.embed_passage(&text);
-            db::insert_embedding(&self.conn, chunk_id, &embedding).map_err(|err| err.to_string())?;
+        // PERF (codex #7): tüm bekleyen chunk'ları TEK batch forward'da embed et (per-chunk değil).
+        let texts: Vec<String> = pending.iter().map(|(_, text)| text.clone()).collect();
+        let embeddings = self.embedder.embed_passages_batch(&texts);
+        if embeddings.len() == pending.len() {
+            for ((chunk_id, _), embedding) in pending.iter().zip(embeddings.iter()) {
+                db::insert_embedding(&self.conn, *chunk_id, embedding)
+                    .map_err(|err| err.to_string())?;
+            }
+        } else {
+            // Sözleşme ihlali (batch eksik döndü): GÜVENLİ tek-tek → her chunk embed edilir,
+            // count doğru kalır (codex robustness bulgusu).
+            for (chunk_id, text) in &pending {
+                let embedding = self.embedder.embed_passage(text);
+                db::insert_embedding(&self.conn, *chunk_id, &embedding)
+                    .map_err(|err| err.to_string())?;
+            }
         }
         Ok(count)
     }

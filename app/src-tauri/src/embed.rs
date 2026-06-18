@@ -12,6 +12,11 @@ pub trait Embedder: Send + Sync {
     fn embed_query(&self, text: &str) -> Vec<f32> {
         self.embed(text)
     }
+    /// PERF (codex #7): bir grup passage'ı TEK forward'da embed et. Varsayılan tek-tek;
+    /// CandleEmbedder gerçek batch (tek tensör, batch-max pad) ile override eder.
+    fn embed_passages_batch(&self, texts: &[String]) -> Vec<Vec<f32>> {
+        texts.iter().map(|t| self.embed_passage(t)).collect()
+    }
 }
 
 /// Stub embedder -- replaced by candle e5-small in Faz 2c.
@@ -173,6 +178,68 @@ mod candle_backend {
                 .ok_or_else(|| "BERT forward pass returned no batch rows".to_string())?;
             mean_pool_l2(sequence, &attention)
         }
+
+        /// PERF (codex #7): bir grup metni TEK forward'da embed et; batch-max'a pad
+        /// (her zaman 512 değil). Mask pad token'ları dışlar → sonuç tek-tek ile eşdeğer.
+        fn embed_inner_batch(&self, prefix: &str, texts: &[String]) -> Result<Vec<Vec<f32>>, String> {
+            if texts.is_empty() {
+                return Ok(Vec::new());
+            }
+            let n = texts.len();
+            let mut id_rows: Vec<Vec<u32>> = Vec::with_capacity(n);
+            let mut attn_rows: Vec<Vec<u32>> = Vec::with_capacity(n);
+            let mut max_len = 1usize;
+            for text in texts {
+                let input = format!("{prefix}{text}");
+                let encoding = self
+                    .tokenizer
+                    .encode(input, true)
+                    .map_err(|err| format!("failed to tokenize input: {err}"))?;
+                let mut ids = encoding.get_ids().to_vec();
+                let mut attention = encoding.get_attention_mask().to_vec();
+                if ids.is_empty() {
+                    ids = vec![self.pad_token_id];
+                    attention = vec![1];
+                }
+                ids.truncate(MAX_SEQ_LEN);
+                attention.truncate(MAX_SEQ_LEN);
+                max_len = max_len.max(ids.len());
+                id_rows.push(ids);
+                attn_rows.push(attention);
+            }
+
+            let mut ids_flat = Vec::with_capacity(n * max_len);
+            let mut attn_flat = Vec::with_capacity(n * max_len);
+            for i in 0..n {
+                id_rows[i].resize(max_len, self.pad_token_id);
+                attn_rows[i].resize(max_len, 0);
+                ids_flat.extend_from_slice(&id_rows[i]);
+                attn_flat.extend_from_slice(&attn_rows[i]);
+            }
+
+            let input_ids = Tensor::from_vec(ids_flat, (n, max_len), &self.device)
+                .map_err(|err| format!("failed to create batch input_ids: {err}"))?;
+            let token_type_ids = input_ids
+                .zeros_like()
+                .map_err(|err| format!("failed to create batch token_type_ids: {err}"))?;
+            let attention_mask = Tensor::from_vec(attn_flat, (n, max_len), &self.device)
+                .map_err(|err| format!("failed to create batch attention_mask: {err}"))?;
+
+            let token_embeddings = self
+                .model
+                .forward(&input_ids, &token_type_ids, Some(&attention_mask))
+                .map_err(|err| format!("failed to run batch BERT forward: {err}"))?;
+            let token_embeddings = token_embeddings
+                .to_device(&Device::Cpu)
+                .and_then(|tensor| tensor.to_vec3::<f32>())
+                .map_err(|err| format!("failed to read batch embeddings: {err}"))?;
+
+            let mut out = Vec::with_capacity(n);
+            for (sequence, attention) in token_embeddings.iter().zip(attn_rows.iter()) {
+                out.push(mean_pool_l2(sequence, attention)?);
+            }
+            Ok(out)
+        }
     }
 
     /// Model hf-hub cache'inde HAZIR mı (İNDİRMEDEN kontrol). default_embedder
@@ -215,6 +282,13 @@ mod candle_backend {
 
         fn embed_query(&self, text: &str) -> Vec<f32> {
             self.embed_with_prefix("query: ", text)
+        }
+
+        fn embed_passages_batch(&self, texts: &[String]) -> Vec<Vec<f32>> {
+            match self.embed_inner_batch("passage: ", texts) {
+                Ok(vectors) if vectors.len() == texts.len() => vectors,
+                _ => texts.iter().map(|t| self.embed_passage(t)).collect(),
+            }
         }
     }
 
