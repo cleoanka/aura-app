@@ -257,9 +257,13 @@ pub fn assemble(
         let nb_chunks =
             db::representative_chunks_for_notes(indexer.conn(), &neighbors, 1).unwrap_or_default();
         let existing: HashSet<String> = hits.iter().map(|h| h.chunk_stable_id.clone()).collect();
+        // Cap = seed×per-seed (tek seed tüm slotları yemesin, codex #3) AMA token için
+        // toplam 2×final_k ile sınırla (bağlam şişmesin, kullanıcının token hedefi).
+        let graph_cap = (seed_paths.len().max(1) * adv.graph_neighbors_per_seed as usize)
+            .min(final_k * 2);
         let mut added = 0usize;
         for (note, heading, text, stable, hash) in nb_chunks {
-            if added >= adv.graph_neighbors_per_seed as usize {
+            if added >= graph_cap {
                 break;
             }
             if existing.contains(&stable) {

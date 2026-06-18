@@ -26,7 +26,9 @@ pub fn hybrid_search(
     }
 
     let search_limit = k.saturating_mul(2);
-    let fts_ranked = db::fts_search(conn, query, search_limit).map_err(|err| err.to_string())?;
+    // FTS5 MATCH özel karakterlerde (C++, tırnak, ?, -foo) syntax hatası verebilir.
+    // Bu ÖLÜMCÜL olmasın → boş FTS'e düş, vektör araması yine çalışsın (ask düşmez).
+    let fts_ranked = db::fts_search(conn, query, search_limit).unwrap_or_default();
     let query_embedding = embedder.embed_query(query);
     let vec_ranked =
         db::vec_search(conn, &query_embedding, search_limit).map_err(|err| err.to_string())?;

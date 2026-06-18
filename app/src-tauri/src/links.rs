@@ -129,10 +129,21 @@ pub fn resolve_links(
     project_files: &[PathBuf],
 ) -> Vec<(RawLink, ResolvedLink)> {
     let index = PathIndex::new(root, project_files);
+    resolve_links_with_index(root, source_path, raw_links, &index)
+}
+
+/// PERF (codex #6): PathIndex'i ÖNCEDEN kurulmuş haliyle al — vault tarama başında
+/// BİR KEZ kurulup her dosya için tekrar kullanılır (O(dosya²) → O(dosya)).
+pub fn resolve_links_with_index(
+    root: &Path,
+    source_path: &Path,
+    raw_links: &[RawLink],
+    index: &PathIndex,
+) -> Vec<(RawLink, ResolvedLink)> {
     raw_links
         .iter()
         .filter_map(|raw| {
-            resolve_with_index(root, source_path, raw, &index)
+            resolve_with_index(root, source_path, raw, index)
                 .map(|resolved| (raw.clone(), resolved))
         })
         .collect()
@@ -519,13 +530,13 @@ fn resolved(path: PathBuf, resolved: bool) -> ResolvedLink {
     }
 }
 
-struct PathIndex {
+pub struct PathIndex {
     paths: HashMap<String, PathBuf>,
     basenames: HashMap<String, Vec<PathBuf>>,
 }
 
 impl PathIndex {
-    fn new(root: &Path, project_files: &[PathBuf]) -> Self {
+    pub fn new(root: &Path, project_files: &[PathBuf]) -> Self {
         let mut paths = HashMap::new();
         let mut basenames: HashMap<String, Vec<PathBuf>> = HashMap::new();
         for path in project_files {
