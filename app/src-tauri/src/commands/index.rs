@@ -29,5 +29,5 @@ pub fn search_fts(
     k: u32,
 ) -> Result<Vec<SearchHit>, String> {
     let indexer = indexer.lock().map_err(|err| err.to_string())?;
-    indexer.search_fts(&query, k as usize)
+    indexer.search_fts(&query, (k as usize).clamp(1, 50))
 }

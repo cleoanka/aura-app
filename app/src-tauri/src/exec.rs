@@ -15,6 +15,8 @@ use tauri::ipc::Channel;
 
 const JOB_TIMEOUT: Duration = Duration::from_secs(600);
 const MODE_PROMPT_PLACEHOLDER: &str = "<prompt-file>";
+/// GÜVENLİK (codex #6): tek işten biriken çıktı üst sınırı → kötü/devasa çıktıda OOM yok.
+const MAX_OUTPUT_BYTES: usize = 16 * 1024 * 1024;
 
 #[derive(Serialize, Clone)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -486,6 +488,11 @@ fn read_jsonl(
             AuraJsonEvent::Chunk { text: chunk } => {
                 text.push_str(&chunk);
                 send_event(&on_event, AiEvent::Chunk { text: chunk })?;
+                // OOM koruması: çıktı sınırı aşılırsa temizce tamamla (truncated cevap).
+                if text.len() > MAX_OUTPUT_BYTES {
+                    send_event(&on_event, AiEvent::Done { run_dir: None })?;
+                    return Ok(text);
+                }
             }
             AuraJsonEvent::Status { text, stage, agent } => {
                 send_event(&on_event, AiEvent::Status { text, stage, agent })?;

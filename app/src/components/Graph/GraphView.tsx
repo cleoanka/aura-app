@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ForceGraph2D from "react-force-graph-2d";
 import type { ForceGraphMethods, NodeObject } from "react-force-graph-2d";
+import { forceX, forceY } from "d3-force";
 
 import { useI18n } from "../../i18n";
 import { getGraph } from "../../lib/ipc";
@@ -597,6 +598,12 @@ export function GraphView({ onOpenNote, activePath }: GraphViewProps) {
     if (center && typeof center.strength === "function") {
       center.strength(centerForce / 100); // merkeze toplama (büyük = daha derli toplu)
     }
+
+    // KOPUK AĞLAR sorunu: ayrı bağlı-bileşenler boşluğa uçup birbirinden çok uzaklaşıyordu.
+    // forceX/forceY her düğümü merkeze (0,0) doğru hafifçe çeker → bileşenler kompakt kalır.
+    const compact = Math.max(0.04, centerForce / 100);
+    fg.d3Force("x", forceX(0).strength(compact));
+    fg.d3Force("y", forceY(0).strength(compact));
 
     fg.d3ReheatSimulation();
   }, [linkDistance, linkForce, repelForce, centerForce]);

@@ -46,7 +46,8 @@ pub fn search_hybrid(
     k: u32,
 ) -> Result<Vec<SearchHit>, String> {
     let indexer = indexer.lock().map_err(|err| err.to_string())?;
-    indexer.search_hybrid(&query, k as usize)
+    // GÜVENLİK (codex #7): istemci-kontrollü k'yi sınırla → dev allocation/sonuç kümesi olmasın.
+    indexer.search_hybrid(&query, (k as usize).clamp(1, 50))
 }
 
 #[tauri::command]
