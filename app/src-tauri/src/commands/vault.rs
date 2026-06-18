@@ -72,9 +72,10 @@ pub fn save_note(kind: String, content: String) -> Result<String, String> {
         .ok_or_else(|| "no project folder selected".to_string())?;
     let dir = PathBuf::from(root).join("AURA");
     fs::create_dir_all(&dir).map_err(|err| format!("failed to create {}: {err}", dir.display()))?;
+    // Milisaniye hassasiyeti: aynı saniyede iki kayıt birbirini EZMESİN.
     let stamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs())
+        .map(|d| d.as_millis())
         .unwrap_or(0);
     let safe_kind: String = kind
         .chars()
