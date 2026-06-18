@@ -65,6 +65,8 @@ impl Indexer {
             .collect::<Vec<_>>();
         let known_basenames = links::known_basename_index(&project_paths);
         let title_aliases = title_aliases(&project_files);
+        // PERF (codex #6): PathIndex'i tarama başında BİR KEZ kur (per-dosya değil) → O(dosya)
+        let path_index = links::PathIndex::new(&root, &project_paths);
 
         for project_file in project_files {
             let path = project_file.path;
@@ -100,7 +102,7 @@ impl Indexer {
                             &path,
                             &content,
                             &known_basenames,
-                            &project_paths,
+                            &path_index,
                             &title_aliases,
                         )?;
 
@@ -174,14 +176,14 @@ impl Indexer {
         path: &Path,
         content: &str,
         known_basenames: &HashMap<String, Vec<String>>,
-        project_paths: &[PathBuf],
+        path_index: &links::PathIndex,
         title_aliases: &HashMap<String, String>,
     ) -> Result<(), String> {
         let note_path = path.to_string_lossy().into_owned();
         db::delete_links_for_source(&self.conn, &note_path).map_err(|err| err.to_string())?;
         let raw_links = links::extract_links_with_mentions(path, content, known_basenames);
         let mut seen = HashSet::new();
-        for (raw, mut resolved) in links::resolve_links(root, path, &raw_links, project_paths) {
+        for (raw, mut resolved) in links::resolve_links_with_index(root, path, &raw_links, path_index) {
             if !resolved.resolved {
                 if let Some(title_target) = title_aliases.get(&link_key(&raw.target_hint)) {
                     resolved.target_path = title_target.clone();

@@ -11,6 +11,9 @@ const EMBEDDING_BYTES: usize = EMBEDDING_DIM * std::mem::size_of::<f32>();
 
 type SqliteDestructor = Option<unsafe extern "C" fn(*mut c_void)>;
 
+/// (note_path, heading_path, text, chunk_stable_id, content_hash) — chunk satır demeti.
+pub type ChunkRow = (String, String, String, String, String);
+
 #[allow(non_camel_case_types)]
 enum sqlite3 {}
 
@@ -312,6 +315,7 @@ pub fn upsert_file(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn insert_chunk(
     conn: &Connection,
     note_path: &str,
@@ -553,13 +557,14 @@ pub fn representative_chunks_for_notes(
     conn: &Connection,
     note_paths: &[String],
     per_note: usize,
-) -> Result<Vec<(String, String, String, String, String)>> {
+) -> Result<Vec<ChunkRow>> {
     let mut out = Vec::new();
     for path in note_paths {
         conn.query(
             r#"
-            SELECT note_path, heading_path, text, chunk_stable_id, content_hash
-            FROM chunks WHERE note_path = ?1 ORDER BY ordinal LIMIT ?2
+            SELECT c.note_path, c.heading_path, c.text, c.chunk_stable_id, n.content_hash
+            FROM chunks c JOIN notes n ON n.path = c.note_path
+            WHERE c.note_path = ?1 ORDER BY c.ordinal LIMIT ?2
             "#,
             &[Bind::Text(path), Bind::I64(per_note.max(1) as i64)],
             |statement| {
@@ -582,12 +587,13 @@ pub fn representative_chunks_for_notes(
 pub fn parent_chunk_for(
     conn: &Connection,
     stable_id: &str,
-) -> Result<Option<(String, String, String, String, String)>> {
+) -> Result<Option<ChunkRow>> {
     let mut found = None;
     conn.query(
         r#"
-        SELECT p.note_path, p.heading_path, p.text, p.chunk_stable_id, p.content_hash
+        SELECT p.note_path, p.heading_path, p.text, p.chunk_stable_id, n.content_hash
         FROM chunks c JOIN chunks p ON p.id = c.parent_id
+        JOIN notes n ON n.path = p.note_path
         WHERE c.chunk_stable_id = ?1
         LIMIT 1
         "#,
@@ -870,7 +876,7 @@ pub struct CacheDep {
 pub fn chunk_ai_meta(
     conn: &Connection,
     chunk_id: i64,
-) -> Result<Option<(String, String, String, String, String)>> {
+) -> Result<Option<ChunkRow>> {
     let mut chunk = None;
     conn.query(
         r#"

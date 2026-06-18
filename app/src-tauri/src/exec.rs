@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::{self, OpenOptions};
 use std::io::{BufRead, BufReader, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{ChildStdout, Command, Stdio};
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -306,8 +306,8 @@ async fn run_aura_mode_with_argv(
 async fn run_aura_with_files(
     job_id: String,
     lane: &str,
-    prompt_path: &PathBuf,
-    context_path: &PathBuf,
+    prompt_path: &Path,
+    context_path: &Path,
     on_event: Channel<AiEvent>,
     jobs: JobRegistry,
 ) -> Result<String, String> {
