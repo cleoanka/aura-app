@@ -4,6 +4,7 @@ import { ask, askConsensus, cancelJob, getSettings } from "../../lib/ipc";
 import type { AiEvent, AiLane } from "../../lib/types";
 import { useI18n } from "../../i18n";
 import { LiveActivity } from "../LiveActivity";
+import { MarkdownView } from "../MarkdownView";
 
 type TFn = (key: string, vars?: Record<string, string | number>) => string;
 
@@ -226,7 +227,11 @@ export function AskPanel() {
       {error ? <p className="notice error">{error}</p> : null}
 
       <article className="answer-box" aria-live="polite" aria-label={t("settings.mode.ask")}>
-        {answer ? <pre>{answer}</pre> : <p className="empty-state">{t("ask.placeholder")}</p>}
+        {answer ? (
+          <MarkdownView text={answer} />
+        ) : (
+          <p className="empty-state">{t("ask.placeholder")}</p>
+        )}
       </article>
 
       {runDir ? <p className="path-label mono">Run: {runDir}</p> : null}

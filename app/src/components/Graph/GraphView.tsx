@@ -308,6 +308,10 @@ export function GraphView({ onOpenNote, activePath }: GraphViewProps) {
   const [linkDistance, setLinkDistance] = useState(60);
   const [showLabels, setShowLabels] = useState(true);
   const [hoverId, setHoverId] = useState<string | null>(null);
+  // Obsidian-style force controls
+  const [repelForce, setRepelForce] = useState(120); // charge magnitude
+  const [centerForce, setCenterForce] = useState(5); // 0..30 -> /100
+  const [linkForce, setLinkForce] = useState(40); // 0..100 -> /100 link strength
 
   // Feature state
   const [colorBy, setColorBy] = useState<ColorMode>("type");
@@ -574,26 +578,28 @@ export function GraphView({ onOpenNote, activePath }: GraphViewProps) {
       return;
     }
 
-    const linkForce = fg.d3Force("link");
-    if (linkForce && typeof (linkForce as { distance?: unknown }).distance === "function") {
-      (linkForce as unknown as { distance: (d: number) => unknown }).distance(linkDistance);
+    const link = fg.d3Force("link") as
+      | { distance?: (d: number) => unknown; strength?: (s: number) => unknown }
+      | undefined;
+    if (link && typeof link.distance === "function") {
+      link.distance(linkDistance);
+    }
+    if (link && typeof link.strength === "function") {
+      link.strength(linkForce / 100); // 0..1
     }
 
-    const chargeForce = fg.d3Force("charge");
-    if (chargeForce && typeof (chargeForce as { strength?: unknown }).strength === "function") {
-      // Stronger repulsion as link distance grows -> open, organic clusters.
-      (chargeForce as unknown as { strength: (s: number) => unknown }).strength(
-        -(40 + linkDistance * 1.6),
-      );
+    const charge = fg.d3Force("charge") as { strength?: (s: number) => unknown } | undefined;
+    if (charge && typeof charge.strength === "function") {
+      charge.strength(-repelForce); // itme gücü (büyük = daha dağınık)
     }
 
-    const centerForce = fg.d3Force("center");
-    if (centerForce && typeof (centerForce as { strength?: unknown }).strength === "function") {
-      (centerForce as unknown as { strength: (s: number) => unknown }).strength(0.05);
+    const center = fg.d3Force("center") as { strength?: (s: number) => unknown } | undefined;
+    if (center && typeof center.strength === "function") {
+      center.strength(centerForce / 100); // merkeze toplama (büyük = daha derli toplu)
     }
 
     fg.d3ReheatSimulation();
-  }, [linkDistance]);
+  }, [linkDistance, linkForce, repelForce, centerForce]);
 
   useEffect(() => {
     applyForces();
@@ -1149,6 +1155,51 @@ export function GraphView({ onOpenNote, activePath }: GraphViewProps) {
                     value={linkDistance}
                     onChange={(e) => {
                       setLinkDistance(Number(e.target.value));
+                      reheat();
+                    }}
+                  />
+                </label>
+
+                <label className="graph-control">
+                  <span>{t("graph.repelForce")}</span>
+                  <input
+                    type="range"
+                    min={20}
+                    max={500}
+                    step={10}
+                    value={repelForce}
+                    onChange={(e) => {
+                      setRepelForce(Number(e.target.value));
+                      reheat();
+                    }}
+                  />
+                </label>
+
+                <label className="graph-control">
+                  <span>{t("graph.linkForce")}</span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={5}
+                    value={linkForce}
+                    onChange={(e) => {
+                      setLinkForce(Number(e.target.value));
+                      reheat();
+                    }}
+                  />
+                </label>
+
+                <label className="graph-control">
+                  <span>{t("graph.centerForce")}</span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={30}
+                    step={1}
+                    value={centerForce}
+                    onChange={(e) => {
+                      setCenterForce(Number(e.target.value));
                       reheat();
                     }}
                   />
