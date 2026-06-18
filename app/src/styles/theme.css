@@ -96,7 +96,7 @@ code,
   grid-template-rows: minmax(0, 1fr) 28px;
   width: 100%;
   height: 100vh;
-  background: rgba(23, 23, 28, 0.96);
+  background: var(--bg);
 }
 
 .icon-rail {
@@ -405,7 +405,7 @@ code,
   padding: 4px 7px;
   border: 1px solid var(--border);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.02);
+  background: color-mix(in srgb, var(--text) 3%, transparent);
 }
 
 .note-tree {
@@ -566,7 +566,7 @@ code,
 }
 
 .note-codemirror .cm-activeLine {
-  background: rgba(255, 255, 255, 0.025);
+  background: color-mix(in srgb, var(--text) 4%, transparent);
 }
 
 .note-codemirror .cm-selectionBackground,
@@ -704,7 +704,7 @@ select.text-input:focus {
 
 .lane-fast {
   border-color: color-mix(in srgb, #4ea6ff 48%, var(--border));
-  color: #82beff;
+  color: color-mix(in srgb, #4ea6ff 60%, var(--text));
 }
 
 .lane-deep {
@@ -870,7 +870,7 @@ select.text-input:focus {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background:
-    radial-gradient(circle at 24px 24px, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    radial-gradient(circle at 24px 24px, color-mix(in srgb, var(--text) 5%, transparent) 1px, transparent 1px),
     color-mix(in srgb, var(--bg-secondary) 48%, var(--bg));
   background-size: 28px 28px;
 }
@@ -952,7 +952,7 @@ select.text-input:focus {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent),
+    linear-gradient(180deg, color-mix(in srgb, var(--text) 4%, transparent), transparent),
     var(--bg-secondary);
   box-shadow: var(--shadow);
 }
@@ -1003,7 +1003,7 @@ select.text-input:focus {
   border: 1px solid var(--border);
   border-radius: 999px;
   color: var(--text-muted);
-  background: rgba(255, 255, 255, 0.02);
+  background: color-mix(in srgb, var(--text) 3%, transparent);
   font-size: 12px;
   font-weight: 650;
   white-space: nowrap;
@@ -1092,7 +1092,7 @@ select.text-input:focus {
   display: grid;
   place-items: center;
   padding: 28px;
-  background: rgba(10, 10, 14, 0.72);
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
 }
 
 .pty-panel {

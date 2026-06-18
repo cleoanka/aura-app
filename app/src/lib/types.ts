@@ -66,7 +66,7 @@ export type DefaultMode = "ask" | "aura";
 
 export type AuraMode = "chat" | "plan" | "review" | "fix" | "ship";
 
-export type CacheMode = "off" | "read" | "write" | "read_write" | string;
+export type CacheMode = "off" | "exact" | "semantic" | string;
 
 export type LaneSettings = {
   fast?: boolean;

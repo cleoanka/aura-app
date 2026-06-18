@@ -23,7 +23,7 @@ const defaultForm: SettingsForm = {
   },
   consensusEnabled: false,
   semanticSearch: false,
-  cacheMode: "read_write",
+  cacheMode: "exact",
 };
 
 function normalize(settings: Settings | null): SettingsForm {
@@ -117,6 +117,8 @@ export function SettingsPanel() {
       await setSettings(nextSettings);
       setBaseSettings(nextSettings);
       setMessage(t("settings.saved"));
+      // Hep-mount panellere (Ask) ayarın değiştiğini bildir → anında yansısın.
+      window.dispatchEvent(new CustomEvent("aura:settings-saved"));
     } catch {
       setError(t("common.error"));
     } finally {
@@ -218,12 +220,10 @@ export function SettingsPanel() {
             <span>{t("settings.consensus")} <small>{t("settings.consensusCostHint")}</small></span>
             <input
               checked={form.consensusEnabled}
-              onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  consensusEnabled: event.currentTarget.checked,
-                }))
-              }
+              onChange={(event) => {
+                const checked = event.currentTarget.checked;
+                setForm((current) => ({ ...current, consensusEnabled: checked }));
+              }}
               type="checkbox"
             />
           </label>
@@ -232,12 +232,10 @@ export function SettingsPanel() {
             <span>{t("settings.semanticSearch")} <small>{t("settings.semanticHint")}</small></span>
             <input
               checked={form.semanticSearch}
-              onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  semanticSearch: event.currentTarget.checked,
-                }))
-              }
+              onChange={(event) => {
+                const checked = event.currentTarget.checked;
+                setForm((current) => ({ ...current, semanticSearch: checked }));
+              }}
               type="checkbox"
             />
           </label>
@@ -248,15 +246,15 @@ export function SettingsPanel() {
           <select
             className="text-input"
             id="cache-mode"
-            onChange={(event) =>
-              setForm((current) => ({ ...current, cacheMode: event.currentTarget.value }))
-            }
+            onChange={(event) => {
+              const value = event.currentTarget.value;
+              setForm((current) => ({ ...current, cacheMode: value }));
+            }}
             value={form.cacheMode}
           >
             <option value="off">{t("settings.cache.off")}</option>
-            <option value="read">Oku</option>
-            <option value="write">Yaz</option>
-            <option value="read_write">Oku + yaz</option>
+            <option value="exact">{t("settings.cache.exact")}</option>
+            <option value="semantic">{t("settings.cache.semantic")}</option>
           </select>
         </fieldset>
       </div>

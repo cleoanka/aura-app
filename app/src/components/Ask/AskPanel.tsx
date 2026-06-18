@@ -60,25 +60,28 @@ export function AskPanel() {
   useEffect(() => {
     let alive = true;
 
-    void getSettings()
-      .then((settings) => {
-        if (!alive) {
-          return;
-        }
+    // Panel HEP MOUNT olduğu için ayarları bir kez değil, kaydedildikçe de oku
+    // (Settings'te consensus açılınca burada anında yansısın).
+    const loadSettings = () => {
+      void getSettings()
+        .then((settings) => {
+          if (alive) {
+            setConsensusAvailable(settings.consensus_enabled === true);
+          }
+        })
+        .catch(() => {
+          if (alive) {
+            setConsensusAvailable(false);
+          }
+        });
+    };
 
-        const enabled = settings.consensus_enabled === true;
-        setConsensusAvailable(enabled);
-        setConsensusChecked(false);
-      })
-      .catch(() => {
-        if (alive) {
-          setConsensusAvailable(false);
-          setConsensusChecked(false);
-        }
-      });
+    loadSettings();
+    window.addEventListener("aura:settings-saved", loadSettings);
 
     return () => {
       alive = false;
+      window.removeEventListener("aura:settings-saved", loadSettings);
     };
   }, []);
 
@@ -107,6 +110,7 @@ export function AskPanel() {
         setLane(activeConsensus.current ? "consensus" : "cached");
         setStatusText(t("ask.lane.cached"));
         setAnswer(event.text);
+        setStreaming(false); // cache hit terminaldir → spinner'ı durdur
         break;
       case "done":
         setStreaming(false);
