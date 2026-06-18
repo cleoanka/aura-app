@@ -38,6 +38,8 @@ pub struct Settings {
     /// (965 chunk'ı tek tek embed eder). Kapalıyken hızlı FTS5 araması kullanılır.
     #[serde(default)]
     pub semantic_search: bool,
+    #[serde(default = "default_advanced_retrieval")]
+    pub advanced_retrieval: AdvancedRetrievalSettings,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -75,6 +77,84 @@ pub struct LocalGenSettings {
     pub model: String,
 }
 
+// Gelişmiş agentic-retrieval katmanı. Hepsi master `enabled` ile geçitli.
+// VARSAYILAN KAPALI: enabled=false iken Ask yolu birebir eski (legacy) davranışta.
+// threshold yüzde olarak (u32) tutulur (Settings `Eq` türetiyor; f32 kıracaktı).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct AdvancedRetrievalSettings {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_true")]
+    pub planner_enabled: bool,
+    #[serde(default = "default_true")]
+    pub graph_enabled: bool,
+    #[serde(default = "default_true")]
+    pub rerank_enabled: bool,
+    #[serde(default = "default_true")]
+    pub parent_pull_in_enabled: bool,
+    #[serde(default)]
+    pub semantic_cache_enabled: bool,
+    #[serde(default = "default_sem_threshold")]
+    pub semantic_cache_threshold: u32, // yüzde, 96 = 0.96
+    #[serde(default = "default_seed_k")]
+    pub seed_k: u32,
+    #[serde(default = "default_candidate_k")]
+    pub candidate_k: u32,
+    #[serde(default = "default_final_k")]
+    pub final_k: u32,
+    #[serde(default = "default_graph_hops")]
+    pub graph_hops: u32,
+    #[serde(default = "default_graph_neighbors")]
+    pub graph_neighbors_per_seed: u32,
+    #[serde(default)]
+    pub planner_model: String,
+}
+
+fn default_true() -> bool {
+    true
+}
+fn default_sem_threshold() -> u32 {
+    96
+}
+fn default_seed_k() -> u32 {
+    12
+}
+fn default_candidate_k() -> u32 {
+    48
+}
+fn default_final_k() -> u32 {
+    8
+}
+fn default_graph_hops() -> u32 {
+    2
+}
+fn default_graph_neighbors() -> u32 {
+    6
+}
+fn default_advanced_retrieval() -> AdvancedRetrievalSettings {
+    AdvancedRetrievalSettings::default()
+}
+
+impl Default for AdvancedRetrievalSettings {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            planner_enabled: true,
+            graph_enabled: true,
+            rerank_enabled: true,
+            parent_pull_in_enabled: true,
+            semantic_cache_enabled: false,
+            semantic_cache_threshold: default_sem_threshold(),
+            seed_k: default_seed_k(),
+            candidate_k: default_candidate_k(),
+            final_k: default_final_k(),
+            graph_hops: default_graph_hops(),
+            graph_neighbors_per_seed: default_graph_neighbors(),
+            planner_model: String::new(),
+        }
+    }
+}
+
 impl Default for Settings {
     fn default() -> Self {
         Self {
@@ -86,6 +166,7 @@ impl Default for Settings {
             theme: default_theme(),
             local_gen: default_local_gen(),
             semantic_search: false,
+            advanced_retrieval: AdvancedRetrievalSettings::default(),
         }
     }
 }

@@ -1,4 +1,4 @@
-use app_lib::settings::{self, LaneSettings, LocalGenSettings, Settings};
+use app_lib::settings::{self, AdvancedRetrievalSettings, LaneSettings, LocalGenSettings, Settings};
 use std::fs;
 
 #[test]
@@ -53,6 +53,7 @@ fn partial_settings_fill_defaults_and_round_trip() {
             model: "nomic".to_string(),
         },
         semantic_search: false,
+        advanced_retrieval: AdvancedRetrievalSettings::default(),
     };
     assert_eq!(loaded, expected);
 

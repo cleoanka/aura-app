@@ -11,6 +11,7 @@ type SettingsForm = {
   consensusEnabled: boolean;
   cacheMode: CacheMode;
   semanticSearch: boolean;
+  advancedEnabled: boolean;
 };
 
 const defaultForm: SettingsForm = {
@@ -23,6 +24,7 @@ const defaultForm: SettingsForm = {
   },
   consensusEnabled: false,
   semanticSearch: false,
+  advancedEnabled: false,
   cacheMode: "exact",
 };
 
@@ -38,6 +40,7 @@ function normalize(settings: Settings | null): SettingsForm {
     consensusEnabled: settings?.consensus_enabled ?? defaultForm.consensusEnabled,
     cacheMode: settings?.cache_mode ?? defaultForm.cacheMode,
     semanticSearch: settings?.semantic_search ?? defaultForm.semanticSearch,
+    advancedEnabled: settings?.advanced_retrieval?.enabled ?? defaultForm.advancedEnabled,
   };
 }
 
@@ -111,6 +114,10 @@ export function SettingsPanel() {
       consensus_enabled: form.consensusEnabled,
       cache_mode: form.cacheMode,
       semantic_search: form.semanticSearch,
+      advanced_retrieval: {
+        ...(baseSettings.advanced_retrieval ?? {}),
+        enabled: form.advancedEnabled,
+      },
     };
 
     try {
@@ -235,6 +242,18 @@ export function SettingsPanel() {
               onChange={(event) => {
                 const checked = event.currentTarget.checked;
                 setForm((current) => ({ ...current, semanticSearch: checked }));
+              }}
+              type="checkbox"
+            />
+          </label>
+
+          <label className="toggle-row">
+            <span>{t("settings.advancedRetrieval")} <small>{t("settings.advancedRetrieval.hint")}</small></span>
+            <input
+              checked={form.advancedEnabled}
+              onChange={(event) => {
+                const checked = event.currentTarget.checked;
+                setForm((current) => ({ ...current, advancedEnabled: checked }));
               }}
               type="checkbox"
             />
