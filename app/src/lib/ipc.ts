@@ -175,6 +175,14 @@ export async function writeNote(path: string, content: string): Promise<void> {
   }
 }
 
+export async function saveNote(kind: string, content: string): Promise<string> {
+  try {
+    return await invoke<string>("save_note", { kind, content });
+  } catch (error) {
+    throw readableError(error);
+  }
+}
+
 export async function searchHybrid(query: string, k = 10): Promise<SearchHit[]> {
   try {
     return await invoke<SearchHit[]>("search_hybrid", { query, k });

@@ -1341,3 +1341,22 @@ select.text-input:focus {
   gap: 3px;
 }
 .live-log li { white-space: pre-wrap; }
+
+/* Plan→eylem köprüsü: çıktı altındaki eylem çubuğu */
+.result-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--border));
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--accent) 5%, var(--bg-secondary));
+}
+.result-actions-label {
+  margin-right: 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}

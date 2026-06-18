@@ -14,4 +14,4 @@ pub use models::{embedding_status, ollama_pull, ollama_status, prepare_embedding
 pub use modes::run_mode;
 pub use pty::{pty_close, pty_open, pty_resize, pty_write};
 pub use settings::{get_settings, set_settings};
-pub use vault::{list_notes, pick_vault_folder, read_note, search_hybrid, write_note};
+pub use vault::{list_notes, pick_vault_folder, read_note, save_note, search_hybrid, write_note};

@@ -1,7 +1,7 @@
 import { FormEvent, useRef, useState } from "react";
 
 import { useI18n } from "../../i18n";
-import { cancelJob, chat, pickVaultFolder, runMode } from "../../lib/ipc";
+import { askConsensus, cancelJob, chat, pickVaultFolder, runMode, saveNote } from "../../lib/ipc";
 import type { AiEvent, AiLane, AuraMode } from "../../lib/types";
 import { LiveActivity } from "../LiveActivity";
 
@@ -13,6 +13,7 @@ type ModeOption = {
 
 const modeOptions: ModeOption[] = [
   { id: "chat", labelKey: "auraMode.chat", helperKey: "auraMode.chatHint" },
+  { id: "consensus", labelKey: "auraMode.consensus", helperKey: "auraMode.consensusHint" },
   { id: "plan", labelKey: "auraMode.plan", helperKey: "auraMode.planHint" },
   { id: "review", labelKey: "auraMode.review", helperKey: "auraMode.reviewHint" },
   { id: "fix", labelKey: "auraMode.fix", helperKey: "auraMode.fixHint" },
@@ -74,6 +75,7 @@ export function AuraModePanel() {
   const [streaming, setStreaming] = useState(false);
   const [statusText, setStatusText] = useState<string | null>(null);
   const [statusLog, setStatusLog] = useState<string[]>([]);
+  const [actionMsg, setActionMsg] = useState<string | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
   const [runDir, setRunDir] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -151,6 +153,7 @@ export function AuraModePanel() {
     setJobId(null);
     setStatusText(null);
     setStatusLog([]);
+    setActionMsg(null);
     setStreaming(true);
 
     try {
@@ -158,6 +161,8 @@ export function AuraModePanel() {
       // job_id artık "job" event'inden gelir (akış sırasında); dönüş = çıktı metni.
       if (mode === "chat") {
         await chat(trimmed, onEvt);
+      } else if (mode === "consensus") {
+        await askConsensus(trimmed, onEvt); // 3 ajan → Claude sentezi
       } else {
         await runMode(mode, trimmed, projectDir, onEvt);
       }
@@ -184,6 +189,36 @@ export function AuraModePanel() {
       setError(t("common.error"));
     }
   };
+
+  // --- Plan→eylem köprüsü: çıktı artık ölü-uçta kalmaz ---
+  const saveResult = async () => {
+    setActionMsg(null);
+    try {
+      const path = await saveNote(mode, output);
+      setActionMsg(`${t("auraMode.saved")} ${path}`);
+    } catch {
+      setActionMsg(t("auraMode.saveError"));
+    }
+  };
+
+  const copyResult = async () => {
+    try {
+      await navigator.clipboard.writeText(output);
+      setActionMsg(t("auraMode.copied"));
+    } catch {
+      setActionMsg(t("common.error"));
+    }
+  };
+
+  const sendToFix = () => {
+    setPrompt(`Şu planı/öneriyi uygula:\n\n${output}`);
+    setMode("fix");
+    setOutput("");
+    setActionMsg(null);
+    setStatusLog([]);
+  };
+
+  const canAct = !streaming && output.trim().length > 0;
 
   return (
     <section className="task-panel aura-mode-panel" aria-labelledby="aura-mode-title">
@@ -264,6 +299,25 @@ export function AuraModePanel() {
       <article className="answer-box" aria-live="polite" aria-label={t("auraMode.title")}>
         {output ? <pre>{output}</pre> : <p className="empty-state">{t("graph.empty")}</p>}
       </article>
+
+      {canAct ? (
+        <div className="result-actions">
+          <span className="result-actions-label">{t("auraMode.resultActions")}</span>
+          <button className="button" onClick={() => void saveResult()} type="button">
+            💾 {t("auraMode.saveNote")}
+          </button>
+          <button className="button" onClick={() => void copyResult()} type="button">
+            📋 {t("auraMode.copy")}
+          </button>
+          {mode !== "fix" && mode !== "chat" ? (
+            <button className="button primary" onClick={sendToFix} type="button">
+              🛠️ {t("auraMode.sendToFix")}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
+      {actionMsg ? <p className="notice success">{actionMsg}</p> : null}
 
       {runDir ? <p className="path-label mono">Run: {runDir}</p> : null}
     </section>

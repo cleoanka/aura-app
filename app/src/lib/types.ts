@@ -64,7 +64,7 @@ export type ThemeMode = "dark" | "light";
 
 export type DefaultMode = "ask" | "aura";
 
-export type AuraMode = "chat" | "plan" | "review" | "fix" | "ship";
+export type AuraMode = "chat" | "consensus" | "plan" | "review" | "fix" | "ship";
 
 export type CacheMode = "off" | "exact" | "semantic" | string;
 

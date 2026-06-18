@@ -20,7 +20,7 @@ use commands::{
     agent_detect, agent_install, ask, ask_consensus, cancel_job, chat, embedding_status, get_graph,
     get_settings, index_vault, list_notes, ollama_pull, ollama_status, pick_vault_folder,
     prepare_embedding_model, pty_close, pty_open, pty_resize, pty_write, read_note, run_mode,
-    search_fts, search_hybrid, set_settings, write_note,
+    save_note, search_fts, search_hybrid, set_settings, write_note,
 };
 use embed::default_embedder;
 use indexer::Indexer;
@@ -100,6 +100,7 @@ pub fn run() {
             list_notes,
             read_note,
             write_note,
+            save_note,
             pick_vault_folder,
             get_settings,
             set_settings,

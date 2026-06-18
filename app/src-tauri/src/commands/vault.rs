@@ -61,6 +61,35 @@ pub fn write_note(path: String, content: String) -> Result<(), String> {
     fs::write(&path, content).map_err(|err| format!("failed to write {}: {err}", path.display()))
 }
 
+/// AI çıktısını (plan/cevap/inceleme) projenin "AURA/" klasörüne not olarak kaydeder.
+/// Plan→eylem köprüsü: çıktı artık ölü-uçta kalmaz. Kaydedilen dosyanın yolunu döner.
+#[tauri::command]
+pub fn save_note(kind: String, content: String) -> Result<String, String> {
+    let settings = settings::load();
+    let root = settings
+        .vault_roots
+        .first()
+        .ok_or_else(|| "no project folder selected".to_string())?;
+    let dir = PathBuf::from(root).join("AURA");
+    fs::create_dir_all(&dir).map_err(|err| format!("failed to create {}: {err}", dir.display()))?;
+    let stamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let safe_kind: String = kind
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '_')
+        .collect();
+    let safe_kind = if safe_kind.is_empty() {
+        "aura".to_string()
+    } else {
+        safe_kind
+    };
+    let path = dir.join(format!("{safe_kind}-{stamp}.md"));
+    fs::write(&path, content).map_err(|err| format!("failed to write {}: {err}", path.display()))?;
+    Ok(path.to_string_lossy().into_owned())
+}
+
 pub fn resolve_note_path(path: &str, settings: &Settings) -> Result<PathBuf, String> {
     let requested = PathBuf::from(path);
     let canonical = requested
