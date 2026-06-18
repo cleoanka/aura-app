@@ -571,6 +571,35 @@ pub fn representative_chunks_for_notes(
     Ok(out)
 }
 
+/// Faz 5: bir chunk'ın PARENT (üst başlık bölümü) chunk'ını getir (parent_id ile).
+/// Dönüş: (note_path, heading_path, text, chunk_stable_id, content_hash). Yoksa None.
+pub fn parent_chunk_for(
+    conn: &Connection,
+    stable_id: &str,
+) -> Result<Option<(String, String, String, String, String)>> {
+    let mut found = None;
+    conn.query(
+        r#"
+        SELECT p.note_path, p.heading_path, p.text, p.chunk_stable_id, p.content_hash
+        FROM chunks c JOIN chunks p ON p.id = c.parent_id
+        WHERE c.chunk_stable_id = ?1
+        LIMIT 1
+        "#,
+        &[Bind::Text(stable_id)],
+        |statement| {
+            found = Some((
+                statement.column_text(0)?,
+                statement.column_text(1)?,
+                statement.column_text(2)?,
+                statement.column_text(3)?,
+                statement.column_text(4)?,
+            ));
+            Ok(())
+        },
+    )?;
+    Ok(found)
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ChunkRecord {
     pub id: i64,
