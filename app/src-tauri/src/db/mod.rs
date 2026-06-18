@@ -900,6 +900,41 @@ pub fn chunk_ai_meta(
     Ok(chunk)
 }
 
+/// PERF (codex #3): N+1 yerine TEK sorguda toplu metadata (id → ChunkRow). Dinamik IN(...).
+pub fn chunk_ai_meta_batch(
+    conn: &Connection,
+    chunk_ids: &[i64],
+) -> Result<std::collections::HashMap<i64, ChunkRow>> {
+    let mut out = std::collections::HashMap::new();
+    if chunk_ids.is_empty() {
+        return Ok(out);
+    }
+    let placeholders = (1..=chunk_ids.len())
+        .map(|i| format!("?{i}"))
+        .collect::<Vec<_>>()
+        .join(",");
+    let sql = format!(
+        "SELECT c.id, c.note_path, c.heading_path, c.text, c.chunk_stable_id, n.content_hash \
+         FROM chunks c JOIN notes n ON n.path = c.note_path WHERE c.id IN ({placeholders})"
+    );
+    let binds: Vec<Bind> = chunk_ids.iter().map(|id| Bind::I64(*id)).collect();
+    conn.query(&sql, &binds, |statement| {
+        let id = unsafe { sqlite3_column_int64(statement.raw, 0) };
+        out.insert(
+            id,
+            (
+                statement.column_text(1)?,
+                statement.column_text(2)?,
+                statement.column_text(3)?,
+                statement.column_text(4)?,
+                statement.column_text(5)?,
+            ),
+        );
+        Ok(())
+    })?;
+    Ok(out)
+}
+
 pub fn cache_get_valid(conn: &Connection, key: &str) -> Result<Option<String>> {
     let mut response = None;
     conn.query(
