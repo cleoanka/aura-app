@@ -456,8 +456,10 @@ pub fn vec_search(conn: &Connection, query_vec: &[f32], k: usize) -> Result<Vec<
         |statement| {
             let chunk_id = unsafe { sqlite3_column_int64(statement.raw, 0) };
             let embedding = statement.column_blob(1)?;
-            let vector = f32_blob_to_vec(embedding)?;
-            let score = dot_product(&query_vec, &vector);
+            // Sıfır-alloc dot; bozuk uzunluktaki satırı atla.
+            let Some(score) = dot_product_blob(&query_vec, embedding) else {
+                return Ok(());
+            };
             if best.len() < k {
                 best.push((chunk_id, score));
             } else if let Some((min_index, (_, min_score))) = best
@@ -1294,25 +1296,17 @@ fn normalize_embedding(embedding: &[f32]) -> Vec<f32> {
     normalized
 }
 
-fn f32_blob_to_vec(blob: &[u8]) -> Result<Vec<f32>> {
+/// PERF (codex #1): blob'dan DOĞRUDAN dot — vec_search'te per-row Vec<f32> alloc YOK.
+/// Blob f32 LE byte dizisidir (f32_blob ile aynı). Yanlış uzunlukta None (satır atlanır).
+fn dot_product_blob(query: &[f32], blob: &[u8]) -> Option<f32> {
     if blob.len() != EMBEDDING_BYTES {
-        return Err(Error::new(format!(
-            "embedding blob must have {EMBEDDING_BYTES} bytes, got {}",
-            blob.len()
-        )));
+        return None;
     }
-
-    Ok(blob
-        .chunks_exact(4)
-        .map(|chunk| f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
-        .collect())
-}
-
-fn dot_product(left: &[f32], right: &[f32]) -> f32 {
-    left.iter()
-        .zip(right)
-        .map(|(left, right)| left * right)
-        .sum()
+    let mut sum = 0.0f32;
+    for (i, chunk) in blob.chunks_exact(4).enumerate() {
+        sum += query[i] * f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
+    }
+    Some(sum)
 }
 
 #[cfg(test)]
