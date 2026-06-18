@@ -121,7 +121,8 @@ export function ModelManager({ onReportChange }: ModelManagerProps) {
     if (!report) {
       return 0;
     }
-    return agentDefinitions.filter(({ id }) => report.agents[id].installed)
+    // audit #15: eksik agent girdisinde (CLI kısmi çıktı) optional-chaining → render çökmesin.
+    return agentDefinitions.filter(({ id }) => report.agents[id]?.installed)
       .length;
   }, [report]);
 

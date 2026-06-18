@@ -3,7 +3,7 @@ use command_group::{CommandGroup, GroupChild};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::{self, OpenOptions};
-use std::io::{BufRead, BufReader, Write};
+use std::io::{BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{ChildStdout, Command, Stdio};
 use std::sync::{
@@ -381,7 +381,8 @@ fn read_stdout_lines(
 ) -> Result<String, String> {
     send_event(&on_event, AiEvent::Start { lane })?;
 
-    let lines = BufReader::new(stdout).lines();
+    // .take() TOPLAM okunan baytı sınırlar → tek devasa satır da OOM yapamaz (codex).
+    let lines = BufReader::new(stdout.take(MAX_OUTPUT_BYTES as u64)).lines();
     let mut text = String::new();
 
     for line in lines {
@@ -423,7 +424,8 @@ fn read_jsonl(
     on_event: Channel<AiEvent>,
     cancelled: Arc<AtomicBool>,
 ) -> Result<String, String> {
-    let lines = BufReader::new(stdout).lines();
+    // .take() TOPLAM okunan baytı sınırlar → tek devasa satır da OOM yapamaz (codex).
+    let lines = BufReader::new(stdout.take(MAX_OUTPUT_BYTES as u64)).lines();
     let mut text = String::new();
 
     for line in lines {

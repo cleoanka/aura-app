@@ -61,7 +61,39 @@ pub fn read_note(path: String) -> Result<String, String> {
 pub fn write_note(path: String, content: String) -> Result<(), String> {
     let settings = settings::load();
     let path = resolve_note_path_for_write(&path, &settings)?;
-    fs::write(&path, content).map_err(|err| format!("failed to write {}: {err}", path.display()))
+    atomic_write(&path, &content)
+}
+
+/// Atomik yazım (audit #11): aynı dizinde temp dosyaya yaz + fsync + rename → yazım ortasında
+/// çökme/disk-dolması kullanıcı notunu yarım/bozuk bırakmaz (settings.rs ile aynı desen).
+fn atomic_write(path: &Path, content: &str) -> Result<(), String> {
+    use std::io::Write;
+    use std::sync::atomic::{AtomicU64, Ordering};
+    // Sayaç (codex): aynı nota aynı süreçte eşzamanlı yazımlar AYNI temp dosyayı paylaşmasın.
+    static TMP_SEQ: AtomicU64 = AtomicU64::new(0);
+    let parent = path
+        .parent()
+        .ok_or_else(|| format!("invalid note path: {}", path.display()))?;
+    let tmp = parent.join(format!(
+        ".{}.{}.{}.tmp",
+        path.file_name().and_then(|n| n.to_str()).unwrap_or("note.md"),
+        std::process::id(),
+        TMP_SEQ.fetch_add(1, Ordering::Relaxed)
+    ));
+    let write = || -> std::io::Result<()> {
+        let mut file = fs::File::create(&tmp)?;
+        file.write_all(content.as_bytes())?;
+        file.sync_all()?;
+        Ok(())
+    };
+    if let Err(err) = write() {
+        let _ = fs::remove_file(&tmp);
+        return Err(format!("failed to write {}: {err}", path.display()));
+    }
+    fs::rename(&tmp, path).map_err(|err| {
+        let _ = fs::remove_file(&tmp);
+        format!("failed to replace {}: {err}", path.display())
+    })
 }
 
 /// AI çıktısını (plan/cevap/inceleme) projenin "AURA/" klasörüne not olarak kaydeder.
@@ -90,7 +122,7 @@ pub fn save_note(kind: String, content: String) -> Result<String, String> {
         safe_kind
     };
     let path = dir.join(format!("{safe_kind}-{stamp}.md"));
-    fs::write(&path, content).map_err(|err| format!("failed to write {}: {err}", path.display()))?;
+    atomic_write(&path, &content)?;
     Ok(path.to_string_lossy().into_owned())
 }
 

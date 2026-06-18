@@ -2,7 +2,7 @@ use app_lib::settings::{self, AdvancedRetrievalSettings, LaneSettings, LocalGenS
 use std::fs;
 
 #[test]
-fn corrupt_settings_return_defaults_and_rewrite() {
+fn corrupt_settings_return_defaults_and_preserve_with_backup() {
     let root = test_dir("settings-corrupt");
     let path = root.join("settings.json");
     fs::create_dir_all(&root).expect("test settings dir should be created");
@@ -10,9 +10,13 @@ fn corrupt_settings_return_defaults_and_rewrite() {
 
     let loaded = settings::load_from(&path);
 
+    // audit #13: bellekte default dön, AMA bozuk-ama-kurtarılabilir dosyayı EZME; .bak yedekle.
     assert_eq!(loaded, Settings::default());
-    let rewritten = fs::read_to_string(&path).expect("settings should be rewritten");
-    assert!(serde_json::from_str::<Settings>(&rewritten).is_ok());
+    let original = fs::read_to_string(&path).expect("original corrupt file should be preserved");
+    assert_eq!(original, "{not valid json", "bozuk dosya ezilmemeli");
+    let backup =
+        fs::read_to_string(path.with_extension("json.bak")).expect(".bak yedeği yazılmalı");
+    assert_eq!(backup, "{not valid json", ".bak orijinal içeriği taşımalı");
 
     fs::remove_dir_all(&root).expect("test settings dir should be removed");
 }
@@ -98,6 +102,29 @@ fn wrong_field_types_default_per_field() {
     assert_eq!(loaded.local_gen.model, "local");
 
     fs::remove_dir_all(&root).expect("test settings dir should be removed");
+}
+
+#[test]
+fn advanced_retrieval_k_values_clamped() {
+    // audit #2: bozuk/dev k değerleri normalized()'da makul aralığa sıkışmalı (OOM/var-limit koruması).
+    let root = test_dir("settings-clamp");
+    let path = root.join("settings.json");
+    fs::create_dir_all(&root).expect("dir");
+    fs::write(
+        &path,
+        r#"{"advanced_retrieval":{"enabled":true,"candidate_k":1000000000,"final_k":99999,"seed_k":99999,"graph_hops":99,"graph_neighbors_per_seed":99999,"semantic_cache_threshold":9999}}"#,
+    )
+    .expect("write");
+
+    let adv = settings::load_from(&path).advanced_retrieval;
+    assert!(adv.candidate_k <= 512, "candidate_k={}", adv.candidate_k);
+    assert!(adv.final_k <= 64, "final_k={}", adv.final_k);
+    assert!(adv.seed_k <= 128, "seed_k={}", adv.seed_k);
+    assert!(adv.graph_hops <= 4, "graph_hops={}", adv.graph_hops);
+    assert!(adv.graph_neighbors_per_seed <= 64);
+    assert!(adv.semantic_cache_threshold <= 100);
+
+    fs::remove_dir_all(&root).expect("cleanup");
 }
 
 fn test_dir(name: &str) -> std::path::PathBuf {

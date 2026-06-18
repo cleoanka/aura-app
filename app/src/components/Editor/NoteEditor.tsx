@@ -25,6 +25,13 @@ export function NoteEditor({ note }: NoteEditorProps) {
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const saveTimerRef = useRef<number | null>(null);
   const savingRef = useRef(false);
+  // VERİ KAYBI FIX: not değişince/unmount'ta debounce penceresindeki düzenleme kaybolmasın diye
+  // en güncel (path, content, saved) bir ref'te tutulur; load-effect cleanup'ında flush edilir.
+  const latestRef = useRef<{ path: string | null; content: string; saved: string }>({
+    path: null,
+    content: "",
+    saved: "",
+  });
 
   const isDirty = content !== savedContent;
   const editorExtensions = useMemo(() => [markdown(), EditorView.lineWrapping], []);
@@ -35,6 +42,11 @@ export function NoteEditor({ note }: NoteEditorProps) {
 
     return note.title || basename(note.path);
   }, [note, t]);
+
+  // Her render'da en güncel durumu ref'e yansıt (load-effect cleanup'ı bunu okuyup flush eder).
+  useEffect(() => {
+    latestRef.current = { path: note?.path ?? null, content, saved: savedContent };
+  });
 
   useEffect(() => {
     let alive = true;
@@ -77,6 +89,13 @@ export function NoteEditor({ note }: NoteEditorProps) {
 
     return () => {
       alive = false;
+      // Eski not için bekleyen (kaydedilmemiş) düzenlemeyi diske flush et → sessiz kayıp YOK.
+      const pending = latestRef.current;
+      if (pending.path && pending.content !== pending.saved) {
+        void writeNote(pending.path, pending.content).catch(() => {
+          /* en iyi çaba: kapanış sırasında yazım hatası yutulur */
+        });
+      }
     };
   }, [note, t]);
 
@@ -93,6 +112,10 @@ export function NoteEditor({ note }: NoteEditorProps) {
 
     try {
       await writeNote(path, contentToSave);
+      // not değiştiyse (kullanıcı başka nota geçti) eski içerikle yeni notun state'ini EZME (codex).
+      if (latestRef.current.path !== path) {
+        return;
+      }
       setSavedContent(contentToSave);
       setSavedAt(new Intl.DateTimeFormat("tr-TR", {
         hour: "2-digit",
