@@ -81,6 +81,17 @@ export type Settings = {
   consensus_enabled?: boolean;
   cache_mode?: CacheMode;
   semantic_search?: boolean;
+  advanced_retrieval?: AdvancedRetrieval;
+  [key: string]: unknown;
+};
+
+export type AdvancedRetrieval = {
+  enabled?: boolean;
+  planner_enabled?: boolean;
+  graph_enabled?: boolean;
+  rerank_enabled?: boolean;
+  parent_pull_in_enabled?: boolean;
+  semantic_cache_enabled?: boolean;
   [key: string]: unknown;
 };
 

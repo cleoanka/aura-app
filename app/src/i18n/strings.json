@@ -159,7 +159,9 @@
     "graph.kind.external": "External",
     "graph.repelForce": "Repel force",
     "graph.linkForce": "Link force",
-    "graph.centerForce": "Center force"
+    "graph.centerForce": "Center force",
+    "settings.advancedRetrieval": "Advanced retrieval (experimental)",
+    "settings.advancedRetrieval.hint": "Local planner + link-graph + rerank + safe semantic cache. Planner runs on local Ollama (protects cloud quota)."
   },
   "tr": {
     "app.name": "AURA Desktop",
@@ -321,6 +323,8 @@
     "graph.kind.external": "Harici",
     "graph.repelForce": "İtme gücü",
     "graph.linkForce": "Bağ gücü",
-    "graph.centerForce": "Merkez gücü"
+    "graph.centerForce": "Merkez gücü",
+    "settings.advancedRetrieval": "Gelişmiş retrieval (deneysel)",
+    "settings.advancedRetrieval.hint": "Yerel planner + bağlantı-grafı + rerank + güvenli semantik cache. Planner yerel Ollama'da çalışır (bulut kotanı korur)."
   }
 }
