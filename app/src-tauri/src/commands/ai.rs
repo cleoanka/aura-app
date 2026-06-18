@@ -41,116 +41,13 @@ pub async fn ask(
 
     let (context, deps, fingerprint, vault_epoch, cache_hit) = {
         let indexer = indexer.lock().map_err(|err| err.to_string())?;
+        // Advanced (default-off): tüm pipeline retrieval::assemble'da
+        // (çok-sorgulu → graph → rerank → parent). Kapalıyken birebir eski yol.
         let hits = if settings.advanced_retrieval.enabled {
-            let adv = &settings.advanced_retrieval;
-            let final_k = (adv.final_k as usize).max(6);
-            // 1) Çok-sorgulu birleşim: orijinal + canonical + expansions → tekille.
-            //    Over-retrieve: candidate_k aday topla (rerank sonra final_k'ya kırpar).
-            let cand_k = (adv.candidate_k as usize).max(final_k);
-            let variants = crate::retrieval::query_variants(&query, plan.as_ref());
-            let mut groups = Vec::with_capacity(variants.len());
-            for (i, q) in variants.iter().enumerate() {
-                match indexer.search_hybrid(q, cand_k) {
-                    Ok(g) => groups.push(g),
-                    // Planner expansion'ı FTS5 özel karakteri içerebilir → o variant'ı ATLA,
-                    // tüm ask'i DÜŞÜRME. Orijinal sorgu (i==0) hata verirse o gerçek hatadır.
-                    Err(err) if i == 0 => return Err(err),
-                    Err(_) => {}
-                }
-            }
-            let mut merged = crate::retrieval::dedup_merge(groups, cand_k);
-
-            // 2) Faz 3: bağlantı-grafı komşuları (lexical eşleşmese de link yüzünden dahil)
-            if adv.graph_enabled {
-                let mut seed_paths: Vec<String> = Vec::new();
-                for h in &merged {
-                    if !seed_paths.contains(&h.note_path) {
-                        seed_paths.push(h.note_path.clone());
-                    }
-                    if seed_paths.len() >= adv.seed_k as usize {
-                        break;
-                    }
-                }
-                let neighbors = db::linked_note_neighbors(
-                    indexer.conn(),
-                    &seed_paths,
-                    adv.graph_hops as usize,
-                    adv.graph_neighbors_per_seed as usize,
-                )
-                .unwrap_or_default();
-                let nb_chunks =
-                    db::representative_chunks_for_notes(indexer.conn(), &neighbors, 1)
-                        .unwrap_or_default();
-                let existing: std::collections::HashSet<String> =
-                    merged.iter().map(|h| h.chunk_stable_id.clone()).collect();
-                let mut added = 0usize;
-                for (note, heading, text, stable, hash) in nb_chunks {
-                    if added >= adv.graph_neighbors_per_seed as usize {
-                        break;
-                    }
-                    if existing.contains(&stable) {
-                        continue;
-                    }
-                    let snippet: String = text.chars().take(400).collect();
-                    merged.push(SearchHit {
-                        note_path: note,
-                        heading_path: heading,
-                        snippet,
-                        chunk_stable_id: stable,
-                        content_hash: hash,
-                        score: 0.0,
-                        via: "graph".to_string(),
-                    });
-                    added += 1;
-                }
-            }
-            // 3) Faz 4: yerel reranking → en isabetli final_k blok (bulut'a az+öz gider)
-            if adv.rerank_enabled {
-                let kw = plan
-                    .as_ref()
-                    .map(|p| p.keywords.clone())
-                    .unwrap_or_default();
-                crate::retrieval::rerank(&query, &kw, merged, final_k)
-            } else {
-                merged.truncate(final_k);
-                merged
-            }
+            crate::retrieval::assemble(&indexer, &settings, &query, plan.as_ref())?
         } else {
             indexer.search_hybrid(&query, 6)?
         };
-
-        // Faz 5: parent-chunk pull-in — her final hit'in üst-başlık bölümünü ekle (via=parent)
-        let mut hits = hits;
-        if settings.advanced_retrieval.enabled && settings.advanced_retrieval.parent_pull_in_enabled
-        {
-            let existing: std::collections::HashSet<String> =
-                hits.iter().map(|h| h.chunk_stable_id.clone()).collect();
-            let mut pseen: std::collections::HashSet<String> = std::collections::HashSet::new();
-            let mut parents: Vec<SearchHit> = Vec::new();
-            let limit = hits.len();
-            for h in &hits {
-                if parents.len() >= limit {
-                    break;
-                }
-                if let Ok(Some((note, heading, text, stable, hash))) =
-                    db::parent_chunk_for(indexer.conn(), &h.chunk_stable_id)
-                {
-                    if !existing.contains(&stable) && pseen.insert(stable.clone()) {
-                        let snippet: String = text.chars().take(600).collect();
-                        parents.push(SearchHit {
-                            note_path: note,
-                            heading_path: heading,
-                            snippet,
-                            chunk_stable_id: stable,
-                            content_hash: hash,
-                            score: 0.0,
-                            via: "parent".to_string(),
-                        });
-                    }
-                }
-            }
-            hits.extend(parents);
-        }
 
         let context = if settings.advanced_retrieval.enabled {
             build_context_labeled(&hits)
