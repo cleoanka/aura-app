@@ -42,14 +42,61 @@ pub async fn ask(
     let (context, deps, fingerprint, vault_epoch, cache_hit) = {
         let indexer = indexer.lock().map_err(|err| err.to_string())?;
         let hits = if settings.advanced_retrieval.enabled {
-            // Çok-sorgulu birleşim: orijinal + canonical + expansions → tekille → final_k
-            let k = (settings.advanced_retrieval.final_k as usize).max(6);
+            let adv = &settings.advanced_retrieval;
+            // 1) Çok-sorgulu birleşim: orijinal + canonical + expansions → tekille
+            let k = (adv.final_k as usize).max(6);
             let variants = crate::retrieval::query_variants(&query, plan.as_ref());
             let mut groups = Vec::with_capacity(variants.len());
             for q in &variants {
                 groups.push(indexer.search_hybrid(q, k)?);
             }
-            crate::retrieval::dedup_merge(groups, k)
+            let mut merged = crate::retrieval::dedup_merge(groups, k);
+
+            // 2) Faz 3: bağlantı-grafı komşuları (lexical eşleşmese de link yüzünden dahil)
+            if adv.graph_enabled {
+                let mut seed_paths: Vec<String> = Vec::new();
+                for h in &merged {
+                    if !seed_paths.contains(&h.note_path) {
+                        seed_paths.push(h.note_path.clone());
+                    }
+                    if seed_paths.len() >= adv.seed_k as usize {
+                        break;
+                    }
+                }
+                let neighbors = db::linked_note_neighbors(
+                    indexer.conn(),
+                    &seed_paths,
+                    adv.graph_hops as usize,
+                    adv.graph_neighbors_per_seed as usize,
+                )
+                .unwrap_or_default();
+                let nb_chunks =
+                    db::representative_chunks_for_notes(indexer.conn(), &neighbors, 1)
+                        .unwrap_or_default();
+                let existing: std::collections::HashSet<String> =
+                    merged.iter().map(|h| h.chunk_stable_id.clone()).collect();
+                let mut added = 0usize;
+                for (note, heading, text, stable, hash) in nb_chunks {
+                    if added >= adv.graph_neighbors_per_seed as usize {
+                        break;
+                    }
+                    if existing.contains(&stable) {
+                        continue;
+                    }
+                    let snippet: String = text.chars().take(400).collect();
+                    merged.push(SearchHit {
+                        note_path: note,
+                        heading_path: heading,
+                        snippet,
+                        chunk_stable_id: stable,
+                        content_hash: hash,
+                        score: 0.0,
+                        via: "graph".to_string(),
+                    });
+                    added += 1;
+                }
+            }
+            merged
         } else {
             indexer.search_hybrid(&query, 6)?
         };

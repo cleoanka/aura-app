@@ -496,6 +496,81 @@ pub fn fts_search(conn: &Connection, query: &str, k: usize) -> Result<Vec<(i64, 
     Ok(matches)
 }
 
+/// Seed notlardan link grafında BFS ile komşu not yollarını topla (HER İKİ yön, resolved=1).
+/// Faz 3: lexical eşleşmese de bağlı notları yüzeye çıkarır (graph retrieval'in özü).
+pub fn linked_note_neighbors(
+    conn: &Connection,
+    seed_paths: &[String],
+    max_hops: usize,
+    per_seed_limit: usize,
+) -> Result<Vec<String>> {
+    use std::collections::HashSet;
+    let mut seen: HashSet<String> = seed_paths.iter().cloned().collect();
+    let mut frontier: Vec<String> = seed_paths.to_vec();
+    let mut result: Vec<String> = Vec::new();
+    for _ in 0..max_hops.max(1) {
+        let mut next: Vec<String> = Vec::new();
+        for path in &frontier {
+            let mut neigh: Vec<String> = Vec::new();
+            conn.query(
+                r#"
+                SELECT p FROM (
+                    SELECT target_path AS p FROM links WHERE source_path = ?1 AND resolved = 1
+                    UNION
+                    SELECT source_path AS p FROM links WHERE target_path = ?1 AND resolved = 1
+                ) LIMIT ?2
+                "#,
+                &[Bind::Text(path), Bind::I64(per_seed_limit as i64)],
+                |statement| {
+                    neigh.push(statement.column_text(0)?);
+                    Ok(())
+                },
+            )?;
+            for n in neigh {
+                if seen.insert(n.clone()) {
+                    result.push(n.clone());
+                    next.push(n);
+                }
+            }
+        }
+        if next.is_empty() {
+            break;
+        }
+        frontier = next;
+    }
+    Ok(result)
+}
+
+/// Komşu notların giriş (ilk ordinal) chunk'larını getir — graph candidate olarak eklenir.
+/// Dönüş: (note_path, heading_path, text, chunk_stable_id, content_hash).
+pub fn representative_chunks_for_notes(
+    conn: &Connection,
+    note_paths: &[String],
+    per_note: usize,
+) -> Result<Vec<(String, String, String, String, String)>> {
+    let mut out = Vec::new();
+    for path in note_paths {
+        conn.query(
+            r#"
+            SELECT note_path, heading_path, text, chunk_stable_id, content_hash
+            FROM chunks WHERE note_path = ?1 ORDER BY ordinal LIMIT ?2
+            "#,
+            &[Bind::Text(path), Bind::I64(per_note.max(1) as i64)],
+            |statement| {
+                out.push((
+                    statement.column_text(0)?,
+                    statement.column_text(1)?,
+                    statement.column_text(2)?,
+                    statement.column_text(3)?,
+                    statement.column_text(4)?,
+                ));
+                Ok(())
+            },
+        )?;
+    }
+    Ok(out)
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ChunkRecord {
     pub id: i64,
