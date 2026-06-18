@@ -461,13 +461,13 @@ fn read_jsonl(
                 )?;
             }
             AuraJsonEvent::Chunk { text: chunk } => {
-                text.push_str(&chunk);
-                send_event(&on_event, AiEvent::Chunk { text: chunk })?;
-                // OOM koruması: çıktı sınırı aşılırsa temizce tamamla (truncated cevap).
-                if text.len() > MAX_OUTPUT_BYTES {
+                // OOM koruması: sınırı aşacaksa chunk'ı EKLEMEDEN/yollamadan temizce tamamla.
+                if text.len() + chunk.len() > MAX_OUTPUT_BYTES {
                     send_event(&on_event, AiEvent::Done { run_dir: None })?;
                     return Ok(text);
                 }
+                text.push_str(&chunk);
+                send_event(&on_event, AiEvent::Chunk { text: chunk })?;
             }
             AuraJsonEvent::Status { text, stage, agent } => {
                 send_event(&on_event, AiEvent::Status { text, stage, agent })?;
