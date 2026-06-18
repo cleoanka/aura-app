@@ -26,9 +26,33 @@ pub async fn ask(
     let model_ver = model_ver(&settings, &lane);
     let normalized_query = normalize_query(&query);
 
+    // GELİŞMİŞ RETRIEVAL (default-OFF): sorguyu YEREL modelle planla (bulut kotası yemez).
+    // indexer lock'tan ÖNCE (ollama çağrısı lock'u tutmasın). Kapalı/Ollama yok → None → eski yol.
+    let plan = if settings.advanced_retrieval.enabled {
+        let _ = on_event.send(AiEvent::Status {
+            text: "🧠 Sorgu yerel modelle planlanıyor…".to_string(),
+            stage: Some("plan".to_string()),
+            agent: Some("local".to_string()),
+        });
+        crate::retrieval::plan_query_local(&settings, &query)
+    } else {
+        None
+    };
+
     let (context, deps, fingerprint, vault_epoch, cache_hit) = {
         let indexer = indexer.lock().map_err(|err| err.to_string())?;
-        let hits = indexer.search_hybrid(&query, 6)?;
+        let hits = if settings.advanced_retrieval.enabled {
+            // Çok-sorgulu birleşim: orijinal + canonical + expansions → tekille → final_k
+            let k = (settings.advanced_retrieval.final_k as usize).max(6);
+            let variants = crate::retrieval::query_variants(&query, plan.as_ref());
+            let mut groups = Vec::with_capacity(variants.len());
+            for q in &variants {
+                groups.push(indexer.search_hybrid(q, k)?);
+            }
+            crate::retrieval::dedup_merge(groups, k)
+        } else {
+            indexer.search_hybrid(&query, 6)?
+        };
         let context = build_context(&hits);
         let deps = cache_deps(&hits);
         let fingerprint = retrieval_fingerprint(&hits);

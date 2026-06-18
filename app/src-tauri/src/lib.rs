@@ -13,6 +13,7 @@ pub mod lane0;
 pub mod links;
 pub mod markdown;
 pub mod pty;
+pub mod retrieval;
 pub mod search;
 pub mod settings;
 
