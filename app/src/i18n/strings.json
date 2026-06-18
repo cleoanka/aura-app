@@ -156,7 +156,10 @@
     "graph.menu.copied": "Copied ✓",
     "graph.reset": "Reset view",
     "graph.kind.config": "Config",
-    "graph.kind.external": "External"
+    "graph.kind.external": "External",
+    "graph.repelForce": "Repel force",
+    "graph.linkForce": "Link force",
+    "graph.centerForce": "Center force"
   },
   "tr": {
     "app.name": "AURA Desktop",
@@ -315,6 +318,9 @@
     "graph.menu.copied": "Kopyalandı ✓",
     "graph.reset": "Görünümü sıfırla",
     "graph.kind.config": "Yapılandırma",
-    "graph.kind.external": "Harici"
+    "graph.kind.external": "Harici",
+    "graph.repelForce": "İtme gücü",
+    "graph.linkForce": "Bağ gücü",
+    "graph.centerForce": "Merkez gücü"
   }
 }

@@ -1360,3 +1360,37 @@ select.text-input:focus {
   font-size: 12px;
   font-weight: 600;
 }
+
+/* Markdown render — AI çıktısı profesyonel görünür (başlık/liste/kod/tablo) */
+.markdown-body { color: var(--text); line-height: 1.6; font-size: 14px; }
+.markdown-body > *:first-child { margin-top: 0; }
+.markdown-body > *:last-child { margin-bottom: 0; }
+.markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4 {
+  margin: 18px 0 8px; line-height: 1.25; font-weight: 700;
+}
+.markdown-body h1 { font-size: 22px; }
+.markdown-body h2 { font-size: 18px; padding-bottom: 4px; border-bottom: 1px solid var(--border); }
+.markdown-body h3 { font-size: 15px; }
+.markdown-body p { margin: 8px 0; }
+.markdown-body ul, .markdown-body ol { margin: 8px 0; padding-left: 22px; }
+.markdown-body li { margin: 3px 0; }
+.markdown-body a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+.markdown-body strong { color: var(--text); font-weight: 700; }
+.markdown-body code {
+  font-family: "SFMono-Regular", Consolas, Menlo, monospace; font-size: 12.5px;
+  padding: 1px 5px; border-radius: 5px;
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+}
+.markdown-body pre {
+  margin: 10px 0; padding: 12px 14px; border-radius: var(--radius); overflow-x: auto;
+  background: var(--bg-tertiary); border: 1px solid var(--border);
+}
+.markdown-body pre code { padding: 0; background: none; font-size: 12.5px; line-height: 1.5; }
+.markdown-body blockquote {
+  margin: 10px 0; padding: 4px 14px; color: var(--text-muted);
+  border-left: 3px solid color-mix(in srgb, var(--accent) 60%, var(--border));
+}
+.markdown-body table { border-collapse: collapse; margin: 10px 0; width: 100%; font-size: 13px; }
+.markdown-body th, .markdown-body td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; }
+.markdown-body th { background: color-mix(in srgb, var(--text) 5%, transparent); font-weight: 700; }
+.markdown-body hr { border: none; border-top: 1px solid var(--border); margin: 16px 0; }

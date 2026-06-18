@@ -4,6 +4,7 @@ import { useI18n } from "../../i18n";
 import { askConsensus, cancelJob, chat, pickVaultFolder, runMode, saveNote } from "../../lib/ipc";
 import type { AiEvent, AiLane, AuraMode } from "../../lib/types";
 import { LiveActivity } from "../LiveActivity";
+import { MarkdownView } from "../MarkdownView";
 
 type ModeOption = {
   id: AuraMode;
@@ -297,7 +298,11 @@ export function AuraModePanel() {
       {error ? <p className="notice error">{error}</p> : null}
 
       <article className="answer-box" aria-live="polite" aria-label={t("auraMode.title")}>
-        {output ? <pre>{output}</pre> : <p className="empty-state">{t("graph.empty")}</p>}
+        {output ? (
+          <MarkdownView text={output} />
+        ) : (
+          <p className="empty-state">{t("graph.empty")}</p>
+        )}
       </article>
 
       {canAct ? (
