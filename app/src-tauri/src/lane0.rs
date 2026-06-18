@@ -33,6 +33,12 @@ struct OllamaPullResponse {
 }
 
 pub fn ollama_generate(base_url: &str, model: &str, prompt: &str) -> Result<String, String> {
+    if !is_loopback_url(base_url) {
+        return Err(
+            "Ollama URL loopback olmalı (localhost/127.0.0.1/::1); uzak host'a not içeriği gönderilmez"
+                .to_string(),
+        );
+    }
     let url = format!("{}/api/generate", normalized_base_url(base_url));
     let body = json!({
         "model": model,
@@ -156,6 +162,20 @@ fn default_ollama_base_url() -> String {
 
 fn normalized_base_url(base_url: &str) -> String {
     base_url.trim().trim_end_matches('/').to_string()
+}
+
+/// GÜVENLİK (codex #3): Ollama URL'i SADECE loopback olmalı. Aksi halde not-context'i
+/// uzak bir "ollama"ya gönderip veri sızdırma riski. Default http://localhost:11434 geçer.
+pub fn is_loopback_url(base_url: &str) -> bool {
+    let url = normalized_base_url(base_url);
+    let after_scheme = url.split("://").nth(1).unwrap_or(url.as_str());
+    let authority = after_scheme.split('/').next().unwrap_or("");
+    let host = if let Some(rest) = authority.strip_prefix('[') {
+        rest.split(']').next().unwrap_or("") // [::1]:port → ::1
+    } else {
+        authority.rsplit_once(':').map(|(h, _)| h).unwrap_or(authority)
+    };
+    matches!(host, "localhost" | "127.0.0.1" | "::1")
 }
 
 fn friendly_ollama_error(base_url: &str, err: ureq::Error) -> String {
