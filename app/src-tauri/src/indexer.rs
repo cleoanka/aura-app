@@ -10,6 +10,37 @@ use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
+
+/// PERF #5: index_vault'u tek transaction'a sarar. Hata/erken-dönüşte Drop'ta ROLLBACK,
+/// başarıda commit() ile COMMIT. SQLite autocommit'in INSERT başına fsync'ini önler.
+struct TxGuard<'a> {
+    conn: &'a db::Connection,
+    committed: bool,
+}
+
+impl<'a> TxGuard<'a> {
+    fn begin(conn: &'a db::Connection) -> Result<Self, String> {
+        conn.begin_immediate().map_err(|err| err.to_string())?;
+        Ok(Self {
+            conn,
+            committed: false,
+        })
+    }
+
+    fn commit(mut self) -> Result<(), String> {
+        self.conn.commit().map_err(|err| err.to_string())?;
+        self.committed = true;
+        Ok(())
+    }
+}
+
+impl Drop for TxGuard<'_> {
+    fn drop(&mut self) {
+        if !self.committed {
+            let _ = self.conn.rollback();
+        }
+    }
+}
 use walkdir::WalkDir;
 
 pub struct Indexer {
@@ -67,6 +98,10 @@ impl Indexer {
         let title_aliases = title_aliases(&project_files);
         // PERF (codex #6): PathIndex'i tarama başında BİR KEZ kur (per-dosya değil) → O(dosya)
         let path_index = links::PathIndex::new(&root, &project_paths);
+
+        // PERF (codex #5): tüm indekslemeyi TEK transaction'a sar → INSERT başına fsync yerine
+        // tek commit (büyük vault'ta çok daha hızlı). Hata olursa TxGuard Drop'ta ROLLBACK.
+        let tx = TxGuard::begin(&self.conn)?;
 
         for project_file in project_files {
             let path = project_file.path;
@@ -142,6 +177,7 @@ impl Indexer {
             }
         }
 
+        tx.commit()?;
         Ok(stats)
     }
 

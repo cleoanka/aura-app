@@ -996,6 +996,18 @@ pub fn cache_put(
 }
 
 impl Connection {
+    /// PERF (codex #5): toplu yazımları TEK transaction'a sar → INSERT başına fsync yerine
+    /// tek commit. begin/commit/rollback ile kullanılır (bkz. indexer TxGuard).
+    pub fn begin_immediate(&self) -> Result<()> {
+        self.execute_batch("BEGIN IMMEDIATE")
+    }
+    pub fn commit(&self) -> Result<()> {
+        self.execute_batch("COMMIT")
+    }
+    pub fn rollback(&self) -> Result<()> {
+        self.execute_batch("ROLLBACK")
+    }
+
     fn execute_batch(&self, sql: &str) -> Result<()> {
         let sql = cstring(sql)?;
         let mut errmsg = ptr::null_mut();

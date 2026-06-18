@@ -368,12 +368,14 @@ async fn run_aura_with_files(
     }
 
     {
-        let _ = tokio::task::spawn_blocking(move || {
+        // PERF/robustness (codex #8): cevap (read_result) zaten hazır; child'ı reap etmek için
+        // SONSUZ bekleme YOK — sidecar 'done' deyip asılsa bile komut cevabı döndürür (UI takılmaz).
+        let wait = tokio::task::spawn_blocking(move || {
             if let Ok(mut child) = child.lock() {
                 let _ = child.wait();
             }
-        })
-        .await;
+        });
+        let _ = tokio::time::timeout(Duration::from_secs(15), wait).await;
     }
 
     read_result
