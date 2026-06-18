@@ -130,7 +130,16 @@
     "settings.semanticSearch": "Semantic search (local embeddings)",
     "settings.semanticHint": "uses CPU to embed files; off = fast FTS5 search",
     "auraMode.chat": "Chat",
-    "auraMode.chatHint": "plain chat with Claude (no notes)"
+    "auraMode.chatHint": "plain chat with Claude (no notes)",
+    "auraMode.saveNote": "Save to notes",
+    "auraMode.copy": "Copy",
+    "auraMode.copied": "Copied ✓",
+    "auraMode.sendToFix": "Implement with Fix",
+    "auraMode.saved": "Saved:",
+    "auraMode.saveError": "Could not save — pick a project folder first.",
+    "auraMode.resultActions": "What next?",
+    "auraMode.consensus": "Consensus",
+    "auraMode.consensusHint": "all 3 AIs answer → Claude synthesizes (~3× cost)"
   },
   "tr": {
     "app.name": "AURA Desktop",
@@ -263,6 +272,15 @@
     "settings.semanticSearch": "Anlamsal arama (yerel embedding)",
     "settings.semanticHint": "dosyaları CPU ile embed eder; kapalı = hızlı FTS5 araması",
     "auraMode.chat": "Sohbet",
-    "auraMode.chatHint": "Claude ile düz sohbet (notsuz)"
+    "auraMode.chatHint": "Claude ile düz sohbet (notsuz)",
+    "auraMode.saveNote": "Notlara kaydet",
+    "auraMode.copy": "Kopyala",
+    "auraMode.copied": "Kopyalandı ✓",
+    "auraMode.sendToFix": "Fix ile uygula",
+    "auraMode.saved": "Kaydedildi:",
+    "auraMode.saveError": "Kaydedilemedi — önce proje klasörü seç.",
+    "auraMode.resultActions": "Sırada ne var?",
+    "auraMode.consensus": "Konsensus",
+    "auraMode.consensusHint": "3 yapay zekâ yanıtlar → Claude sentezler (~3× maliyet)"
   }
 }
