@@ -1,6 +1,8 @@
 // Gelişmiş agentic-retrieval seam'i. Şimdilik: yerel Ollama query-planner (Faz 2)
 // + çok-sorgulu birleşim. Hepsi default-OFF; advanced_retrieval.enabled=false iken
 // bu modül hiç çağrılmaz (ai.rs eski yola gider).
+use crate::db;
+use crate::indexer::Indexer;
 use crate::lane0;
 use crate::search::SearchHit;
 use crate::settings::Settings;
@@ -42,9 +44,8 @@ pub fn plan_query_local(settings: &Settings, query: &str) -> Option<QueryPlan> {
     if !adv.enabled || !adv.planner_enabled {
         return None;
     }
-    if settings.local_gen.provider != "ollama" {
-        return None;
-    }
+    // Planner Lane-0 GENERATION provider'ına bağlı DEĞİL (o ayrı bir özellik).
+    // Sadece Ollama erişilebilir olması yeter → kuruluysa planner çalışır.
     if !lane0::ollama_available(&settings.local_gen.ollama_url) {
         return None;
     }
@@ -197,6 +198,116 @@ pub fn dedup_merge(groups: Vec<Vec<SearchHit>>, k: usize) -> Vec<SearchHit> {
         }
     }
     out
+}
+
+/// Faz 1-5 tek yerde: çok-sorgulu hybrid → bağlantı-grafı → rerank → parent pull-in.
+/// SADECE advanced.enabled iken çağrılır. Bulut çağrısı YOK (sadece bağlam toplar).
+/// Graph/parent hataları ölümcül DEĞİL; orijinal sorgu hatası ölümcüldür.
+pub fn assemble(
+    indexer: &Indexer,
+    settings: &Settings,
+    query: &str,
+    plan: Option<&QueryPlan>,
+) -> Result<Vec<SearchHit>, String> {
+    let adv = &settings.advanced_retrieval;
+    let final_k = (adv.final_k as usize).max(6);
+    let cand_k = (adv.candidate_k as usize).max(final_k);
+
+    // 1) Çok-sorgulu birleşim (over-retrieve)
+    let variants = query_variants(query, plan);
+    let mut groups = Vec::with_capacity(variants.len());
+    for (i, q) in variants.iter().enumerate() {
+        match indexer.search_hybrid(q, cand_k) {
+            Ok(g) => groups.push(g),
+            Err(err) if i == 0 => return Err(err),
+            Err(_) => {}
+        }
+    }
+    let merged = dedup_merge(groups, cand_k);
+
+    // 2) Rerank → en alakalı final_k seed (graph/parent bunların ÜSTÜNE eklenir, elenmez)
+    let kw = plan.map(|p| p.keywords.clone()).unwrap_or_default();
+    let mut hits = if adv.rerank_enabled {
+        rerank(query, &kw, merged, final_k)
+    } else {
+        let mut m = merged;
+        m.truncate(final_k);
+        m
+    };
+
+    // 3) Bağlantı-grafı: EN ALAKALI seed'lerin komşularını ekle (rezerve; rerank'e girmez,
+    //    böylece lexical eşleşmese de link yüzünden dahil olanlar görünür kalır)
+    if adv.graph_enabled {
+        let mut seed_paths: Vec<String> = Vec::new();
+        for h in &hits {
+            if !seed_paths.contains(&h.note_path) {
+                seed_paths.push(h.note_path.clone());
+            }
+            if seed_paths.len() >= adv.seed_k as usize {
+                break;
+            }
+        }
+        let neighbors = db::linked_note_neighbors(
+            indexer.conn(),
+            &seed_paths,
+            adv.graph_hops as usize,
+            adv.graph_neighbors_per_seed as usize,
+        )
+        .unwrap_or_default();
+        let nb_chunks =
+            db::representative_chunks_for_notes(indexer.conn(), &neighbors, 1).unwrap_or_default();
+        let existing: HashSet<String> = hits.iter().map(|h| h.chunk_stable_id.clone()).collect();
+        let mut added = 0usize;
+        for (note, heading, text, stable, hash) in nb_chunks {
+            if added >= adv.graph_neighbors_per_seed as usize {
+                break;
+            }
+            if existing.contains(&stable) {
+                continue;
+            }
+            hits.push(SearchHit {
+                note_path: note,
+                heading_path: heading,
+                snippet: text.chars().take(400).collect(),
+                chunk_stable_id: stable,
+                content_hash: hash,
+                score: 0.0,
+                via: "graph".to_string(),
+            });
+            added += 1;
+        }
+    }
+
+    // 4) Parent pull-in (üst başlık bölümü)
+    if adv.parent_pull_in_enabled {
+        let existing: HashSet<String> = hits.iter().map(|h| h.chunk_stable_id.clone()).collect();
+        let mut pseen: HashSet<String> = HashSet::new();
+        let mut parents: Vec<SearchHit> = Vec::new();
+        let limit = hits.len();
+        for h in &hits {
+            if parents.len() >= limit {
+                break;
+            }
+            if let Ok(Some((note, heading, text, stable, hash))) =
+                db::parent_chunk_for(indexer.conn(), &h.chunk_stable_id)
+            {
+                if !existing.contains(&stable) && pseen.insert(stable.clone()) {
+                    parents.push(SearchHit {
+                        note_path: note,
+                        heading_path: heading,
+                        snippet: text.chars().take(600).collect(),
+                        chunk_stable_id: stable,
+                        content_hash: hash,
+                        score: 0.0,
+                        via: "parent".to_string(),
+                    });
+                }
+            }
+        }
+        hits.extend(parents);
+    }
+
+    Ok(hits)
 }
 
 #[cfg(test)]
