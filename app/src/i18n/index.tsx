@@ -14,6 +14,21 @@ type Dict = Record<string, string>;
 
 const dicts = strings as { en: Dict; tr: Dict };
 
+/// Saf çeviri (test edilebilir): lang → key, yoksa en'e, o da yoksa key'in kendisi; {var} enterpolasyonu.
+export function translate(
+  lang: Lang,
+  key: string,
+  vars?: Record<string, string | number>,
+): string {
+  let value = dicts[lang]?.[key] ?? dicts.en?.[key] ?? key;
+  if (vars) {
+    for (const [name, replacement] of Object.entries(vars)) {
+      value = value.replace(`{${name}}`, String(replacement));
+    }
+  }
+  return value;
+}
+
 type I18nContextValue = {
   lang: Lang;
   setLang: (lang: Lang) => void;
@@ -50,15 +65,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const t = useCallback(
-    (key: string, vars?: Record<string, string | number>) => {
-      let value = dicts[lang]?.[key] ?? dicts.en?.[key] ?? key;
-      if (vars) {
-        for (const [name, replacement] of Object.entries(vars)) {
-          value = value.replace(`{${name}}`, String(replacement));
-        }
-      }
-      return value;
-    },
+    (key: string, vars?: Record<string, string | number>) => translate(lang, key, vars),
     [lang],
   );
 
