@@ -235,6 +235,12 @@ fn migrate(conn: &Connection) -> Result<()> {
 
         CREATE INDEX IF NOT EXISTS links_source_idx ON links(source_path);
         CREATE INDEX IF NOT EXISTS links_target_idx ON links(target_path);
+        -- PERF (codex #4): sıcak yollar için ek index'ler — büyüyen vault'ta tablo
+        -- taramasını önler (chunk delete/list/representative, cache invalidation, graph komşu).
+        CREATE INDEX IF NOT EXISTS chunks_note_ordinal_idx ON chunks(note_path, ordinal);
+        CREATE INDEX IF NOT EXISTS cache_deps_key_idx ON cache_deps(cache_key);
+        CREATE INDEX IF NOT EXISTS links_source_resolved_idx ON links(source_path, resolved, target_path);
+        CREATE INDEX IF NOT EXISTS links_target_resolved_idx ON links(target_path, resolved, source_path);
 
         CREATE TABLE IF NOT EXISTS meta(
             k TEXT PRIMARY KEY,
@@ -1203,7 +1209,7 @@ fn ensure_column(conn: &Connection, table: &str, column: &str, alter_sql: &str) 
 }
 
 fn f32_blob(values: &[f32]) -> Vec<u8> {
-    let mut bytes = Vec::with_capacity(values.len() * std::mem::size_of::<f32>());
+    let mut bytes = Vec::with_capacity(std::mem::size_of_val(values));
     for value in values {
         bytes.extend_from_slice(&value.to_le_bytes());
     }

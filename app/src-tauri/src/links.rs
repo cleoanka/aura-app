@@ -187,7 +187,6 @@ fn extract_python(content: &str, links: &mut Vec<RawLink>) {
         };
         for module in raw_modules.as_str().split(',') {
             let module = module
-                .trim()
                 .split_whitespace()
                 .next()
                 .unwrap_or_default()

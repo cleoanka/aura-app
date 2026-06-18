@@ -41,6 +41,12 @@ pub struct JobHandle {
 
 pub type JobRegistry = Arc<Mutex<HashMap<String, JobHandle>>>;
 
+impl Default for JobHandle {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl JobHandle {
     pub fn new() -> Self {
         Self {
