@@ -47,8 +47,14 @@ pub async fn ask(
             let k = (adv.final_k as usize).max(6);
             let variants = crate::retrieval::query_variants(&query, plan.as_ref());
             let mut groups = Vec::with_capacity(variants.len());
-            for q in &variants {
-                groups.push(indexer.search_hybrid(q, k)?);
+            for (i, q) in variants.iter().enumerate() {
+                match indexer.search_hybrid(q, k) {
+                    Ok(g) => groups.push(g),
+                    // Planner expansion'ı FTS5 özel karakteri içerebilir → o variant'ı ATLA,
+                    // tüm ask'i DÜŞÜRME. Orijinal sorgu (i==0) hata verirse o gerçek hatadır.
+                    Err(err) if i == 0 => return Err(err),
+                    Err(_) => {}
+                }
             }
             let mut merged = crate::retrieval::dedup_merge(groups, k);
 
