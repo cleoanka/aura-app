@@ -170,6 +170,10 @@ pub fn is_loopback_url(base_url: &str) -> bool {
     let url = normalized_base_url(base_url);
     let after_scheme = url.split("://").nth(1).unwrap_or(url.as_str());
     let authority = after_scheme.split('/').next().unwrap_or("");
+    // userinfo bypass'ını engelle: http://localhost@evil.com → '@' varsa reddet (codex).
+    if authority.contains('@') {
+        return false;
+    }
     let host = if let Some(rest) = authority.strip_prefix('[') {
         rest.split(']').next().unwrap_or("") // [::1]:port → ::1
     } else {
