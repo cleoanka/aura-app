@@ -2,6 +2,7 @@ use crate::db::NoteRef;
 use crate::indexer::Indexer;
 use crate::search::SearchHit;
 use crate::settings::{self, Settings};
+use crate::ReadDb;
 use serde::Serialize;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -32,9 +33,10 @@ pub async fn pick_vault_folder(app: AppHandle) -> Result<Option<String>, String>
 }
 
 #[tauri::command]
-pub fn list_notes(indexer: State<'_, Mutex<Indexer>>) -> Result<Vec<NoteRef>, String> {
-    let indexer = indexer.lock().map_err(|err| err.to_string())?;
-    crate::db::list_notes(indexer.conn()).map_err(|err| err.to_string())
+pub fn list_notes(read: State<'_, ReadDb>) -> Result<Vec<NoteRef>, String> {
+    // Ayrı read connection → indeksleme sürerken dosya listesi DONMAZ (codex #2 güvenli dilim).
+    let conn = read.0.lock().map_err(|err| err.to_string())?;
+    crate::db::list_notes(&conn).map_err(|err| err.to_string())
 }
 
 #[tauri::command]

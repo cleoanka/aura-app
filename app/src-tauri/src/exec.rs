@@ -368,14 +368,27 @@ async fn run_aura_with_files(
     }
 
     {
-        // PERF/robustness (codex #8): cevap (read_result) zaten hazır; child'ı reap etmek için
-        // SONSUZ bekleme YOK — sidecar 'done' deyip asılsa bile komut cevabı döndürür (UI takılmaz).
-        let wait = tokio::task::spawn_blocking(move || {
-            if let Ok(mut child) = child.lock() {
-                let _ = child.wait();
+        // Robustness (codex #8): cevap (read_result) zaten hazır. Child'ı reap etmek için
+        // bloklayan wait'i TERK ETMEK yerine try_wait ile POLL et (kilidi her poll arası bırak);
+        // deadline'da öldür+reap → asılı child öldürülemez/thread sızar sorunu YOK, UI takılmaz.
+        let mut reaped = false;
+        for _ in 0..150 {
+            let done = match child.lock() {
+                Ok(mut c) => matches!(c.try_wait(), Ok(Some(_))),
+                Err(_) => true,
+            };
+            if done {
+                reaped = true;
+                break;
             }
-        });
-        let _ = tokio::time::timeout(Duration::from_secs(15), wait).await;
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
+        if !reaped {
+            if let Ok(mut c) = child.lock() {
+                let _ = c.kill();
+                let _ = c.wait();
+            }
+        }
     }
 
     read_result

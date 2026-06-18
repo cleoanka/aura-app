@@ -1,5 +1,6 @@
-use crate::graph::GraphData;
+use crate::graph::{self, GraphData};
 use crate::indexer::{IndexStats, Indexer, SearchHit};
+use crate::ReadDb;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use tauri::State;
@@ -11,9 +12,14 @@ pub fn index_vault(indexer: State<'_, Mutex<Indexer>>, path: String) -> Result<I
 }
 
 #[tauri::command]
-pub fn get_graph(indexer: State<'_, Mutex<Indexer>>) -> Result<GraphData, String> {
-    let indexer = indexer.lock().map_err(|err| err.to_string())?;
-    Ok(indexer.graph())
+pub fn get_graph(read: State<'_, ReadDb>) -> Result<GraphData, String> {
+    // Ayrı read connection → indeksleme sürerken graph DONMAZ (codex #2 güvenli dilim).
+    let conn = read.0.lock().map_err(|err| err.to_string())?;
+    // Deferred read-tx: iki SELECT (files+links) tutarlı tek snapshot'tan okunur.
+    let _ = conn.begin();
+    let result = graph::build_from_db(&conn);
+    let _ = conn.commit();
+    Ok(result.unwrap_or_default())
 }
 
 #[tauri::command]
