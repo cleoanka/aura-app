@@ -74,7 +74,13 @@ function App() {
       case "search":
         return <SearchPanel onOpenNote={openNote} />;
       case "graph":
-        return <GraphView key={dataVersion} onOpenNote={openNote} />;
+        return (
+          <GraphView
+            key={dataVersion}
+            activePath={selectedNote?.path ?? null}
+            onOpenNote={openNote}
+          />
+        );
       case "agents":
         return <AgentManager onReportChange={setDoctorReport} />;
       case "settings":
