@@ -1036,6 +1036,11 @@ impl Connection {
     pub fn begin_immediate(&self) -> Result<()> {
         self.execute_batch("BEGIN IMMEDIATE")
     }
+    /// Deferred BEGIN: WAL'da tutarlı read-snapshot başlatır, YAZARI BLOKLAMAZ
+    /// (get_graph'ın iki SELECT'i arası commit düşse bile karışık snapshot olmasın, codex #2).
+    pub fn begin(&self) -> Result<()> {
+        self.execute_batch("BEGIN")
+    }
     pub fn commit(&self) -> Result<()> {
         self.execute_batch("COMMIT")
     }

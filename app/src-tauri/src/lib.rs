@@ -38,8 +38,11 @@ fn greet(name: &str) -> String {
 pub fn run() {
     let indexer = create_indexer_state().expect("failed to initialize indexer");
 
+    let read_db = create_read_db().expect("failed to open read connection");
+
     tauri::Builder::default()
         .manage(indexer)
+        .manage(read_db)
         .manage(exec::new_job_registry())
         .setup(|app| {
             // Başlangıçta kayıtlı proje klasörlerini ARKA PLANDA yeniden indeksle
@@ -114,13 +117,28 @@ pub fn run() {
         .expect("error while running tauri application");
 }
 
-fn create_indexer_state() -> Result<Mutex<Indexer>, String> {
+/// PERF (codex #2 güvenli dilim): saf-okuma komutları (get_graph, list_notes) için
+/// AYRI read connection. WAL eşzamanlı okumaya izin verir → arka planda indekslerken
+/// (Indexer write-lock'u tutulurken) graph/dosya-listesi UI'ı DONMAZ. Ayrı kilit = deadlock yok.
+pub struct ReadDb(pub Mutex<db::Connection>);
+
+fn db_file_path() -> Result<std::path::PathBuf, String> {
     let mut db_dir = dirs::data_local_dir()
         .or_else(dirs::data_dir)
         .unwrap_or_else(std::env::temp_dir);
     db_dir.push("aura-app");
     std::fs::create_dir_all(&db_dir).map_err(|err| err.to_string())?;
-    let db_path = db_dir.join("index.sqlite3");
+    Ok(db_dir.join("index.sqlite3"))
+}
+
+fn create_indexer_state() -> Result<Mutex<Indexer>, String> {
+    let db_path = db_file_path()?;
     let conn = db::open(&db_path).map_err(|err| err.to_string())?;
     Ok(Mutex::new(Indexer::new(conn, default_embedder(), 1)))
+}
+
+fn create_read_db() -> Result<ReadDb, String> {
+    let db_path = db_file_path()?;
+    let conn = db::open(&db_path).map_err(|err| err.to_string())?;
+    Ok(ReadDb(Mutex::new(conn)))
 }
