@@ -512,12 +512,13 @@ fn consensus_agents() -> [AgentSpec; 3] {
             args: &["-p"],
         },
         AgentSpec {
-            // Google gemini CLI'ın ücretsiz OAuth katmanını kapatıp Antigravity'e taşıdı (19 May 2026).
-            // 3. ajan artık Antigravity CLI (`agy`, Gemini modelleri). `-p -`: tek prompt'u STDIN'den
-            // okur (spawn_agent prompt'u stdin pipe'lar) → app yöntemiyle birebir uyumlu.
+            // Google gemini CLI ücretsiz OAuth'u kapatıp Antigravity'e taşıdı (19 May 2026) → `agy`.
+            // `-p -`: prompt STDIN'den (spawn_agent pipe'lar) → app yöntemiyle uyumlu.
+            // HIZ: default model "Gemini 3.1 Pro (High)" = ağır düşünme → 39s. "Pro (Low)" = 10s,
+            // aynı Pro kalitesi (ölçüldü). Böylece consensus'ta agy yavaşlık/grace-drop yapmaz.
             name: "agy",
             program: "agy",
-            args: &["-p", "-"],
+            args: &["--model", "Gemini 3.1 Pro (Low)", "-p", "-"],
         },
         AgentSpec {
             name: "codex",
