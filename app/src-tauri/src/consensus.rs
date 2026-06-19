@@ -241,14 +241,15 @@ async fn run_consensus_inner(
         }
     }
 
-    // Grace ile bırakılan / asılan ajan süreçlerini öldür + reap (zombie/sızıntı olmasın).
+    // Grace ile bırakılan / asılan ajan süreçlerini öldür (non-blocking try_lock → deadlock yok).
+    // Öldürülen child'ın read'i EOF alır → task'ı kendi child'ını reap eder. JoinSet'i ABORT etmek
+    // yerine arka planda boşalt: task'lar doğal biter + reap eder (zombie/sızıntı yok), consensus
+    // hemen senteze geçer (kullanıcıyı bekletmez).
     for child in &children {
         kill_child(child);
     }
-    set.shutdown().await;
-    for child in children {
-        let _ = wait_child(child).await;
-    }
+    drop(children);
+    tokio::spawn(async move { while set.join_next().await.is_some() {} });
 
     if handle.is_cancelled() {
         let reason = "consensus job cancelled".to_string();
@@ -467,7 +468,9 @@ async fn wait_child(child: Arc<Mutex<GroupChild>>) -> Option<std::process::ExitS
 }
 
 fn kill_child(child: &Arc<Mutex<GroupChild>>) {
-    if let Ok(mut child) = child.lock() {
+    // try_lock: bir task wait_child'da (blocking wait) kilidi tutuyorsa BLOKLAMA → deadlock yok
+    // (codex). O child zaten reap ediliyor; asılı/okuyan child'ta kilit boştur, öldürülür.
+    if let Ok(mut child) = child.try_lock() {
         let _ = child.kill();
     }
 }
