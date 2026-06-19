@@ -514,7 +514,10 @@ fn consensus_agents() -> [AgentSpec; 3] {
         AgentSpec {
             name: "gemini",
             program: "gemini",
-            args: &["--approval-mode", "plan"],
+            // --skip-trust: headless çağrıda "trusted directory" engelini aşar (Google'ın hatası
+            // bunu öneriyor). Auth için GEMINI_API_KEY (AI Studio) gerekir — ücretsiz OAuth katmanı
+            // bireysel kullanıcılara kapatıldı (IneligibleTierError / UNSUPPORTED_CLIENT).
+            args: &["--approval-mode", "plan", "--skip-trust"],
         },
         AgentSpec {
             name: "codex",
