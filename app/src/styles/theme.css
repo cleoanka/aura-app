@@ -1550,3 +1550,32 @@ select.text-input:focus {
   align-self: flex-end;
   min-height: 44px;
 }
+.ask-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.aura-mode-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.mode-select {
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-tertiary);
+  color: var(--text);
+  padding: 7px 12px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.mode-select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.mode-hint {
+  color: var(--text-muted);
+  flex: 1 1 auto;
+}

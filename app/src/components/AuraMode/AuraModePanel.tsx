@@ -137,20 +137,23 @@ export function AuraModePanel() {
         renderAssistantActions={assistantActions}
         toolbar={
           <div className="aura-toolbar">
-            <div className="mode-segmented" role="group" aria-label={t("auraMode.title")}>
-              {modeOptions.map((option) => (
-                <button
-                  aria-pressed={mode === option.id}
-                  className={`mode-option ${mode === option.id ? "is-active" : ""}`}
-                  disabled={convo.streaming}
-                  key={option.id}
-                  onClick={() => setMode(option.id)}
-                  title={t(option.helperKey)}
-                  type="button"
-                >
-                  {t(option.labelKey)}
-                </button>
-              ))}
+            <div className="aura-mode-row">
+              <select
+                className="mode-select"
+                aria-label={t("settings.defaultMode")}
+                disabled={convo.streaming}
+                onChange={(event) => setMode(event.currentTarget.value as AuraMode)}
+                value={mode}
+              >
+                {modeOptions.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {t(option.labelKey)}
+                  </option>
+                ))}
+              </select>
+              <small className="mode-hint">
+                {t(modeOptions.find((option) => option.id === mode)?.helperKey ?? "auraMode.chatHint")}
+              </small>
             </div>
             {requiresProjectDir(mode) ? (
               <div className="project-picker">
