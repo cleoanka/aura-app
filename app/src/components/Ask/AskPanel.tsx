@@ -1,15 +1,16 @@
 import { useEffect, useState } from "react";
 
-import { ask, askConsensus, cancelJob, getSettings } from "../../lib/ipc";
+import { ask, askConsensus, cancelJob, getSettings, saveNote } from "../../lib/ipc";
 import { useI18n } from "../../i18n";
 import { ChatView } from "../Chat/ChatView";
-import { useConversation } from "../../hooks/useConversation";
+import { useConversation, type ChatMessage } from "../../hooks/useConversation";
 
 export function AskPanel() {
   const { t } = useI18n();
   const convo = useConversation();
   const [consensusAvailable, setConsensusAvailable] = useState(false);
   const [consensusChecked, setConsensusChecked] = useState(false);
+  const [actionMsg, setActionMsg] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -36,6 +37,7 @@ export function AskPanel() {
   }, []);
 
   const onSend = (text: string) => {
+    setActionMsg(null);
     const useConsensus = consensusAvailable && consensusChecked;
     void convo.send(
       text,
@@ -43,6 +45,36 @@ export function AskPanel() {
       useConsensus ? { laneOverride: "consensus" } : undefined,
     );
   };
+
+  const saveAnswer = async (content: string) => {
+    setActionMsg(null);
+    try {
+      const path = await saveNote("ask", content);
+      setActionMsg(`${t("auraMode.saved")} ${path}`);
+    } catch {
+      setActionMsg(t("auraMode.saveError"));
+    }
+  };
+
+  const copyAnswer = async (content: string) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setActionMsg(t("auraMode.copied"));
+    } catch {
+      setActionMsg(t("common.error"));
+    }
+  };
+
+  const assistantActions = (message: ChatMessage) => (
+    <div className="result-actions">
+      <button className="button" onClick={() => void saveAnswer(message.content)} type="button">
+        💾 {t("auraMode.saveNote")}
+      </button>
+      <button className="button" onClick={() => void copyAnswer(message.content)} type="button">
+        📋 {t("auraMode.copy")}
+      </button>
+    </div>
+  );
 
   return (
     <section className="task-panel chat-panel" aria-labelledby="ask-title">
@@ -62,18 +94,24 @@ export function AskPanel() {
         onClear={convo.clear}
         placeholder={t("ask.placeholder")}
         emptyHint={t("ask.placeholder")}
+        renderAssistantActions={assistantActions}
         toolbar={
-          consensusAvailable ? (
-            <label className="consensus-toggle">
-              <input
-                checked={consensusChecked}
-                disabled={convo.streaming}
-                onChange={(event) => setConsensusChecked(event.currentTarget.checked)}
-                type="checkbox"
-              />
-              <span>{t("ask.consensus")}</span>
-              <small>{t("ask.consensusHint")}</small>
-            </label>
+          consensusAvailable || actionMsg ? (
+            <div className="ask-toolbar">
+              {consensusAvailable ? (
+                <label className="consensus-toggle">
+                  <input
+                    checked={consensusChecked}
+                    disabled={convo.streaming}
+                    onChange={(event) => setConsensusChecked(event.currentTarget.checked)}
+                    type="checkbox"
+                  />
+                  <span>{t("ask.consensus")}</span>
+                  <small>{t("ask.consensusHint")}</small>
+                </label>
+              ) : null}
+              {actionMsg ? <p className="notice success">{actionMsg}</p> : null}
+            </div>
           ) : undefined
         }
       />
