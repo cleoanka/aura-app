@@ -40,6 +40,32 @@ pub struct Settings {
     pub semantic_search: bool,
     #[serde(default = "default_advanced_retrieval")]
     pub advanced_retrieval: AdvancedRetrievalSettings,
+    #[serde(default = "default_consensus_settings")]
+    pub consensus: ConsensusSettings,
+}
+
+// Consensus zamanlaması — kullanıcı uygulama içinden ayarlar.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ConsensusSettings {
+    /// İlk ajan yanıtladıktan sonra geç kalanlara tanınan ek süre (sn). 0 = grace yok (hepsini bekle).
+    #[serde(default = "default_consensus_grace")]
+    pub grace_secs: u32,
+    /// Bir ajanın sert üst sınırı (sn). Aşılırsa o ajan düşürülür.
+    #[serde(default = "default_consensus_agent_timeout")]
+    pub agent_timeout_secs: u32,
+}
+
+fn default_consensus_grace() -> u32 {
+    30
+}
+fn default_consensus_agent_timeout() -> u32 {
+    90
+}
+fn default_consensus_settings() -> ConsensusSettings {
+    ConsensusSettings {
+        grace_secs: default_consensus_grace(),
+        agent_timeout_secs: default_consensus_agent_timeout(),
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -167,6 +193,7 @@ impl Default for Settings {
             local_gen: default_local_gen(),
             semantic_search: false,
             advanced_retrieval: AdvancedRetrievalSettings::default(),
+            consensus: default_consensus_settings(),
         }
     }
 }
@@ -266,6 +293,9 @@ impl Settings {
         adv.graph_hops = adv.graph_hops.clamp(0, 4);
         adv.graph_neighbors_per_seed = adv.graph_neighbors_per_seed.clamp(0, 64);
         adv.semantic_cache_threshold = adv.semantic_cache_threshold.clamp(50, 100);
+        // Consensus bekleme süreleri makul aralıkta (kullanıcı UI'dan girer).
+        settings.consensus.grace_secs = settings.consensus.grace_secs.min(600);
+        settings.consensus.agent_timeout_secs = settings.consensus.agent_timeout_secs.clamp(10, 600);
         settings.local_gen = settings.local_gen.normalized();
         settings
     }

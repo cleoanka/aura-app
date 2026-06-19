@@ -11,9 +11,7 @@ use std::time::Duration;
 use tauri::ipc::Channel;
 
 const TOTAL_TIMEOUT: Duration = Duration::from_secs(420);
-// Asılan/yavaş bir ajan tüm consensus'u kilitlemesin: 420s (7dk) çok uzundu → 90s.
-// Bir model normalde 15-60s'de yanıtlar; 90s aşılırsa o ajan düşürülür, kalanlarla devam.
-const AGENT_TIMEOUT: Duration = Duration::from_secs(90);
+// Ajan zamanlaması artık kullanıcı ayarından gelir (consensus.agent_timeout_secs + grace_secs).
 const SYNTHESIS_TIMEOUT: Duration = Duration::from_secs(120);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -84,6 +82,8 @@ pub async fn run_consensus(
         .insert(job_id.clone(), handle.clone());
     send_event(&on_event, AiEvent::Job { job_id: job_id.clone() })?;
 
+    // Bekleme süreleri kullanıcı tarafından UI'dan ayarlanır.
+    let cfg = crate::settings::load().consensus;
     let result = tokio::time::timeout(
         TOTAL_TIMEOUT,
         run_consensus_inner(
@@ -92,6 +92,8 @@ pub async fn run_consensus(
             temp_paths.synthesis_prompt.clone(),
             on_event.clone(),
             handle.clone(),
+            cfg.grace_secs,
+            cfg.agent_timeout_secs,
         ),
     )
     .await;
@@ -123,6 +125,8 @@ async fn run_consensus_inner(
     synthesis_prompt_path: PathBuf,
     on_event: Channel<AiEvent>,
     handle: JobHandle,
+    grace_secs: u32,
+    agent_timeout_secs: u32,
 ) -> Result<String, String> {
     let available_agents = tokio::task::spawn_blocking(detect_usable_agents)
         .await
@@ -145,26 +149,86 @@ async fn run_consensus_inner(
     }
 
     let total = available_agents.len();
-    let mut set = tokio::task::JoinSet::new();
+    let agent_timeout = Duration::from_secs(agent_timeout_secs as u64);
+    let mut children: Vec<Arc<Mutex<GroupChild>>> = Vec::new();
+    let mut set: tokio::task::JoinSet<Option<(String, String)>> = tokio::task::JoinSet::new();
     for agent in available_agents.iter().copied() {
-        set.spawn(run_agent(
-            agent,
-            shared_prompt_path.clone(),
-            on_event.clone(),
-            handle.clone(),
-        ));
+        if handle.is_cancelled() {
+            break;
+        }
+        let child = match spawn_agent(&agent, &shared_prompt_path, &handle) {
+            Ok(child) => child,
+            Err(_) => continue,
+        };
+        let stdout = {
+            let mut guard = match child.lock() {
+                Ok(guard) => guard,
+                Err(_) => continue,
+            };
+            guard.inner().stdout.take()
+        };
+        let Some(stdout) = stdout else {
+            continue;
+        };
+        // child Arc'ını sakla → grace dolunca/asılınca straggler'ı öldürebilelim.
+        children.push(child.clone());
+        let on_event_task = on_event.clone();
+        let handle_task = handle.clone();
+        set.spawn(async move {
+            let read = tokio::task::spawn_blocking(move || read_stdout_to_string(stdout));
+            let output = match tokio::time::timeout(agent_timeout, read).await {
+                Ok(Ok(Ok(output))) => output,
+                _ => {
+                    kill_child(&child);
+                    wait_child(child).await;
+                    return None;
+                }
+            };
+            let status = wait_child(child).await;
+            if !matches!(status, Some(status) if status.success()) || handle_task.is_cancelled() {
+                return None;
+            }
+            let _ = on_event_task.send(AiEvent::Status {
+                text: format!("✓ {} yanıtladı", agent.name),
+                stage: Some("consensus".to_string()),
+                agent: Some(agent.name.to_string()),
+            });
+            Some((agent.name.to_string(), output))
+        });
     }
 
-    // Tamamlanma SIRASINA göre topla (ajanlar paralel çalışır) → her biten anında görünür,
-    // hızlı ajan yavaş/asılan ajanı beklerken UI donmuş gibi durmaz. Asılan ajan run_agent'in
-    // 90s timeout'unda kendi child'ını öldürüp düşer; consensus kalan yanıtlarla devam eder.
+    // GRACE modu: ilk yanıttan sonra geç kalanlara yalnız grace_secs süre tanı, sonra eldekiyle
+    // senteze geç. grace_secs=0 → grace kapalı (hepsini agent_timeout'a kadar bekle). Tamamlanma
+    // sırasına göre toplanır → her biten anında "✓ … · N bekleniyor" görünür (UI donmaz).
     let mut answers = Vec::new();
     let mut done = 0usize;
-    while let Some(res) = set.join_next().await {
+    let mut deadline: Option<tokio::time::Instant> = None;
+    loop {
+        let next = match deadline {
+            Some(at) => match tokio::time::timeout_at(at, set.join_next()).await {
+                Ok(next) => next,
+                Err(_) => {
+                    let _ = on_event.send(AiEvent::Status {
+                        text: format!("⏳ grace ({grace_secs}s) doldu → eldeki yanıtlarla sentezleniyor…"),
+                        stage: Some("consensus".to_string()),
+                        agent: None,
+                    });
+                    break;
+                }
+            },
+            None => set.join_next().await,
+        };
+        let Some(res) = next else {
+            break;
+        };
         done += 1;
         if let Ok(Some((agent, answer))) = res {
             if !answer.trim().is_empty() {
                 answers.push((agent, answer));
+                if deadline.is_none() && grace_secs > 0 && done < total {
+                    deadline =
+                        Some(tokio::time::Instant::now() + Duration::from_secs(grace_secs as u64));
+                }
             }
         }
         let remaining = total.saturating_sub(done);
@@ -175,6 +239,15 @@ async fn run_consensus_inner(
                 agent: None,
             });
         }
+    }
+
+    // Grace ile bırakılan / asılan ajan süreçlerini öldür + reap (zombie/sızıntı olmasın).
+    for child in &children {
+        kill_child(child);
+    }
+    set.shutdown().await;
+    for child in children {
+        let _ = wait_child(child).await;
     }
 
     if handle.is_cancelled() {
@@ -265,49 +338,6 @@ async fn run_consensus_inner(
         }
         None => stream_concatenated_answers(&answers, on_event),
     }
-}
-
-async fn run_agent(
-    agent: AgentSpec,
-    prompt_path: PathBuf,
-    on_event: Channel<AiEvent>,
-    handle: JobHandle,
-) -> Option<(String, String)> {
-    if handle.is_cancelled() {
-        return None;
-    }
-
-    let child = match spawn_agent(&agent, &prompt_path, &handle) {
-        Ok(child) => child,
-        Err(_) => return None,
-    };
-
-    let stdout = {
-        let mut child = child.lock().ok()?;
-        child.inner().stdout.take()?
-    };
-
-    let read_task = tokio::task::spawn_blocking(move || read_stdout_to_string(stdout));
-    let output = match tokio::time::timeout(AGENT_TIMEOUT, read_task).await {
-        Ok(Ok(Ok(output))) => output,
-        Ok(Ok(Err(_))) | Ok(Err(_)) | Err(_) => {
-            kill_child(&child);
-            wait_child(child).await;
-            return None;
-        }
-    };
-
-    let status = wait_child(child).await;
-    if !matches!(status, Some(status) if status.success()) || handle.is_cancelled() {
-        return None;
-    }
-
-    let _ = on_event.send(AiEvent::Status {
-        text: format!("✓ {} yanıtladı", agent.name),
-        stage: Some("consensus".to_string()),
-        agent: Some(agent.name.to_string()),
-    });
-    Some((agent.name.to_string(), output))
 }
 
 async fn run_synthesis(

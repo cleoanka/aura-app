@@ -163,7 +163,11 @@
     "settings.advancedRetrieval": "Advanced retrieval (experimental)",
     "settings.advancedRetrieval.hint": "Local planner + link-graph + rerank + safe semantic cache. Planner runs on local Ollama (protects cloud quota).",
     "status.thinking": "Thinking…",
-    "chat.new": "New chat"
+    "chat.new": "New chat",
+    "settings.consensus.grace": "Grace period (s)",
+    "settings.consensus.graceHint": "after the first reply, wait this long for the rest, then synthesize (0 = wait for all)",
+    "settings.consensus.agentTimeout": "Agent timeout (s)",
+    "settings.consensus.agentTimeoutHint": "hard cap per agent; a slower agent is dropped"
   },
   "tr": {
     "app.name": "AURA Desktop",
@@ -329,6 +333,10 @@
     "settings.advancedRetrieval": "Gelişmiş retrieval (deneysel)",
     "settings.advancedRetrieval.hint": "Yerel planner + bağlantı-grafı + rerank + güvenli semantik cache. Planner yerel Ollama'da çalışır (bulut kotanı korur).",
     "status.thinking": "Düşünüyor…",
-    "chat.new": "Yeni sohbet"
+    "chat.new": "Yeni sohbet",
+    "settings.consensus.grace": "Grace süresi (sn)",
+    "settings.consensus.graceHint": "ilk yanıttan sonra geç kalanları bu kadar bekle, sonra sentezle (0 = hepsini bekle)",
+    "settings.consensus.agentTimeout": "Ajan zaman aşımı (sn)",
+    "settings.consensus.agentTimeoutHint": "ajan başına sert üst sınır; daha yavaş ajan düşürülür"
   }
 }

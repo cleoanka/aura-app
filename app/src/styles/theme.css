@@ -1579,3 +1579,15 @@ select.text-input:focus {
   color: var(--text-muted);
   flex: 1 1 auto;
 }
+.consensus-timing {
+  display: grid;
+  gap: 6px;
+  margin: 4px 0 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  border: 1px solid var(--border);
+}
+.consensus-timing .text-input {
+  max-width: 140px;
+}
