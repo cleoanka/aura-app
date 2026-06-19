@@ -56,7 +56,10 @@ pub struct ConsensusSettings {
 }
 
 fn default_consensus_grace() -> u32 {
-    30
+    // 0 = grace kapalı (hepsini agent_timeout'a kadar bekle). VARSAYILAN: agy/Antigravity ~40s
+    // sürüyor (claude/codex ~5s); grace>0 onu sessizce DÜŞÜRÜYORDU. 0 ile agy hep dahil; "kırk saat"
+    // riski yok çünkü agent_timeout (90s) zaten sert sınır. Hız isteyen kullanıcı UI'dan grace verir.
+    0
 }
 fn default_consensus_agent_timeout() -> u32 {
     90
