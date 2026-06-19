@@ -45,7 +45,7 @@ pub fn synth_prompt(query: &str, answers: &[(String, String)]) -> String {
 }
 
 pub fn pick_synthesizer<'a>(available: &'a [&'a str]) -> Option<&'a str> {
-    ["claude", "gemini", "codex"]
+    ["claude", "antigravity", "codex"]
         .into_iter()
         .find(|candidate| available.iter().any(|agent| agent == candidate))
 }
@@ -512,12 +512,12 @@ fn consensus_agents() -> [AgentSpec; 3] {
             args: &["-p"],
         },
         AgentSpec {
-            name: "gemini",
-            program: "gemini",
-            // --skip-trust: headless çağrıda "trusted directory" engelini aşar (Google'ın hatası
-            // bunu öneriyor). Auth için GEMINI_API_KEY (AI Studio) gerekir — ücretsiz OAuth katmanı
-            // bireysel kullanıcılara kapatıldı (IneligibleTierError / UNSUPPORTED_CLIENT).
-            args: &["--approval-mode", "plan", "--skip-trust"],
+            // Google gemini CLI'ın ücretsiz OAuth katmanını kapatıp Antigravity'e taşıdı (19 May 2026).
+            // 3. ajan artık Antigravity CLI (`agy`, Gemini modelleri). `-p -`: tek prompt'u STDIN'den
+            // okur (spawn_agent prompt'u stdin pipe'lar) → app yöntemiyle birebir uyumlu.
+            name: "antigravity",
+            program: "agy",
+            args: &["-p", "-"],
         },
         AgentSpec {
             name: "codex",
