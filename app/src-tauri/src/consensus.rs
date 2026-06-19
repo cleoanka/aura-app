@@ -10,9 +10,11 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tauri::ipc::Channel;
 
-const TOTAL_TIMEOUT: Duration = Duration::from_secs(600);
-const AGENT_TIMEOUT: Duration = Duration::from_secs(420);
-const SYNTHESIS_TIMEOUT: Duration = Duration::from_secs(240);
+const TOTAL_TIMEOUT: Duration = Duration::from_secs(420);
+// Asılan/yavaş bir ajan tüm consensus'u kilitlemesin: 420s (7dk) çok uzundu → 90s.
+// Bir model normalde 15-60s'de yanıtlar; 90s aşılırsa o ajan düşürülür, kalanlarla devam.
+const AGENT_TIMEOUT: Duration = Duration::from_secs(90);
+const SYNTHESIS_TIMEOUT: Duration = Duration::from_secs(120);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConsensusAnswerMode {
@@ -142,22 +144,36 @@ async fn run_consensus_inner(
         });
     }
 
-    let mut tasks = Vec::new();
+    let total = available_agents.len();
+    let mut set = tokio::task::JoinSet::new();
     for agent in available_agents.iter().copied() {
-        tasks.push(tokio::spawn(run_agent(
+        set.spawn(run_agent(
             agent,
             shared_prompt_path.clone(),
             on_event.clone(),
             handle.clone(),
-        )));
+        ));
     }
 
+    // Tamamlanma SIRASINA göre topla (ajanlar paralel çalışır) → her biten anında görünür,
+    // hızlı ajan yavaş/asılan ajanı beklerken UI donmuş gibi durmaz. Asılan ajan run_agent'in
+    // 90s timeout'unda kendi child'ını öldürüp düşer; consensus kalan yanıtlarla devam eder.
     let mut answers = Vec::new();
-    for task in tasks {
-        match task.await {
-            Ok(Some((agent, answer))) if !answer.trim().is_empty() => answers.push((agent, answer)),
-            Ok(_) => {}
-            Err(_) => {}
+    let mut done = 0usize;
+    while let Some(res) = set.join_next().await {
+        done += 1;
+        if let Ok(Some((agent, answer))) = res {
+            if !answer.trim().is_empty() {
+                answers.push((agent, answer));
+            }
+        }
+        let remaining = total.saturating_sub(done);
+        if remaining > 0 && !handle.is_cancelled() {
+            let _ = on_event.send(AiEvent::Status {
+                text: format!("⏳ {done}/{total} ajan yanıtladı · {remaining} bekleniyor…"),
+                stage: Some("consensus".to_string()),
+                agent: None,
+            });
         }
     }
 
