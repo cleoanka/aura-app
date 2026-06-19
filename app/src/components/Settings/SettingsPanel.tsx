@@ -9,6 +9,8 @@ type SettingsForm = {
   defaultMode: DefaultMode;
   lanes: Required<LaneSettings>;
   consensusEnabled: boolean;
+  consensusGrace: number;
+  consensusAgentTimeout: number;
   cacheMode: CacheMode;
   semanticSearch: boolean;
   advancedEnabled: boolean;
@@ -23,6 +25,8 @@ const defaultForm: SettingsForm = {
     lane0: false,
   },
   consensusEnabled: false,
+  consensusGrace: 30,
+  consensusAgentTimeout: 90,
   semanticSearch: false,
   advancedEnabled: false,
   cacheMode: "exact",
@@ -38,6 +42,9 @@ function normalize(settings: Settings | null): SettingsForm {
       lane0: settings?.lanes?.lane0 ?? defaultForm.lanes.lane0,
     },
     consensusEnabled: settings?.consensus_enabled ?? defaultForm.consensusEnabled,
+    consensusGrace: settings?.consensus?.grace_secs ?? defaultForm.consensusGrace,
+    consensusAgentTimeout:
+      settings?.consensus?.agent_timeout_secs ?? defaultForm.consensusAgentTimeout,
     cacheMode: settings?.cache_mode ?? defaultForm.cacheMode,
     semanticSearch: settings?.semantic_search ?? defaultForm.semanticSearch,
     advancedEnabled: settings?.advanced_retrieval?.enabled ?? defaultForm.advancedEnabled,
@@ -112,6 +119,11 @@ export function SettingsPanel() {
         ...form.lanes,
       },
       consensus_enabled: form.consensusEnabled,
+      consensus: {
+        ...(baseSettings.consensus ?? {}),
+        grace_secs: form.consensusGrace,
+        agent_timeout_secs: form.consensusAgentTimeout,
+      },
       cache_mode: form.cacheMode,
       semantic_search: form.semanticSearch,
       advanced_retrieval: {
@@ -234,6 +246,48 @@ export function SettingsPanel() {
               type="checkbox"
             />
           </label>
+
+          {form.consensusEnabled ? (
+            <div className="consensus-timing">
+              <label className="field-label" htmlFor="consensus-grace">
+                {t("settings.consensus.grace")} <small>{t("settings.consensus.graceHint")}</small>
+              </label>
+              <input
+                className="text-input"
+                id="consensus-grace"
+                max={600}
+                min={0}
+                onChange={(event) => {
+                  const value = Math.max(0, Math.round(Number(event.currentTarget.value)));
+                  setForm((current) => ({
+                    ...current,
+                    consensusGrace: Number.isFinite(value) ? value : 0,
+                  }));
+                }}
+                type="number"
+                value={form.consensusGrace}
+              />
+              <label className="field-label" htmlFor="consensus-timeout">
+                {t("settings.consensus.agentTimeout")}{" "}
+                <small>{t("settings.consensus.agentTimeoutHint")}</small>
+              </label>
+              <input
+                className="text-input"
+                id="consensus-timeout"
+                max={600}
+                min={10}
+                onChange={(event) => {
+                  const value = Math.max(10, Math.round(Number(event.currentTarget.value)));
+                  setForm((current) => ({
+                    ...current,
+                    consensusAgentTimeout: Number.isFinite(value) ? value : 90,
+                  }));
+                }}
+                type="number"
+                value={form.consensusAgentTimeout}
+              />
+            </div>
+          ) : null}
 
           <label className="toggle-row">
             <span>{t("settings.semanticSearch")} <small>{t("settings.semanticHint")}</small></span>

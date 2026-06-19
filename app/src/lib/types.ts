@@ -74,6 +74,11 @@ export type LaneSettings = {
   lane0?: boolean;
 };
 
+export type ConsensusSettings = {
+  grace_secs?: number;
+  agent_timeout_secs?: number;
+};
+
 export type Settings = {
   theme?: ThemeMode;
   default_mode?: DefaultMode;
@@ -82,6 +87,7 @@ export type Settings = {
   cache_mode?: CacheMode;
   semantic_search?: boolean;
   advanced_retrieval?: AdvancedRetrieval;
+  consensus?: ConsensusSettings;
   [key: string]: unknown;
 };
 
