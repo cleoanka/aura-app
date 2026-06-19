@@ -46,7 +46,7 @@ pub fn synth_prompt(query: &str, answers: &[(String, String)]) -> String {
 }
 
 pub fn pick_synthesizer<'a>(available: &'a [&'a str]) -> Option<&'a str> {
-    ["claude", "codex"]
+    ["claude", "agy", "codex"]
         .into_iter()
         .find(|candidate| available.iter().any(|agent| agent == candidate))
 }
@@ -187,6 +187,16 @@ async fn run_consensus_inner(
             };
             let status = wait_child(child).await;
             if !matches!(status, Some(status) if status.success()) || handle_task.is_cancelled() {
+                return None;
+            }
+            // agy auth bozulunca login URL'ini STDOUT'a yazıp EXIT 0 dönebiliyor → bu "yanıtı" senteze
+            // BESLEME; düşür + kullanıcıya net uyarı (workflow bulgusu).
+            if is_auth_prompt(&output) {
+                let _ = on_event_task.send(AiEvent::Status {
+                    text: format!("⚠️ {} oturum açık değil (login gerekiyor) — atlandı", agent.name),
+                    stage: Some("consensus".to_string()),
+                    agent: Some(agent.name.to_string()),
+                });
                 return None;
             }
             let _ = on_event_task.send(AiEvent::Status {
@@ -505,19 +515,22 @@ fn stream_concatenated_answers(
     Ok(text)
 }
 
-fn consensus_agents() -> [AgentSpec; 2] {
+fn consensus_agents() -> [AgentSpec; 3] {
     [
         AgentSpec {
             name: "claude",
             program: "claude",
             args: &["-p"],
         },
-        // NOT (agy/Antigravity ÇIKARILDI): agy'nin OAuth-token auth'u macOS'ta Google'ın arka-plan
-        // helper'ını (com.google.GeminiMacOS.launcher) çağırıp her invoke'ta keychain ŞİFRESİ +
-        // OAuth tarayıcı isteği yaratıyor; üstelik auth bozulunca login URL'ini STDOUT'a yazıp
-        // EXIT 0 dönüyor → consensus onu "yanıt" sanıp senteze besliyordu. Headless otomatik
-        // kullanıma uygun DEĞİL. Consensus artık claude + codex (ikisi de sessiz auth). agy istenirse
-        // GEMINI_API_KEY (keychain/OAuth helper'sız) ile geri eklenebilir.
+        AgentSpec {
+            // agy/Antigravity — kullanıcı otomatik dahil istiyor. HIZ: Pro (Low) = ~10s (High 39s'ti).
+            // NOT: agy'nin OAuth-token auth'u macOS'ta keychain/OAuth prompt tetikleyebilir; bunu
+            // TAMAMEN bitirmek için GEMINI_API_KEY (env) → Google helper baypas. login-URL çıktısı
+            // is_auth_prompt() ile filtrelenir (senteze çöp gitmez).
+            name: "agy",
+            program: "agy",
+            args: &["--model", "Gemini 3.1 Pro (Low)", "-p", "-"],
+        },
         AgentSpec {
             name: "codex",
             program: "codex",
@@ -598,6 +611,15 @@ fn temp_dir() -> Result<PathBuf, String> {
     dir.push("aura-desktop");
     dir.push("tmp");
     Ok(dir)
+}
+
+/// agy/diğer ajan auth bozulunca cevap yerine OAuth login URL'i basabiliyor (exit 0 ile) → bunu
+/// gerçek yanıt sanmamak için imzasını tanı (workflow bulgusu).
+fn is_auth_prompt(text: &str) -> bool {
+    text.contains("Authentication required")
+        || text.contains("Please visit the URL")
+        || text.contains("authentication timed out")
+        || text.contains("accounts.google.com/o/oauth2")
 }
 
 /// Tek bir ajanı izole test eder (AI&Models'taki "Test" butonu): sabit bir prompt gönderir,
