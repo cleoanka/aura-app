@@ -46,7 +46,13 @@ pub fn ollama_generate(base_url: &str, model: &str, prompt: &str) -> Result<Stri
         "stream": false,
     });
 
-    let mut response = ureq::post(&url)
+    // audit #13: üretim çağrısı timeout'suzdu → yavaş/takılı yerel modelde süresiz asılabiliyordu.
+    let agent = ureq::Agent::config_builder()
+        .timeout_global(Some(Duration::from_secs(300)))
+        .build()
+        .new_agent();
+    let mut response = agent
+        .post(&url)
         .send_json(body)
         .map_err(|err| friendly_ollama_error(base_url, err))?;
     let parsed = response

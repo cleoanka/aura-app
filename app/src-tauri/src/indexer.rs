@@ -54,6 +54,9 @@ pub struct IndexStats {
     pub notes: usize,
     pub chunks: usize,
     pub skipped: usize,
+    /// audit #1: bu turda diskte bulunmadığı için DB'den temizlenen (silinen) not sayısı.
+    #[serde(default)]
+    pub pruned: usize,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -98,6 +101,12 @@ impl Indexer {
         let title_aliases = title_aliases(&project_files);
         // PERF (codex #6): PathIndex'i tarama başında BİR KEZ kur (per-dosya değil) → O(dosya)
         let path_index = links::PathIndex::new(&root, &project_paths);
+        // PRUNE (audit #1): diskte GÖRÜLEN tüm yollar (stat hatasıyla atlananlar dahil) — sonra
+        // DB'de olup diskte olmayan notlar temizlenir. Set diskteki varlıktan toplanır.
+        let seen: std::collections::HashSet<String> = project_paths
+            .iter()
+            .map(|p| p.to_string_lossy().into_owned())
+            .collect();
 
         // PERF (codex #5): tüm indekslemeyi TEK transaction'a sar → INSERT başına fsync yerine
         // tek commit (büyük vault'ta çok daha hızlı). Hata olursa TxGuard Drop'ta ROLLBACK.
@@ -179,6 +188,16 @@ impl Indexer {
                 if unchanged {
                     stats.skipped += 1;
                 }
+            }
+        }
+
+        // PRUNE (audit #1): diskte artık olmayan (silinen/yeniden-adlandırılan) notları temizle →
+        // FTS/vektör/graph/cache'te orphan/stale kalmaz. SADECE bu root altındaki notlara dokun
+        // (tek DB'ye birden çok vault indekslenebildiğinden).
+        for db_path in db::all_note_paths(&self.conn).map_err(|err| err.to_string())? {
+            if Path::new(&db_path).starts_with(&root) && !seen.contains(&db_path) {
+                db::delete_note_fully(&self.conn, &db_path).map_err(|err| err.to_string())?;
+                stats.pruned += 1;
             }
         }
 
@@ -288,6 +307,9 @@ impl Indexer {
                 self.chunker_ver,
             );
             let chunk_hash = sha256_hex(chunk.text.as_bytes());
+            // audit #2: yerinde düzenlemede stable_id aynı kalıp text değişebilir → eski hash'i oku.
+            let prev_hash = db::chunk_content_hash(&self.conn, &stable_id)
+                .map_err(|err| err.to_string())?;
             let chunk_id = db::upsert_chunk_with_hash(
                 &self.conn,
                 note_path,
@@ -300,6 +322,12 @@ impl Indexer {
                 &chunk.text,
             )
             .map_err(|err| err.to_string())?;
+
+            // İçerik değiştiyse (veya yeni chunk) eski embedding'i sil → embed_pending taze vektör
+            // üretir; aksi halde vec_search kalıcı olarak ESKİ metnin vektörünü kullanırdı.
+            if prev_hash.as_deref() != Some(chunk_hash.as_str()) {
+                db::delete_embedding(&self.conn, chunk_id).map_err(|err| err.to_string())?;
+            }
 
             // Embedding INLINE yapılmaz (yavaş, candle CPU): indeksleme hızlı kalsın,
             // dosyalar/graph/FTS anında gelsin. Vektörler embed_pending ile arka planda dolar.
