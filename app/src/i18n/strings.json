@@ -161,7 +161,9 @@
     "graph.linkForce": "Link force",
     "graph.centerForce": "Center force",
     "settings.advancedRetrieval": "Advanced retrieval (experimental)",
-    "settings.advancedRetrieval.hint": "Local planner + link-graph + rerank + safe semantic cache. Planner runs on local Ollama (protects cloud quota)."
+    "settings.advancedRetrieval.hint": "Local planner + link-graph + rerank + safe semantic cache. Planner runs on local Ollama (protects cloud quota).",
+    "status.thinking": "Thinking…",
+    "chat.new": "New chat"
   },
   "tr": {
     "app.name": "AURA Desktop",
@@ -325,6 +327,8 @@
     "graph.linkForce": "Bağ gücü",
     "graph.centerForce": "Merkez gücü",
     "settings.advancedRetrieval": "Gelişmiş retrieval (deneysel)",
-    "settings.advancedRetrieval.hint": "Yerel planner + bağlantı-grafı + rerank + güvenli semantik cache. Planner yerel Ollama'da çalışır (bulut kotanı korur)."
+    "settings.advancedRetrieval.hint": "Yerel planner + bağlantı-grafı + rerank + güvenli semantik cache. Planner yerel Ollama'da çalışır (bulut kotanı korur).",
+    "status.thinking": "Düşünüyor…",
+    "chat.new": "Yeni sohbet"
   }
 }

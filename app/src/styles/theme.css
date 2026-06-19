@@ -1394,3 +1394,159 @@ select.text-input:focus {
 .markdown-body th, .markdown-body td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; }
 .markdown-body th { background: color-mix(in srgb, var(--text) 5%, transparent); font-weight: 700; }
 .markdown-body hr { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+
+/* ===================== Konuşma (chat) arayüzü — Ask / Aura-mode ===================== */
+.chat-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
+  max-width: 1000px;
+}
+.chat-panel .panel-header {
+  flex: 0 0 auto;
+  padding: 20px 26px 12px;
+  margin: 0;
+}
+.chat-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.chat-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 6px 26px 18px;
+}
+.chat-empty {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--text-muted);
+  padding: 40px;
+}
+.chat-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.chat-msg {
+  display: flex;
+}
+.chat-user {
+  justify-content: flex-end;
+}
+.chat-assistant {
+  justify-content: flex-start;
+}
+.chat-bubble {
+  max-width: 88%;
+  border-radius: 14px;
+  padding: 11px 15px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.chat-user .chat-bubble {
+  background: var(--accent);
+  color: #fff;
+  border-bottom-right-radius: 4px;
+  white-space: pre-wrap;
+}
+.chat-assistant .chat-bubble {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-bottom-left-radius: 4px;
+  width: fit-content;
+  max-width: 94%;
+}
+.chat-assistant .chat-bubble > :first-child {
+  margin-top: 0;
+}
+.chat-assistant .chat-bubble > :last-child {
+  margin-bottom: 0;
+}
+.chat-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.chat-spinner {
+  width: 13px;
+  height: 13px;
+  border: 2px solid var(--accent-soft);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: chat-spin 0.7s linear infinite;
+  flex: 0 0 auto;
+}
+@keyframes chat-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.chat-error {
+  margin: 8px 0 0;
+}
+.chat-rundir {
+  margin: 8px 0 0;
+  font-size: 11px;
+  opacity: 0.65;
+}
+.chat-bubble .result-actions {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.chat-composer {
+  flex: 0 0 auto;
+  border-top: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg-secondary) 55%, var(--bg));
+  padding: 12px 26px 16px;
+}
+.chat-toolbar {
+  margin-bottom: 10px;
+}
+.aura-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.chat-input-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+.chat-input {
+  flex: 1 1 auto;
+  resize: none;
+  min-height: 44px;
+  max-height: 200px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg-tertiary);
+  color: var(--text);
+  padding: 11px 14px;
+  font: inherit;
+  line-height: 1.5;
+  field-sizing: content;
+}
+.chat-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.chat-send,
+.chat-stop,
+.chat-clear {
+  flex: 0 0 auto;
+  align-self: flex-end;
+  min-height: 44px;
+}
