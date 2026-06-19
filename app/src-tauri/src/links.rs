@@ -327,7 +327,10 @@ fn extract_go(content: &str, links: &mut Vec<RawLink>) {
 
 fn extract_markdown(content: &str, links: &mut Vec<RawLink>) {
     let wiki_re = Regex::new(r"\[\[([^\]]+)\]\]").expect("valid wikilink regex");
-    let md_re = Regex::new(r"!?\[[^\]]*\]\(([^)]+)\)").expect("valid md link regex");
+    // #9: hedef yolu bir-seviye dengeli parantez içerebilir (ör. "My File (draft).md") → ilk ')'de
+    // kesme. (?:[^()]|\([^()]*\))* tek-seviye iç parantezi de yakalar.
+    let md_re =
+        Regex::new(r"!?\[[^\]]*\]\(((?:[^()]|\([^()]*\))*)\)").expect("valid md link regex");
     let mut in_fence = false;
     for line in content.lines() {
         let trimmed = line.trim_start();

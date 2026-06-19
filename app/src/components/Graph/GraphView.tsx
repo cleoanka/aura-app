@@ -511,12 +511,15 @@ export function GraphView({ onOpenNote, activePath }: GraphViewProps) {
   }, [scope, localRootId, hops, adjacency]);
 
   // ---- Combined view data (local scope + search-filter) ---------------------
+  // #14: viewData YALNIZCA filter modunda matchIds'e bağlı. Highlight modunda matchIds layout'u
+  // değiştirmediğinden filterIds=null (sabit) → her tuşta gereksiz viewData/reheat/zoomToFit YOK.
+  const filterIds = searchMode === "filter" ? matchIds : null;
   const viewData = useMemo(() => {
     const visible = (id: string): boolean => {
       if (localIds && !localIds.has(id)) {
         return false;
       }
-      if (searchMode === "filter" && matchIds && !matchIds.has(id)) {
+      if (filterIds && !filterIds.has(id)) {
         return false;
       }
       return true;
@@ -531,7 +534,7 @@ export function GraphView({ onOpenNote, activePath }: GraphViewProps) {
     });
 
     return { nodes, links };
-  }, [graphData, localIds, matchIds, searchMode]);
+  }, [graphData, localIds, filterIds]);
 
   // Top-by-degree set used to cap labels at high zoom on large graphs.
   const topDegreeIds = useMemo(() => {
@@ -1048,7 +1051,10 @@ export function GraphView({ onOpenNote, activePath }: GraphViewProps) {
                     value={query}
                     onChange={(e) => {
                       setQuery(e.target.value);
-                      reheat();
+                      // #14: yalnızca filter modunda layout değişir → sadece o zaman reheat.
+                      if (searchMode === "filter") {
+                        reheat();
+                      }
                     }}
                   />
                 </label>
