@@ -45,7 +45,7 @@ pub fn synth_prompt(query: &str, answers: &[(String, String)]) -> String {
 }
 
 pub fn pick_synthesizer<'a>(available: &'a [&'a str]) -> Option<&'a str> {
-    ["claude", "antigravity", "codex"]
+    ["claude", "agy", "codex"]
         .into_iter()
         .find(|candidate| available.iter().any(|agent| agent == candidate))
 }
@@ -515,7 +515,7 @@ fn consensus_agents() -> [AgentSpec; 3] {
             // Google gemini CLI'ın ücretsiz OAuth katmanını kapatıp Antigravity'e taşıdı (19 May 2026).
             // 3. ajan artık Antigravity CLI (`agy`, Gemini modelleri). `-p -`: tek prompt'u STDIN'den
             // okur (spawn_agent prompt'u stdin pipe'lar) → app yöntemiyle birebir uyumlu.
-            name: "antigravity",
+            name: "agy",
             program: "agy",
             args: &["-p", "-"],
         },

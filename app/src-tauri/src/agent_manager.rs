@@ -51,8 +51,8 @@ pub fn detect(probe: bool) -> Result<DoctorReport, AppError> {
 pub fn install_recipe(agent: &str) -> Option<&'static [&'static str]> {
     match agent {
         "claude" => Some(&["npm", "i", "-g", "@anthropic-ai/claude-code"]),
-        "gemini" => Some(&["npm", "i", "-g", "@google/gemini-cli"]),
         "codex" => Some(&["npm", "i", "-g", "@openai/codex"]),
+        // agy (Antigravity CLI): npm paketi değil + OAuth gerekir → otomatik install reçetesi yok.
         _ => None,
     }
 }

@@ -20,7 +20,7 @@ struct PtySession {
 pub fn login_argv(agent: &str) -> Result<Vec<String>, String> {
     match agent {
         "claude" => Ok(vec!["claude".to_string(), "/login".to_string()]),
-        "gemini" => Ok(vec!["gemini".to_string()]),
+        "agy" => Ok(vec!["agy".to_string()]),
         "codex" => Ok(vec!["codex".to_string(), "login".to_string()]),
         _ => Err(format!("unsupported pty login agent: {agent}")),
     }

@@ -1,4 +1,4 @@
-export type AgentId = "claude" | "gemini" | "codex";
+export type AgentId = "claude" | "agy" | "codex";
 
 export type AgentAuth =
   | "logged_in"
