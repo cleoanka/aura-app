@@ -7,7 +7,7 @@ pub mod pty;
 pub mod settings;
 pub mod vault;
 
-pub use agents::{agent_detect, agent_install};
+pub use agents::{agent_detect, agent_install, agent_test};
 pub use ai::{ask, ask_consensus, cancel_job, chat};
 pub use index::{get_graph, index_vault, search_fts};
 pub use models::{embedding_status, ollama_pull, ollama_status, prepare_embedding_model};
