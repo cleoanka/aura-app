@@ -82,7 +82,10 @@ impl JobHandle {
         self.cancelled.store(true, Ordering::SeqCst);
         if let Ok(children) = self.children.lock() {
             for child in children.iter() {
-                if let Ok(mut child) = child.lock() {
+                // try_lock: bir task wait_child'da (blocking wait) kilidi tutuyorsa BLOKLAMA →
+                // cancel/Stop deadlock'a girmez (codex). cancelled flag'i zaten set'lendi; kilitli
+                // child reap edilmektedir (tek-atışlık ajan süreçleri kısa sürede çıkar).
+                if let Ok(mut child) = child.try_lock() {
                     let _ = child.kill();
                 }
             }
