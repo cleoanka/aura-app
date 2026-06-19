@@ -2,6 +2,7 @@ import { Channel, invoke } from "@tauri-apps/api/core";
 
 import type {
   AgentId,
+  AgentTestResult,
   AiEvent,
   AuraMode,
   DoctorReport,
