@@ -340,10 +340,6 @@ async fn run_aura_with_files(
         }
     };
 
-    if let Ok(mut jobs) = jobs.lock() {
-        jobs.remove(&job_id);
-    }
-
     {
         // Robustness (codex #8): cevap (read_result) zaten hazır. Child'ı reap etmek için
         // bloklayan wait'i TERK ETMEK yerine try_wait ile POLL et (kilidi her poll arası bırak);
@@ -366,6 +362,12 @@ async fn run_aura_with_files(
                 let _ = c.wait();
             }
         }
+    }
+
+    // audit #14: job'ı reap'TEN SONRA kaldır → 'done' sonrası reap penceresinde Stop hâlâ child'ı
+    // bulup öldürebilir (mode yoluyla tutarlı). Önceden reap'ten önce siliniyordu → Stop no-op'tu.
+    if let Ok(mut jobs) = jobs.lock() {
+        jobs.remove(&job_id);
     }
 
     read_result

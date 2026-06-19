@@ -774,6 +774,48 @@ pub fn list_notes(conn: &Connection) -> Result<Vec<NoteRef>> {
     Ok(notes)
 }
 
+/// Tüm not yollarını döndürür (audit #1 prune: diskte olmayanları tespit için).
+pub fn all_note_paths(conn: &Connection) -> Result<Vec<String>> {
+    let mut paths = Vec::new();
+    conn.query("SELECT path FROM notes", &[], |statement| {
+        paths.push(statement.column_text(0)?);
+        Ok(())
+    })?;
+    Ok(paths)
+}
+
+/// Bir notu ve TÜM izlerini siler (audit #1). notes silinince chunks→vec_chunks ve cache_deps
+/// ON DELETE CASCADE ile temizlenir; links'in FK'si olmadığından elle silinir (kaynak + hedef).
+pub fn delete_note_fully(conn: &Connection, path: &str) -> Result<()> {
+    conn.execute("DELETE FROM notes WHERE path = ?1", &[Bind::Text(path)])?;
+    delete_links_for_source(conn, path)?;
+    conn.execute("DELETE FROM links WHERE target_path = ?1", &[Bind::Text(path)])?;
+    Ok(())
+}
+
+/// Bir chunk'ın mevcut content_hash'i (audit #2: yerinde düzenlemede vektör tazeleme kararı için).
+pub fn chunk_content_hash(conn: &Connection, stable_id: &str) -> Result<Option<String>> {
+    let mut hash = None;
+    conn.query(
+        "SELECT content_hash FROM chunks WHERE chunk_stable_id = ?1",
+        &[Bind::Text(stable_id)],
+        |statement| {
+            hash = Some(statement.column_text(0)?);
+            Ok(())
+        },
+    )?;
+    Ok(hash)
+}
+
+/// Bir chunk'ın embedding'ini siler (audit #2: içerik değişince embed_pending yeniden üretsin).
+pub fn delete_embedding(conn: &Connection, chunk_id: i64) -> Result<()> {
+    conn.execute(
+        "DELETE FROM vec_chunks WHERE chunk_id = ?1",
+        &[Bind::I64(chunk_id)],
+    )?;
+    Ok(())
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FileRef {
     pub path: String,

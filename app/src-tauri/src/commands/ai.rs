@@ -123,8 +123,9 @@ pub async fn ask(
             if settings.cache_mode != "off" {
                 let key = cache_key(&normalized_query, &fingerprint, &model_ver, &vault_epoch);
                 let indexer = indexer.lock().map_err(|err| err.to_string())?;
-                db::cache_put(indexer.conn(), &key, &response, &model_ver, &deps)
-                    .map_err(|err| err.to_string())?;
+                // audit #7: cevap UI'a zaten stream edildi → cache yazımı ÖLÜMCÜL DEĞİL
+                // (eşzamanlı reindex bir chunk'ı silmişse FK hatası ask'i düşürmesin).
+                let _ = db::cache_put(indexer.conn(), &key, &response, &model_ver, &deps);
             }
 
             return Ok(response);
@@ -149,8 +150,8 @@ pub async fn ask(
     if settings.cache_mode != "off" {
         let key = cache_key(&normalized_query, &fingerprint, &model_ver, &vault_epoch);
         let indexer = indexer.lock().map_err(|err| err.to_string())?;
-        db::cache_put(indexer.conn(), &key, &response, &model_ver, &deps)
-            .map_err(|err| err.to_string())?;
+        // audit #7: cevap zaten stream edildi → cache yazımı ölümcül değil.
+        let _ = db::cache_put(indexer.conn(), &key, &response, &model_ver, &deps);
     }
 
     Ok(response)
