@@ -109,6 +109,14 @@ export async function agentInstall(id: AgentId): Promise<string> {
   }
 }
 
+export async function agentTest(agent: AgentId): Promise<AgentTestResult> {
+  try {
+    return await invoke<AgentTestResult>("agent_test", { agent });
+  } catch (error) {
+    throw readableError(error);
+  }
+}
+
 export async function ptyOpen(
   agent: AgentId,
   onOutput: (s: string) => void,

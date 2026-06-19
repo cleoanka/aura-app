@@ -23,6 +23,14 @@ export type DoctorReport = {
   agents: Record<AgentId, AgentStatus>;
 };
 
+export type AgentTestResult = {
+  agent: AgentId;
+  ok: boolean;
+  latency_ms: number;
+  response: string;
+  error: string | null;
+};
+
 export type NoteRef = {
   path: string;
   title: string;

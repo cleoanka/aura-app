@@ -2,6 +2,7 @@ use crate::agent::AgentAuth;
 use crate::exec::{AiEvent, JobHandle, JobRegistry};
 use crate::{agent_manager, env_resolver};
 use command_group::{CommandGroup, GroupChild};
+use serde::Serialize;
 use std::fs::{self, File, OpenOptions};
 use std::io::{BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
@@ -45,7 +46,7 @@ pub fn synth_prompt(query: &str, answers: &[(String, String)]) -> String {
 }
 
 pub fn pick_synthesizer<'a>(available: &'a [&'a str]) -> Option<&'a str> {
-    ["claude", "agy", "codex"]
+    ["claude", "codex"]
         .into_iter()
         .find(|candidate| available.iter().any(|agent| agent == candidate))
 }
@@ -504,22 +505,19 @@ fn stream_concatenated_answers(
     Ok(text)
 }
 
-fn consensus_agents() -> [AgentSpec; 3] {
+fn consensus_agents() -> [AgentSpec; 2] {
     [
         AgentSpec {
             name: "claude",
             program: "claude",
             args: &["-p"],
         },
-        AgentSpec {
-            // Google gemini CLI ücretsiz OAuth'u kapatıp Antigravity'e taşıdı (19 May 2026) → `agy`.
-            // `-p -`: prompt STDIN'den (spawn_agent pipe'lar) → app yöntemiyle uyumlu.
-            // HIZ: default model "Gemini 3.1 Pro (High)" = ağır düşünme → 39s. "Pro (Low)" = 10s,
-            // aynı Pro kalitesi (ölçüldü). Böylece consensus'ta agy yavaşlık/grace-drop yapmaz.
-            name: "agy",
-            program: "agy",
-            args: &["--model", "Gemini 3.1 Pro (Low)", "-p", "-"],
-        },
+        // NOT (agy/Antigravity ÇIKARILDI): agy'nin OAuth-token auth'u macOS'ta Google'ın arka-plan
+        // helper'ını (com.google.GeminiMacOS.launcher) çağırıp her invoke'ta keychain ŞİFRESİ +
+        // OAuth tarayıcı isteği yaratıyor; üstelik auth bozulunca login URL'ini STDOUT'a yazıp
+        // EXIT 0 dönüyor → consensus onu "yanıt" sanıp senteze besliyordu. Headless otomatik
+        // kullanıma uygun DEĞİL. Consensus artık claude + codex (ikisi de sessiz auth). agy istenirse
+        // GEMINI_API_KEY (keychain/OAuth helper'sız) ile geri eklenebilir.
         AgentSpec {
             name: "codex",
             program: "codex",
@@ -600,6 +598,75 @@ fn temp_dir() -> Result<PathBuf, String> {
     dir.push("aura-desktop");
     dir.push("tmp");
     Ok(dir)
+}
+
+/// Tek bir ajanı izole test eder (AI&Models'taki "Test" butonu): sabit bir prompt gönderir,
+/// cevabı + gecikmeyi ölçer. Kullanıcı her AI'ı (claude/agy/codex) tek tek doğrulayabilsin diye.
+#[derive(Serialize)]
+pub struct AgentTestResult {
+    pub agent: String,
+    pub ok: bool,
+    pub latency_ms: u64,
+    pub response: String,
+    pub error: Option<String>,
+}
+
+pub async fn test_agent(name: String) -> AgentTestResult {
+    let fail = |err: String| AgentTestResult {
+        agent: name.clone(),
+        ok: false,
+        latency_ms: 0,
+        response: String::new(),
+        error: Some(err),
+    };
+    let Some(spec) = consensus_agents().into_iter().find(|a| a.name == name) else {
+        return fail(format!("bilinmeyen ajan: {name}"));
+    };
+
+    let prompt = "Reply with ONE short sentence confirming you are working and naming which model/CLI you are.";
+    let path = std::env::temp_dir().join(format!("aura-agent-test-{}-{}.txt", spec.name, std::process::id()));
+    if let Err(err) = write_private_file(&path, prompt) {
+        return fail(err);
+    }
+
+    let handle = JobHandle::new();
+    let start = std::time::Instant::now();
+    let child = match spawn_agent(&spec, &path, &handle) {
+        Ok(child) => child,
+        Err(err) => {
+            let _ = fs::remove_file(&path);
+            return fail(err);
+        }
+    };
+    let stdout = { child.lock().ok().and_then(|mut c| c.inner().stdout.take()) };
+    let response = if let Some(stdout) = stdout {
+        let read = tokio::task::spawn_blocking(move || read_stdout_to_string(stdout));
+        match tokio::time::timeout(Duration::from_secs(120), read).await {
+            Ok(Ok(Ok(text))) => text,
+            _ => {
+                kill_child(&child);
+                String::new()
+            }
+        }
+    } else {
+        String::new()
+    };
+    let status = wait_child(child).await;
+    let _ = fs::remove_file(&path);
+
+    let latency_ms = start.elapsed().as_millis() as u64;
+    let ok = matches!(status, Some(s) if s.success()) && !response.trim().is_empty();
+    AgentTestResult {
+        agent: name,
+        ok,
+        latency_ms,
+        response: response.trim().to_string(),
+        error: if ok {
+            None
+        } else {
+            Some("ajan boş yanıt verdi veya hata oluştu".to_string())
+        },
+    }
 }
 
 fn write_private_file(path: &Path, content: &str) -> Result<(), String> {
