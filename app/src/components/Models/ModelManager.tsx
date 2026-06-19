@@ -30,7 +30,7 @@ type CtaKind = "install" | "login" | "ready" | "retry";
 
 const agentDefinitions: AgentDefinition[] = [
   { id: "claude", name: "Claude", roleKey: "agents.role.claude" },
-  { id: "gemini", name: "Gemini", roleKey: "agents.role.gemini" },
+  { id: "agy", name: "Antigravity", roleKey: "agents.role.agy" },
   { id: "codex", name: "Codex", roleKey: "agents.role.codex" },
 ];
 
@@ -90,7 +90,7 @@ export function ModelManager({ onReportChange }: ModelManagerProps) {
   const [busyAgent, setBusyAgent] = useState<AgentId | null>(null);
   const [agentNote, setAgentNote] = useState<Record<AgentId, string>>({
     claude: "",
-    gemini: "",
+    agy: "",
     codex: "",
   });
   const [loginAgent, setLoginAgent] = useState<AgentId | null>(null);

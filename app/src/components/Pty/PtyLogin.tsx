@@ -16,8 +16,8 @@ function agentLabel(agent: AgentId) {
   switch (agent) {
     case "claude":
       return "Claude";
-    case "gemini":
-      return "Gemini";
+    case "agy":
+      return "Antigravity";
     case "codex":
       return "Codex";
   }

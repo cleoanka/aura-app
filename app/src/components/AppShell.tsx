@@ -103,10 +103,10 @@ export function AppShell({
 
       <footer className="status-bar" aria-label="status">
         <div className="status-group" aria-label="agents">
-          {(["claude", "gemini", "codex"] as const).map((id) => (
+          {(["claude", "agy", "codex"] as const).map((id) => (
             <span className="health-item" key={id}>
               <span className={`health-dot ${healthClass(doctorReport, id)}`} />
-              <span>{id}</span>
+              <span>{id === "agy" ? "antigravity" : id}</span>
             </span>
           ))}
         </div>

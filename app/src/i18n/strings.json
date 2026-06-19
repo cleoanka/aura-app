@@ -42,7 +42,6 @@
     "agents.title": "AI Agents",
     "agents.brainBadge": "Brain",
     "agents.role.claude": "Claude",
-    "agents.role.gemini": "Gemini",
     "agents.role.codex": "Local Codex",
     "agents.install": "Install",
     "agents.login": "Login",
@@ -167,7 +166,8 @@
     "settings.consensus.grace": "Grace period (s)",
     "settings.consensus.graceHint": "after the first reply, wait this long for the rest, then synthesize (0 = wait for all)",
     "settings.consensus.agentTimeout": "Agent timeout (s)",
-    "settings.consensus.agentTimeoutHint": "hard cap per agent; a slower agent is dropped"
+    "settings.consensus.agentTimeoutHint": "hard cap per agent; a slower agent is dropped",
+    "agents.role.agy": "Antigravity"
   },
   "tr": {
     "app.name": "AURA Desktop",
@@ -212,7 +212,6 @@
     "agents.title": "Yapay Zeka Aracıları",
     "agents.brainBadge": "Zeka",
     "agents.role.claude": "Claude",
-    "agents.role.gemini": "Gemini",
     "agents.role.codex": "Yerel Codex",
     "agents.install": "Yükle",
     "agents.login": "Giriş Yap",
@@ -337,6 +336,7 @@
     "settings.consensus.grace": "Grace süresi (sn)",
     "settings.consensus.graceHint": "ilk yanıttan sonra geç kalanları bu kadar bekle, sonra sentezle (0 = hepsini bekle)",
     "settings.consensus.agentTimeout": "Ajan zaman aşımı (sn)",
-    "settings.consensus.agentTimeoutHint": "ajan başına sert üst sınır; daha yavaş ajan düşürülür"
+    "settings.consensus.agentTimeoutHint": "ajan başına sert üst sınır; daha yavaş ajan düşürülür",
+    "agents.role.agy": "Antigravity"
   }
 }
