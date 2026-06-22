@@ -66,7 +66,7 @@ Headless yapılamayan (kullanıcı): canlı GUI tıklama akışı (vault→index
 - Çirkin tek-harf rail ikonları → gerçek SVG ikon seti + marka simgesi.
 - 'Vault Seç' jargonu → 'Not Klasörü Aç' (gemini EN/TR string tablosu).
 - **EN/TR dil desteği**: i18n (97 anahtar), rail'de canlı toggle, 10 panel t()'ye geçti (paralel claude workflow).
-- Ekranlar: docs/ui-after-redesign.png, docs/ui-final.png.
+- Ekranlar: (kişisel veri içerdiği için repodan kaldırıldı).
 
 ## 🔧 v2 oturumu (proje second-brain + model yönetimi + bug fix)
 - Code-aware indexer: TÜM dosya tipleri + diller-arası graf (py/c/rust/js/ts/go import + [[wikilink]] + generic .o mention); db v2 links tablosu.
