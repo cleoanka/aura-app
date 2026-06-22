@@ -1,0 +1,155 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="780" viewBox="0 0 1200 780" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+<defs><linearGradient id="edBg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#191920"/><stop offset="100%" stop-color="#17171c"/></linearGradient></defs>
+<rect x="0" y="0" width="1200" height="780" rx="14" fill="#17171c"/>
+<rect x="0.5" y="0.5" width="1199" height="779" rx="14" fill="none" stroke="#343440"/>
+<rect x="0" y="0" width="1200" height="38" rx="14" fill="#202027"/>
+<rect x="0" y="24" width="1200" height="14" rx="0" fill="#202027"/>
+<circle cx="20" cy="19" r="6" fill="#ff5f57"/>
+<circle cx="38" cy="19" r="6" fill="#febc2e"/>
+<circle cx="56" cy="19" r="6" fill="#28c840"/>
+<text x="600.0" y="23" fill="#a7a7b4" font-size="12.5" font-weight="600" text-anchor="middle">AURA Desktop</text>
+<line x1="0" y1="38" x2="1200" y2="38" stroke="#343440" stroke-width="1"/>
+<rect x="0" y="38" width="58" height="704" rx="0" fill="#1b1b21"/>
+<line x1="58" y1="38" x2="58" y2="742" stroke="#343440" stroke-width="1"/>
+<circle cx="29.0" cy="66" r="14" fill="#8f8cf5"/>
+<circle cx="29.0" cy="66" r="4.5" fill="#ffffff"/>
+<circle cx="29.0" cy="66" r="9" fill="none" stroke="#ffffff" stroke-width="1.4" opacity="0.85"/>
+<circle cx="38.0" cy="66" r="2.2" fill="#ffffff"/>
+<rect x="8" y="112" width="42" height="32" rx="8" fill="rgba(143,140,245,0.16)" stroke="#8f8cf5" stroke-width="1"/>
+<rect x="23.5" y="122.5" width="6" height="6" rx="1.5" fill="none" stroke="#8f8cf5" stroke-width="1.6"/>
+<rect x="23.5" y="131.5" width="6" height="6" rx="1.5" fill="none" stroke="#8f8cf5" stroke-width="1.6"/>
+<rect x="32.5" y="122.5" width="6" height="6" rx="1.5" fill="none" stroke="#8f8cf5" stroke-width="1.6"/>
+<rect x="32.5" y="131.5" width="6" height="6" rx="1.5" fill="none" stroke="#8f8cf5" stroke-width="1.6"/>
+<circle cx="27.0" cy="178" r="6" fill="none" stroke="#a7a7b4" stroke-width="1.6"/>
+<line x1="31.5" y1="182.5" x2="36.0" y2="187" stroke="#a7a7b4" stroke-width="1.8"/>
+<rect x="21.0" y="225" width="16" height="12" rx="4" fill="none" stroke="#a7a7b4" stroke-width="1.6"/>
+<path d="M 26.0 237 L 23.0 241 L 30.0 237 Z" fill="#a7a7b4"/>
+<path d="M 29.0 276 L 31.0 282 L 37.0 284 L 31.0 286 L 29.0 292 L 27.0 286 L 21.0 284 L 27.0 282 Z" fill="none" stroke="#a7a7b4" stroke-width="1.5"/>
+<line x1="23.0" y1="341" x2="29.0" y2="329" stroke="#a7a7b4" stroke-width="1.4"/>
+<line x1="35.0" y1="340" x2="29.0" y2="329" stroke="#a7a7b4" stroke-width="1.4"/>
+<line x1="23.0" y1="341" x2="35.0" y2="340" stroke="#a7a7b4" stroke-width="1.4"/>
+<circle cx="23.0" cy="341" r="3" fill="#a7a7b4"/>
+<circle cx="35.0" cy="340" r="3" fill="#a7a7b4"/>
+<circle cx="29.0" cy="329" r="3" fill="#a7a7b4"/>
+<rect x="21.0" y="382" width="16" height="13" rx="4" fill="none" stroke="#a7a7b4" stroke-width="1.6"/>
+<circle cx="26.0" cy="388" r="1.7" fill="#a7a7b4"/>
+<circle cx="32.0" cy="388" r="1.7" fill="#a7a7b4"/>
+<line x1="29.0" y1="382" x2="29.0" y2="379" stroke="#a7a7b4" stroke-width="1.6"/>
+<circle cx="29.0" cy="378" r="1.6" fill="#a7a7b4"/>
+<circle cx="29.0" cy="440" r="4.5" fill="none" stroke="#a7a7b4" stroke-width="1.6"/>
+<line x1="35.0" y1="440.0" x2="37.5" y2="440.0" stroke="#a7a7b4" stroke-width="1.6"/>
+<line x1="33.242640687119284" y1="444.24264068711926" x2="35.01040764008565" y2="446.01040764008565" stroke="#a7a7b4" stroke-width="1.6"/>
+<line x1="29.0" y1="446.0" x2="29.0" y2="448.5" stroke="#a7a7b4" stroke-width="1.6"/>
+<line x1="24.757359312880716" y1="444.24264068711926" x2="22.989592359914347" y2="446.01040764008565" stroke="#a7a7b4" stroke-width="1.6"/>
+<line x1="23.0" y1="440.0" x2="20.5" y2="440.0" stroke="#a7a7b4" stroke-width="1.6"/>
+<line x1="24.757359312880716" y1="435.75735931288074" x2="22.989592359914344" y2="433.98959235991435" stroke="#a7a7b4" stroke-width="1.6"/>
+<line x1="29.0" y1="434.0" x2="29.0" y2="431.5" stroke="#a7a7b4" stroke-width="1.6"/>
+<line x1="33.242640687119284" y1="435.75735931288074" x2="35.01040764008565" y2="433.98959235991435" stroke="#a7a7b4" stroke-width="1.6"/>
+<rect x="14.0" y="698" width="30" height="24" rx="7" fill="#2a2a33" stroke="#343440" stroke-width="1"/>
+<text x="29.0" y="714" fill="#a7a7b4" font-size="11" font-weight="700" text-anchor="middle">EN</text>
+<rect x="58" y="38" width="242" height="704" rx="0" fill="#1d1d24"/>
+<line x1="300" y1="38" x2="300" y2="742" stroke="#343440" stroke-width="1"/>
+<text x="76" y="70" fill="#ececf1" font-size="15" font-weight="700" text-anchor="start">Project</text>
+<rect x="76" y="84" width="206" height="30" rx="8" fill="none" stroke="#8f8cf5" stroke-width="1.2"/>
+<text x="179.0" y="104" fill="#8f8cf5" font-size="12" font-weight="600" text-anchor="middle">Open Project Folder</text>
+<text x="76" y="146" fill="#ececf1" font-size="12.5" font-weight="700" text-anchor="start">▾ notes</text>
+<rect x="66" y="163" width="226" height="26" rx="6" fill="rgba(143,140,245,0.16)"/>
+<circle cx="96" cy="172" r="3.5" fill="#8f8cf5"/>
+<text x="106" y="176" fill="#ececf1" font-size="12.5" font-weight="600" text-anchor="start">index.md</text>
+<circle cx="96" cy="202" r="3.5" fill="#8f8cf5"/>
+<text x="106" y="206" fill="#a7a7b4" font-size="12.5" font-weight="400" text-anchor="start">Architecture.md</text>
+<circle cx="96" cy="232" r="3.5" fill="#8f8cf5"/>
+<text x="106" y="236" fill="#a7a7b4" font-size="12.5" font-weight="400" text-anchor="start">Roadmap.md</text>
+<circle cx="96" cy="262" r="3.5" fill="#8f8cf5"/>
+<text x="106" y="266" fill="#a7a7b4" font-size="12.5" font-weight="400" text-anchor="start">Research.md</text>
+<text x="76" y="296" fill="#ececf1" font-size="12.5" font-weight="700" text-anchor="start">▾ src</text>
+<circle cx="96" cy="322" r="3.5" fill="#4ea1ff"/>
+<text x="106" y="326" fill="#a7a7b4" font-size="12.5" font-weight="400" text-anchor="start">lib.rs</text>
+<circle cx="96" cy="352" r="3.5" fill="#4ea1ff"/>
+<text x="106" y="356" fill="#a7a7b4" font-size="12.5" font-weight="400" text-anchor="start">indexer.rs</text>
+<circle cx="96" cy="382" r="3.5" fill="#4ea1ff"/>
+<text x="106" y="386" fill="#a7a7b4" font-size="12.5" font-weight="400" text-anchor="start">search.rs</text>
+<circle cx="96" cy="412" r="3.5" fill="#4ea1ff"/>
+<text x="106" y="416" fill="#a7a7b4" font-size="12.5" font-weight="400" text-anchor="start">consensus.rs</text>
+<text x="76" y="446" fill="#ececf1" font-size="12.5" font-weight="700" text-anchor="start">▾ config</text>
+<circle cx="96" cy="472" r="3.5" fill="#3fcbb0"/>
+<text x="106" y="476" fill="#a7a7b4" font-size="12.5" font-weight="400" text-anchor="start">Cargo.toml</text>
+<circle cx="96" cy="502" r="3.5" fill="#3fcbb0"/>
+<text x="106" y="506" fill="#a7a7b4" font-size="12.5" font-weight="400" text-anchor="start">tauri.conf.json</text>
+<circle cx="80" cy="532" r="3.5" fill="#8f8cf5"/>
+<text x="90" y="536" fill="#a7a7b4" font-size="12.5" font-weight="400" text-anchor="start">README.md</text>
+<rect x="300" y="38" width="524" height="704" rx="0" fill="url(#edBg)"/>
+<line x1="824" y1="38" x2="824" y2="742" stroke="#343440" stroke-width="1"/>
+<text x="334" y="78" fill="#ececf1" font-size="20" font-weight="700" text-anchor="start">Architecture.md</text>
+<text x="334" y="100" fill="#a7a7b4" font-size="11.5" font-weight="400" text-anchor="start" opacity="0.8">notes / Architecture.md</text>
+<line x1="324" y1="116" x2="800" y2="116" stroke="#343440" stroke-width="1" opacity="0.6"/>
+<text x="334" y="150" fill="#ececf1" font-size="17" font-weight="700" text-anchor="start"># AURA Desktop</text>
+<rect x="334" y="180" width="440" height="7" rx="3" fill="#a7a7b4" opacity="0.5"/>
+<rect x="334" y="198" width="480" height="7" rx="3" fill="#a7a7b4" opacity="0.5"/>
+<rect x="334" y="216" width="360" height="7" rx="3" fill="#a7a7b4" opacity="0.5"/>
+<text x="334" y="250" fill="#ececf1" font-size="15" font-weight="700" text-anchor="start">## Hybrid retrieval</text>
+<rect x="334" y="276" width="470" height="7" rx="3" fill="#a7a7b4" opacity="0.5"/>
+<text x="334" y="300" fill="#a7a7b4" font-size="12.5" font-weight="400" text-anchor="start">Ranked with RRF over</text>
+<rect x="492" y="287" width="132" height="20" rx="5" fill="rgba(143,140,245,0.16)"/>
+<text x="498" y="300" fill="#8f8cf5" font-size="12.5" font-weight="600" text-anchor="start">[[Hybrid Search]]</text>
+<rect x="334" y="316" width="300" height="7" rx="3" fill="#a7a7b4" opacity="0.5"/>
+<circle cx="338" cy="342" r="2.5" fill="#8f8cf5"/>
+<text x="350" y="346" fill="#a7a7b4" font-size="12.5" font-weight="400" text-anchor="start">Exact-match cache → zero wrong answers</text>
+<circle cx="338" cy="366" r="2.5" fill="#8f8cf5"/>
+<text x="350" y="370" fill="#a7a7b4" font-size="12.5" font-weight="400" text-anchor="start">FTS5 keyword + vector recall</text>
+<circle cx="338" cy="390" r="2.5" fill="#8f8cf5"/>
+<text x="350" y="394" fill="#a7a7b4" font-size="12.5" font-weight="400" text-anchor="start">Per-job aura spawn, file→stdin</text>
+<rect x="334" y="426" width="460" height="78" rx="8" fill="#14141a" stroke="#343440" stroke-width="1"/>
+<text x="348" y="450" fill="#4ea1ff" font-size="12" font-weight="500" text-anchor="start">fn search(q: &amp;str) -&gt; Vec&lt;Hit&gt; {</text>
+<text x="362" y="470" fill="#9aa0aa" font-size="12" font-weight="400" text-anchor="start">let k = fts5(q).rrf(vector(q));</text>
+<text x="348" y="490" fill="#4ea1ff" font-size="12" font-weight="500" text-anchor="start">}</text>
+<rect x="824" y="38" width="376" height="704" rx="0" fill="#1b1b21"/>
+<text x="846" y="70" fill="#ececf1" font-size="15" font-weight="700" text-anchor="start">Ask</text>
+<text x="846" y="90" fill="#a7a7b4" font-size="11.5" font-weight="400" text-anchor="start" opacity="0.8">Your second brain</text>
+<line x1="840" y1="104" x2="1184" y2="104" stroke="#343440" stroke-width="1" opacity="0.6"/>
+<rect x="884" y="124" width="294" height="46" rx="10" fill="#2a2a33"/>
+<text x="890" y="144" fill="#ececf1" font-size="12.5" font-weight="400" text-anchor="start">How does hybrid search</text>
+<text x="890" y="161" fill="#ececf1" font-size="12.5" font-weight="400" text-anchor="start">rank my notes?</text>
+<circle cx="854" cy="196" r="9" fill="#8f8cf5"/>
+<text x="854" y="200" fill="#fff" font-size="11" font-weight="700" text-anchor="middle">A</text>
+<rect x="872" y="188" width="52" height="18" rx="6" fill="rgba(143,140,245,0.18)" stroke="#8f8cf5" stroke-width="1"/>
+<text x="898" y="200" fill="#8f8cf5" font-size="11" font-weight="700" text-anchor="middle">Deep</text>
+<rect x="930" y="188" width="78" height="18" rx="6" fill="#2a2a33"/>
+<text x="969" y="200" fill="#a7a7b4" font-size="10" font-weight="500" text-anchor="middle">claude · sonnet</text>
+<rect x="846" y="226" width="330" height="7" rx="3" fill="#a7a7b4" opacity="0.42"/>
+<rect x="846" y="243" width="348" height="7" rx="3" fill="#a7a7b4" opacity="0.42"/>
+<rect x="846" y="260" width="360" height="7" rx="3" fill="#a7a7b4" opacity="0.42"/>
+<rect x="846" y="277" width="320" height="7" rx="3" fill="#a7a7b4" opacity="0.42"/>
+<rect x="846" y="294" width="352" height="7" rx="3" fill="#a7a7b4" opacity="0.42"/>
+<rect x="846" y="311" width="300" height="7" rx="3" fill="#a7a7b4" opacity="0.42"/>
+<rect x="846" y="328" width="340" height="7" rx="3" fill="#a7a7b4" opacity="0.42"/>
+<rect x="846" y="345" width="240" height="7" rx="3" fill="#a7a7b4" opacity="0.42"/>
+<text x="846" y="374" fill="#a7a7b4" font-size="10" font-weight="700" text-anchor="start" letter-spacing="1.5">SOURCES</text>
+<rect x="846" y="378" width="117.6" height="22" rx="7" fill="#2a2a33" stroke="#343440" stroke-width="1"/>
+<circle cx="857" cy="389" r="3" fill="#8f8cf5"/>
+<text x="866" y="393" fill="#a7a7b4" font-size="11" font-weight="500" text-anchor="start">Hybrid Search.md</text>
+<rect x="846" y="408" width="71.4" height="22" rx="7" fill="#2a2a33" stroke="#343440" stroke-width="1"/>
+<circle cx="857" cy="419" r="3" fill="#4ea1ff"/>
+<text x="866" y="423" fill="#a7a7b4" font-size="11" font-weight="500" text-anchor="start">search.rs</text>
+<rect x="846" y="438" width="97.8" height="22" rx="7" fill="#2a2a33" stroke="#343440" stroke-width="1"/>
+<circle cx="857" cy="449" r="3" fill="#8f8cf5"/>
+<text x="866" y="453" fill="#a7a7b4" font-size="11" font-weight="500" text-anchor="start">Embeddings.md</text>
+<text x="846" y="486" fill="#ececf1" font-size="12" font-weight="600" text-anchor="start">Consensus</text>
+<rect x="1148" y="475" width="30" height="16" rx="8" fill="#2a2a33" stroke="#343440" stroke-width="1"/>
+<circle cx="1156" cy="483" r="6" fill="#a7a7b4"/>
+<text x="846" y="502" fill="#a7a7b4" font-size="9.5" font-weight="400" text-anchor="start" opacity="0.8">all 3 AIs answer → Claude synthesizes</text>
+<rect x="840" y="690" width="344" height="36" rx="9" fill="#17171c" stroke="#343440" stroke-width="1"/>
+<text x="846" y="712" fill="#6b7280" font-size="11.5" font-weight="400" text-anchor="start">Ask a question about your notes…</text>
+<rect x="1128" y="696" width="48" height="24" rx="7" fill="#8f8cf5"/>
+<text x="1152" y="712" fill="#fff" font-size="11.5" font-weight="600" text-anchor="middle">Send</text>
+<rect x="0" y="742" width="1200" height="38" rx="0" fill="#202027"/>
+<rect x="0" y="742" width="1200" height="14" rx="0" fill="#202027"/>
+<line x1="0" y1="742" x2="1200" y2="742" stroke="#343440" stroke-width="1"/>
+<circle cx="24" cy="761.0" r="4" fill="#7ad17a"/>
+<text x="34" y="765.0" fill="#a7a7b4" font-size="11.5" font-weight="500" text-anchor="start">claude</text>
+<circle cx="92" cy="761.0" r="4" fill="#7ad17a"/>
+<text x="102" y="765.0" fill="#a7a7b4" font-size="11.5" font-weight="500" text-anchor="start">antigravity</text>
+<circle cx="195" cy="761.0" r="4" fill="#7ad17a"/>
+<text x="205" y="765.0" fill="#a7a7b4" font-size="11.5" font-weight="500" text-anchor="start">codex</text>
+<text x="1180" y="765.0" fill="#a7a7b4" font-size="11.5" font-weight="500" text-anchor="end">Project · 37 files</text>
+</svg>
