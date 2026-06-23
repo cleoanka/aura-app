@@ -16,6 +16,12 @@
 
 ## Döngü kayıtları
 
+### 2026-06-23 — Döngü 12 [Kategori G: test]
+- **Seçim:** ai.rs lane-seçim/cache mantığı (deep_query, normalize_query, retrieval_fingerprint) testsizdi.
+- **Değişiklik:** ai.rs'e `#[cfg(test)] mod tests` — normalize (whitespace collapse), deep_query (analytical→deep, uzun→deep), retrieval_fingerprint sıralamadan-bağımsız (cache-hit kararlılığı). +3 test.
+- **Kapılar:** soul_check ✅ · cargo **75 passed (72→75), 0 fail** · regresyon yok.
+- **Karar:** LAND.
+
 ### 2026-06-23 — Döngü 11 [Kategori F: UI/UX & estetik — görsel]
 - **Seçim:** workspace screenshot'ı yeni elapsed_ms index-stat'ını yansıtmıyordu (görsel ↔ gerçek tutarsız).
 - **Değişiklik:** `_gen_workspace.py`'ye explorer index-stats footer'ı ("37 files · 214 chunks · 812 ms" + ince ayraç); SVG+PNG yeniden üretildi.
