@@ -53,3 +53,18 @@ fn missing_cache_key_is_a_miss() -> db::Result<()> {
     assert_eq!(db::cache_get_valid(&conn, "never-written")?, None);
     Ok(())
 }
+
+#[test]
+fn noop_reindex_preserves_cache() -> db::Result<()> {
+    // Açılışta her vault yeniden indekslenir; içerik değişmediyse (yalnız mtime)
+    // cache GEÇERSİZLEŞMEMELİ — "meşgul vault yine cache'ten faydalanır" garantisi.
+    let conn = db::open_in_memory()?;
+    seed(&conn, "a.md", "h1")?;
+    db::cache_put(&conn, "k", "answer", "model-v", &deps("a.md", "h1"))?;
+
+    // Re-index aynı içeriği yazar: mtime değişir ama content_hash aynı.
+    db::upsert_note(&conn, "a.md", "fid", 999, "h1", Some("T"))?;
+
+    assert_eq!(db::cache_get_valid(&conn, "k")?, Some("answer".to_string()));
+    Ok(())
+}
