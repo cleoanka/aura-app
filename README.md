@@ -209,6 +209,7 @@ Deep dives: **[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)** ·
 [`docs/ROADMAP.md`](docs/ROADMAP.md) · [`PROGRESS.md`](PROGRESS.md).
 
 Contributing: **[`CONTRIBUTING.md`](CONTRIBUTING.md)** (constitution + green-gates) ·
+[`docs/development.md`](docs/development.md) (marathon & gates) ·
 [`CHANGELOG.md`](CHANGELOG.md) · the constitution is enforced by
 [`scripts/soul_check.py`](scripts/soul_check.py) in CI.
 
