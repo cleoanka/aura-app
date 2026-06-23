@@ -16,6 +16,11 @@
 
 ## Döngü kayıtları
 
+### 2026-06-23 — Döngü 21 [Kategori D: araştırma]  (sondan-önce)
+- **Çıktı:** RESEARCH/2026-06-23-semantic-cache.md — semantic cache güvenli/kapılı tasarımı: çift-kapı (cosine≥threshold + mevcut dep-hash), opt-in, ve **eval fixture şartı** (false-positive=0 yoksa default açılmaz; anayasa Madde 9). Sonraki: eval harness (LLM'siz, deterministik).
+- **Kapılar:** soul_check ✅.
+- **Karar:** LAND. Sonraki adım = eval fixture/harness (plan+uygula).
+
 ### 2026-06-23 — Döngü 20 [Kategori G: test]
 - **Değişiklik:** tests/chunk_stable_id.rs — determinizm + her girdiye (file_id/heading/ordinal/chunker_ver) göre değişim. Incremental index + cache_deps kararlılık kalkanı. +2 test.
 - **Kapılar:** soul_check ✅ · cargo **81 (79→81), 0 fail**.
