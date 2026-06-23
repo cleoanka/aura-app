@@ -6,6 +6,7 @@
 
 **An AI-native, local-first Markdown second brain for macOS — your notes never leave the device.**
 
+[![CI](https://github.com/cleoanka/aura-app/actions/workflows/ci.yml/badge.svg)](https://github.com/cleoanka/aura-app/actions/workflows/ci.yml)
 [![macOS](https://img.shields.io/badge/macOS-Apple%20Silicon-000000?logo=apple&logoColor=white)](#)
 [![Tauri](https://img.shields.io/badge/Tauri-2.x-FFC131?logo=tauri&logoColor=black)](#)
 [![Rust](https://img.shields.io/badge/Rust-1.93-DEA584?logo=rust&logoColor=white)](#)
