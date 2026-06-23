@@ -27,3 +27,11 @@ anayasa ihlali. Bu yüzden **eval fixture olmadan default'a alınmaz.** Zaten
 - **İlk somut adım:** embedding benzerliği saf fonksiyonu + fixture iskeleti (LLM'siz, test-edilebilir).
 
 > Anayasa: eval'de tek bir false-positive bile varsa bu özellik default açılmaz.
+
+## Eval sonucu (2026-06-23, gerçek e5, debug)
+`tests/semantic_cache_eval.rs` (`#[ignore]`, 235s debug):
+- TUZAK çiftleri: 0.750 / 0.780 / 0.837 / **0.864** (max) → hepsi < 0.96.
+- PARAPHRASE: 0.979 / 0.919 / 0.958 → **recall 1/3** @ 0.96.
+- **false-positive = 0** @ 0.96 → anayasa Madde 9 sağlanıyor; semantic-cache **VIABLE**.
+- **Bulgu:** 0.96 fazla yüksek (düşük recall). Tuzaklar ≤0.864, paraphrase'ler ≥0.919 → **ayrım bandı ~0.88–0.90**; daha geniş eval set'iyle eşik ~0.90'a indirilirse FP=0 + recall↑. (Default 0.96 muhafazakâr kalsın; düşürmeden önce daha çok çift gerekir.)
+- **Sonraki:** saf `best_semantic_match` primitive (test) + query-embedding storage + ai.rs'e default-OFF, dep-hash-recheck'li entegrasyon.
