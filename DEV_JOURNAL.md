@@ -16,6 +16,11 @@
 
 ## Döngü kayıtları
 
+### 2026-06-23 — Döngü 22 [Kategori B: robustness]
+- **Değişiklik:** cache_invalidation.rs — no-op reindex (mtime değişir, content_hash aynı) cache'i geçersizleştirmemeli; "meşgul vault yine cache'ten faydalanır" garantisi. +1 test.
+- **Kapılar:** soul_check ✅ · cargo **82 (81→82), 0 fail**.
+- **Karar:** LAND.
+
 ### 2026-06-23 — Döngü 21 [Kategori D: araştırma]  (sondan-önce)
 - **Çıktı:** RESEARCH/2026-06-23-semantic-cache.md — semantic cache güvenli/kapılı tasarımı: çift-kapı (cosine≥threshold + mevcut dep-hash), opt-in, ve **eval fixture şartı** (false-positive=0 yoksa default açılmaz; anayasa Madde 9). Sonraki: eval harness (LLM'siz, deterministik).
 - **Kapılar:** soul_check ✅.
