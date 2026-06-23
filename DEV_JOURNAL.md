@@ -16,6 +16,12 @@
 
 ## Döngü kayıtları
 
+### 2026-06-23 — Döngü 1 [Kategori G: test]
+- **Seçim:** `.gitignore` indeksleme mantığı (`gitignore_names`/`is_ignored_path`/`is_ignored_dir`) testsizdi (IDEAS yüksek-öncelik, düşük risk).
+- **Değişiklik (atomik):** `indexer.rs`'e `#[cfg(test)] mod tests` — denylist, extra-gitignore-set, parser (glob/`!`/path atlanır; `build/`→`build`, `/out`→`out`), dosya-yok durumu. **+4 test.**
+- **Kapılar:** soul_check ✅ · `cargo test --locked` **67 passed (63→67), 0 fail** · regresyon yok.
+- **Karar:** LAND. `a1-known-good` ilerletildi. Rotasyon: sıradaki G olamaz.
+
 ### 2026-06-23 — FAZ 1: baseline + otonom altyapı (branch `a1`)
 - **Durum:** `a1` branch'i `main`'den (v0.2.0, CI yeşil) açıldı.
 - **M0 baseline doğrulandı:** `cargo test --locked` → **63 test / 27 suite, 0 hata**. (npm build + vitest önceki oturumda yeşildi; bu döngüde tekrar doğrulanacak.)
