@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="690" viewBox="0 0 1200 690" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+<rect x="0" y="0" width="1200" height="690" rx="14" fill="#17171c"/>
+<rect x="0.5" y="0.5" width="1199" height="689" rx="14" fill="none" stroke="#343440"/>
+<text x="40" y="50" fill="#a7a7b4" font-size="12" font-weight="700" text-anchor="start" letter-spacing="2">WORKS FOR EVERYONE</text>
+<text x="40" y="84" fill="#ececf1" font-size="26" font-weight="800" text-anchor="start">Useful at every level</text>
+<text x="40" y="110" fill="#a7a7b4" font-size="14" font-weight="400" text-anchor="start">From zero AI to a full agent stack — AURA pays off either way. Each level builds on the one below.</text>
+<defs><linearGradient id="pw" x1="0" y1="1" x2="0" y2="0"><stop offset="0%" stop-color="#3fcbb0"/><stop offset="100%" stop-color="#4ea1ff"/></linearGradient></defs>
+<rect x="1158" y="150" width="8" height="518" rx="4" fill="url(#pw)" opacity="0.55"/>
+<text x="1152" y="144" fill="#a7a7b4" font-size="10.5" font-weight="600" text-anchor="end">▲ more power</text>
+<rect x="40" y="150" width="1100" height="122" rx="12" fill="#202027" stroke="#343440" stroke-width="1"/>
+<rect x="40" y="150" width="6" height="122" rx="12" fill="#4ea1ff"/>
+<rect x="46" y="150" width="6" height="122" rx="0" fill="#4ea1ff"/>
+<circle cx="96" cy="211.0" r="26" fill="color-mix(in srgb,#4ea1ff 18%,#202027)" stroke="#4ea1ff" stroke-width="1.5"/>
+<text x="96" y="220.0" fill="#4ea1ff" font-size="26" font-weight="800" text-anchor="middle">4</text>
+<text x="146" y="192" fill="#ececf1" font-size="19" font-weight="800" text-anchor="start">Full stack</text>
+<text x="146" y="214" fill="#a7a7b4" font-size="13" font-weight="400" text-anchor="start">Claude + Antigravity + Codex</text>
+<rect x="146" y="230" width="65.8" height="20" rx="6" fill="color-mix(in srgb,#4ea1ff 16%,#17171c)" stroke="#4ea1ff" stroke-width="1"/>
+<text x="178.9" y="244" fill="#4ea1ff" font-size="11" font-weight="600" text-anchor="middle">3 agents</text>
+<rect x="219.8" y="230" width="72.4" height="20" rx="6" fill="color-mix(in srgb,#4ea1ff 16%,#17171c)" stroke="#4ea1ff" stroke-width="1"/>
+<text x="256.0" y="244" fill="#4ea1ff" font-size="11" font-weight="600" text-anchor="middle">max power</text>
+<circle cx="636" cy="180" r="3" fill="#4ea1ff"/>
+<text x="650" y="184" fill="#c8c8d2" font-size="13" font-weight="400" text-anchor="start">Antigravity adds live research</text>
+<circle cx="636" cy="206" r="3" fill="#4ea1ff"/>
+<text x="650" y="210" fill="#c8c8d2" font-size="13" font-weight="400" text-anchor="start">Codex implements changes</text>
+<circle cx="636" cy="232" r="3" fill="#4ea1ff"/>
+<text x="650" y="236" fill="#c8c8d2" font-size="13" font-weight="400" text-anchor="start">Consensus → Claude synthesizes</text>
+<rect x="40" y="282" width="1100" height="122" rx="12" fill="#202027" stroke="#343440" stroke-width="1"/>
+<rect x="40" y="282" width="6" height="122" rx="12" fill="#8f8cf5"/>
+<rect x="46" y="282" width="6" height="122" rx="0" fill="#8f8cf5"/>
+<circle cx="96" cy="343.0" r="26" fill="color-mix(in srgb,#8f8cf5 18%,#202027)" stroke="#8f8cf5" stroke-width="1.5"/>
+<text x="96" y="352.0" fill="#8f8cf5" font-size="26" font-weight="800" text-anchor="middle">3</text>
+<text x="146" y="324" fill="#ececf1" font-size="19" font-weight="800" text-anchor="start">Just Claude</text>
+<text x="146" y="346" fill="#a7a7b4" font-size="13" font-weight="400" text-anchor="start">One subscription, far more mileage</text>
+<rect x="146" y="362" width="105.39999999999999" height="20" rx="6" fill="color-mix(in srgb,#8f8cf5 16%,#17171c)" stroke="#8f8cf5" stroke-width="1"/>
+<text x="198.7" y="376" fill="#8f8cf5" font-size="11" font-weight="600" text-anchor="middle">1 subscription</text>
+<rect x="259.4" y="362" width="131.8" height="20" rx="6" fill="color-mix(in srgb,#8f8cf5 16%,#17171c)" stroke="#8f8cf5" stroke-width="1"/>
+<text x="325.29999999999995" y="376" fill="#8f8cf5" font-size="11" font-weight="600" text-anchor="middle">huge token savings</text>
+<circle cx="636" cy="312" r="3" fill="#8f8cf5"/>
+<text x="650" y="316" fill="#c8c8d2" font-size="13" font-weight="400" text-anchor="start">Cache: repeats cost 0 tokens</text>
+<circle cx="636" cy="338" r="3" fill="#8f8cf5"/>
+<text x="650" y="342" fill="#c8c8d2" font-size="13" font-weight="400" text-anchor="start">Retrieval sends only relevant chunks</text>
+<circle cx="636" cy="364" r="3" fill="#8f8cf5"/>
+<text x="650" y="368" fill="#c8c8d2" font-size="13" font-weight="400" text-anchor="start">Plan / review / fix — spend only when sure</text>
+<rect x="40" y="414" width="1100" height="122" rx="12" fill="#202027" stroke="#343440" stroke-width="1"/>
+<rect x="40" y="414" width="6" height="122" rx="12" fill="#e8bf69"/>
+<rect x="46" y="414" width="6" height="122" rx="0" fill="#e8bf69"/>
+<circle cx="96" cy="475.0" r="26" fill="color-mix(in srgb,#e8bf69 18%,#202027)" stroke="#e8bf69" stroke-width="1.5"/>
+<text x="96" y="484.0" fill="#e8bf69" font-size="26" font-weight="800" text-anchor="middle">2</text>
+<text x="146" y="456" fill="#ececf1" font-size="19" font-weight="800" text-anchor="start">Local AI (Ollama)</text>
+<text x="146" y="478" fill="#a7a7b4" font-size="13" font-weight="400" text-anchor="start">Lane 0 — generation on your machine</text>
+<rect x="146" y="494" width="59.199999999999996" height="20" rx="6" fill="color-mix(in srgb,#e8bf69 16%,#17171c)" stroke="#e8bf69" stroke-width="1"/>
+<text x="175.6" y="508" fill="#e8bf69" font-size="11" font-weight="600" text-anchor="middle">private</text>
+<rect x="213.2" y="494" width="59.199999999999996" height="20" rx="6" fill="color-mix(in srgb,#e8bf69 16%,#17171c)" stroke="#e8bf69" stroke-width="1"/>
+<text x="242.79999999999998" y="508" fill="#e8bf69" font-size="11" font-weight="600" text-anchor="middle">offline</text>
+<rect x="280.4" y="494" width="39.4" height="20" rx="6" fill="color-mix(in srgb,#e8bf69 16%,#17171c)" stroke="#e8bf69" stroke-width="1"/>
+<text x="300.09999999999997" y="508" fill="#e8bf69" font-size="11" font-weight="600" text-anchor="middle">free</text>
+<circle cx="636" cy="444" r="3" fill="#e8bf69"/>
+<text x="650" y="448" fill="#c8c8d2" font-size="13" font-weight="400" text-anchor="start">Ask your notes with a local model</text>
+<circle cx="636" cy="470" r="3" fill="#e8bf69"/>
+<text x="650" y="474" fill="#c8c8d2" font-size="13" font-weight="400" text-anchor="start">No account, no quota, no egress</text>
+<rect x="40" y="546" width="1100" height="122" rx="12" fill="#202027" stroke="#343440" stroke-width="1"/>
+<rect x="40" y="546" width="6" height="122" rx="12" fill="#3fcbb0"/>
+<rect x="46" y="546" width="6" height="122" rx="0" fill="#3fcbb0"/>
+<circle cx="96" cy="607.0" r="26" fill="color-mix(in srgb,#3fcbb0 18%,#202027)" stroke="#3fcbb0" stroke-width="1.5"/>
+<text x="96" y="616.0" fill="#3fcbb0" font-size="26" font-weight="800" text-anchor="middle">1</text>
+<text x="146" y="588" fill="#ececf1" font-size="19" font-weight="800" text-anchor="start">No AI at all</text>
+<text x="146" y="610" fill="#a7a7b4" font-size="13" font-weight="400" text-anchor="start">A first-class Markdown second brain</text>
+<rect x="146" y="626" width="26.2" height="20" rx="6" fill="color-mix(in srgb,#3fcbb0 16%,#17171c)" stroke="#3fcbb0" stroke-width="1"/>
+<text x="159.1" y="640" fill="#3fcbb0" font-size="11" font-weight="600" text-anchor="middle">$0</text>
+<rect x="180.2" y="626" width="92.19999999999999" height="20" rx="6" fill="color-mix(in srgb,#3fcbb0 16%,#17171c)" stroke="#3fcbb0" stroke-width="1"/>
+<text x="226.29999999999998" y="640" fill="#3fcbb0" font-size="11" font-weight="600" text-anchor="middle">100% offline</text>
+<rect x="280.4" y="626" width="79.0" height="20" rx="6" fill="color-mix(in srgb,#3fcbb0 16%,#17171c)" stroke="#3fcbb0" stroke-width="1"/>
+<text x="319.9" y="640" fill="#3fcbb0" font-size="11" font-weight="600" text-anchor="middle">foundation</text>
+<circle cx="636" cy="576" r="3" fill="#3fcbb0"/>
+<text x="650" y="580" fill="#c8c8d2" font-size="13" font-weight="400" text-anchor="start">Knowledge graph + hybrid search (keyword + on-device vectors)</text>
+<circle cx="636" cy="602" r="3" fill="#3fcbb0"/>
+<text x="650" y="606" fill="#c8c8d2" font-size="13" font-weight="400" text-anchor="start">CodeMirror editor, [[wikilinks]], instant retrieval</text>
+</svg>

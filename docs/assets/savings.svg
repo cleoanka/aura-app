@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="600" viewBox="0 0 1200 600" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+<rect x="0" y="0" width="1200" height="600" rx="14" fill="#17171c"/>
+<rect x="0.5" y="0.5" width="1199" height="599" rx="14" fill="none" stroke="#343440"/>
+<text x="40" y="50" fill="#a7a7b4" font-size="12" font-weight="700" text-anchor="start" letter-spacing="2">TOKEN ECONOMY</text>
+<text x="40" y="84" fill="#ececf1" font-size="26" font-weight="800" text-anchor="start">Far more from the same Claude</text>
+<text x="40" y="110" fill="#a7a7b4" font-size="14" font-weight="400" text-anchor="start">Answering the same questions over your vault — naïve chat vs. AURA's pipeline.</text>
+<text x="60" y="168" fill="#ececf1" font-size="14" font-weight="700" text-anchor="start">Naïve</text>
+<text x="60" y="186" fill="#a7a7b4" font-size="11" font-weight="400" text-anchor="start">paste vault → chat</text>
+<rect x="300" y="150" width="820" height="34" rx="8" fill="color-mix(in srgb,#e0726a 22%,#17171c)" stroke="#e0726a" stroke-width="1"/>
+<rect x="300" y="150" width="820" height="34" rx="8" fill="#e0726a" opacity="0.85"/>
+<text x="1106" y="172" fill="#1a0c0a" font-size="12.5" font-weight="700" text-anchor="end">100% tokens · every time</text>
+<text x="60" y="236" fill="#ececf1" font-size="14" font-weight="700" text-anchor="start">AURA</text>
+<text x="60" y="254" fill="#a7a7b4" font-size="11" font-weight="400" text-anchor="start">cache + retrieval + lanes</text>
+<defs><linearGradient id="sv" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#3fcbb0"/><stop offset="100%" stop-color="#8f8cf5"/></linearGradient></defs>
+<rect x="300" y="218" width="820" height="34" rx="8" fill="#202027" stroke="#343440" stroke-width="1"/>
+<rect x="300" y="218" width="147" height="34" rx="8" fill="url(#sv)"/>
+<text x="459" y="240" fill="#3fcbb0" font-size="12.5" font-weight="700" text-anchor="start">~18% — and repeats are free</text>
+<line x1="40" y1="300" x2="1160" y2="300" stroke="#343440" stroke-width="1" opacity="0.6"/>
+<text x="40" y="336" fill="#a7a7b4" font-size="12" font-weight="700" text-anchor="start" letter-spacing="1.5">WHERE THE SAVINGS COME FROM</text>
+<rect x="40" y="360" width="262" height="196" rx="12" fill="#202027" stroke="#343440" stroke-width="1"/>
+<rect x="40" y="360" width="262" height="5" rx="12" fill="#3fcbb0"/>
+<rect x="40" y="362" width="262" height="4" rx="0" fill="#3fcbb0"/>
+<circle cx="66" cy="404" r="13" fill="color-mix(in srgb,#3fcbb0 20%,#202027)" stroke="#3fcbb0" stroke-width="1.4"/>
+<circle cx="66" cy="404" r="4.5" fill="#3fcbb0"/>
+<text x="58" y="446" fill="#ececf1" font-size="15.5" font-weight="700" text-anchor="start">Exact-match cache</text>
+<text x="58" y="472" fill="#c2c2cd" font-size="12.5" font-weight="400" text-anchor="start">A repeated question returns</text>
+<text x="58" y="491" fill="#c2c2cd" font-size="12.5" font-weight="400" text-anchor="start">the stored answer — 0 tokens,</text>
+<text x="58" y="510" fill="#c2c2cd" font-size="12.5" font-weight="400" text-anchor="start">instantly.</text>
+<rect x="322" y="360" width="262" height="196" rx="12" fill="#202027" stroke="#343440" stroke-width="1"/>
+<rect x="322" y="360" width="262" height="5" rx="12" fill="#8f8cf5"/>
+<rect x="322" y="362" width="262" height="4" rx="0" fill="#8f8cf5"/>
+<circle cx="348" cy="404" r="13" fill="color-mix(in srgb,#8f8cf5 20%,#202027)" stroke="#8f8cf5" stroke-width="1.4"/>
+<circle cx="348" cy="404" r="4.5" fill="#8f8cf5"/>
+<text x="340" y="446" fill="#ececf1" font-size="15.5" font-weight="700" text-anchor="start">Hybrid retrieval</text>
+<text x="340" y="472" fill="#c2c2cd" font-size="12.5" font-weight="400" text-anchor="start">Only the relevant chunks are</text>
+<text x="340" y="491" fill="#c2c2cd" font-size="12.5" font-weight="400" text-anchor="start">sent as context — not your</text>
+<text x="340" y="510" fill="#c2c2cd" font-size="12.5" font-weight="400" text-anchor="start">whole vault.</text>
+<rect x="604" y="360" width="262" height="196" rx="12" fill="#202027" stroke="#343440" stroke-width="1"/>
+<rect x="604" y="360" width="262" height="5" rx="12" fill="#4ea1ff"/>
+<rect x="604" y="362" width="262" height="4" rx="0" fill="#4ea1ff"/>
+<circle cx="630" cy="404" r="13" fill="color-mix(in srgb,#4ea1ff 20%,#202027)" stroke="#4ea1ff" stroke-width="1.4"/>
+<circle cx="630" cy="404" r="4.5" fill="#4ea1ff"/>
+<text x="622" y="446" fill="#ececf1" font-size="15.5" font-weight="700" text-anchor="start">Lane routing</text>
+<text x="622" y="472" fill="#c2c2cd" font-size="12.5" font-weight="400" text-anchor="start">Cheap model for simple asks;</text>
+<text x="622" y="491" fill="#c2c2cd" font-size="12.5" font-weight="400" text-anchor="start">the strong one only when it's</text>
+<text x="622" y="510" fill="#c2c2cd" font-size="12.5" font-weight="400" text-anchor="start">actually needed.</text>
+<rect x="886" y="360" width="262" height="196" rx="12" fill="#202027" stroke="#343440" stroke-width="1"/>
+<rect x="886" y="360" width="262" height="5" rx="12" fill="#e8bf69"/>
+<rect x="886" y="362" width="262" height="4" rx="0" fill="#e8bf69"/>
+<circle cx="912" cy="404" r="13" fill="color-mix(in srgb,#e8bf69 20%,#202027)" stroke="#e8bf69" stroke-width="1.4"/>
+<circle cx="912" cy="404" r="4.5" fill="#e8bf69"/>
+<text x="904" y="446" fill="#ececf1" font-size="15.5" font-weight="700" text-anchor="start">Plan-first</text>
+<text x="904" y="472" fill="#c2c2cd" font-size="12.5" font-weight="400" text-anchor="start">Read-only plan before you</text>
+<text x="904" y="491" fill="#c2c2cd" font-size="12.5" font-weight="400" text-anchor="start">spend on implementation — no</text>
+<text x="904" y="510" fill="#c2c2cd" font-size="12.5" font-weight="400" text-anchor="start">wasted round-trips.</text>
+</svg>
