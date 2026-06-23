@@ -16,6 +16,12 @@
 
 ## Döngü kayıtları
 
+### 2026-06-23 — Döngü 11 [Kategori F: UI/UX & estetik — görsel]
+- **Seçim:** workspace screenshot'ı yeni elapsed_ms index-stat'ını yansıtmıyordu (görsel ↔ gerçek tutarsız).
+- **Değişiklik:** `_gen_workspace.py`'ye explorer index-stats footer'ı ("37 files · 214 chunks · 812 ms" + ince ayraç); SVG+PNG yeniden üretildi.
+- **Kapılar:** soul_check ✅ · PNG render edildi, görsel doğrulandı.
+- **Karar:** LAND.
+
 ### 2026-06-23 — Döngü 10 [Kategori H: tutarlılık/housekeeping]
 - **Seçim:** CHANGELOG, a1 çalışmasının (Döngü 1–9) gerisinde kalmıştı.
 - **Değişiklik:** CHANGELOG [Unreleased] — RESEARCH/, CI rozeti, elapsed_ms UI, test 63→72, BYOK validation, stale-test fix eklendi.
