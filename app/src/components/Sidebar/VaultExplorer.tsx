@@ -124,7 +124,13 @@ export function VaultExplorer({
       {indexStats ? (
         <div className="index-stats" aria-label={t("status.indexed")}>
           <span>{t("workspace.notesCount", { count: indexStats.notes })}</span>
-          <span>{indexStats.chunks} · {indexStats.skipped}</span>
+          <span>
+            {indexStats.chunks} · {indexStats.skipped}
+            {indexStats.pruned ? ` · −${indexStats.pruned}` : ""}
+            {typeof indexStats.elapsed_ms === "number"
+              ? ` · ${indexStats.elapsed_ms} ms`
+              : ""}
+          </span>
         </div>
       ) : null}
 
