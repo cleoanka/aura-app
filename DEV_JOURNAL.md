@@ -16,6 +16,11 @@
 
 ## Döngü kayıtları
 
+### 2026-06-23 — Döngü 17 [Kategori G: test]
+- **Değişiklik:** db `normalize_embedding` testleri — unit-vektör + sıfır-vektör güvenli (NaN yerine [1,0,…]). +2 test. cosine doğruluğu korunuyor.
+- **Kapılar:** soul_check ✅ · cargo **78 (76→78), 0 fail**.
+- **Karar:** LAND.
+
 ### 2026-06-23 — Döngü 16 [Kategori F: optimizasyon — plan+uygula]  (son adım)
 - **Plan (D15'ten):** tek 1.57MB chunk'ı vendor ailelerine böl.
 - **Değişiklik:** vite.config.ts manualChunks (graph/editor/term/markdown/react/vendor). Sonuç: **1.57MB tek chunk → 7 chunk** (max editor 610KB, app index 80KB ayrı). App kodu değişince vendor cache korunur.
