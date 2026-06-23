@@ -16,6 +16,11 @@
 
 ## Döngü kayıtları
 
+### 2026-06-23 — Döngü 20 [Kategori G: test]
+- **Değişiklik:** tests/chunk_stable_id.rs — determinizm + her girdiye (file_id/heading/ordinal/chunker_ver) göre değişim. Incremental index + cache_deps kararlılık kalkanı. +2 test.
+- **Kapılar:** soul_check ✅ · cargo **81 (79→81), 0 fail**.
+- **Karar:** LAND.
+
 ### 2026-06-23 — Döngü 19 [Kategori B: robustness]
 - **Değişiklik:** apikey `parse_key_file` (ilk boş-olmayan satır) — dosyaya stray 2. satır/newline girerse key bozulmaz. read_key onu kullanır. +1 test.
 - **Kapılar:** soul_check ✅ · cargo **79 (78→79), 0 fail**.
