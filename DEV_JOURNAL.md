@@ -16,6 +16,11 @@
 
 ## Döngü kayıtları
 
+### 2026-06-23 — Döngü 23 [Kategori K: repo/handoff]
+- **Değişiklik:** STATE_OF_PROJECT.md — insan-incelemesi devir dokümanı (metrikler taban→şimdi, ne yapıldı, neye bakmalı, runtime gerektiren kalanlar). Final değil, anlık durum.
+- **Kapılar:** soul_check ✅.
+- **Karar:** LAND.
+
 ### 2026-06-23 — Döngü 22 [Kategori B: robustness]
 - **Değişiklik:** cache_invalidation.rs — no-op reindex (mtime değişir, content_hash aynı) cache'i geçersizleştirmemeli; "meşgul vault yine cache'ten faydalanır" garantisi. +1 test.
 - **Kapılar:** soul_check ✅ · cargo **82 (81→82), 0 fail**.
