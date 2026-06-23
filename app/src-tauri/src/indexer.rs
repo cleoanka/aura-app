@@ -675,3 +675,64 @@ fn file_id(_path: &Path, metadata: &fs::Metadata) -> String {
 fn file_id(path: &Path, _metadata: &fs::Metadata) -> String {
     path.to_string_lossy().into_owned()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{gitignore_names, is_ignored_dir, is_ignored_path};
+    use std::collections::HashSet;
+    use std::path::Path;
+
+    #[test]
+    fn denylist_dirs_are_ignored() {
+        for dir in [".git", "node_modules", "target", "dist", "__pycache__", ".venv"] {
+            assert!(
+                is_ignored_dir(Path::new("/vault").join(dir).as_path()),
+                "{dir} denylist'te ignored olmalı"
+            );
+        }
+        assert!(!is_ignored_dir(Path::new("/vault/notes")));
+        assert!(!is_ignored_dir(Path::new("/vault/README.md")));
+    }
+
+    #[test]
+    fn extra_gitignore_names_are_ignored_alongside_denylist() {
+        let extra: HashSet<String> = ["secrets".to_string(), "build-out".to_string()]
+            .into_iter()
+            .collect();
+        assert!(is_ignored_path(Path::new("/vault/secrets"), &extra));
+        assert!(is_ignored_path(Path::new("/vault/sub/build-out"), &extra));
+        // built-in denylist still applies even with an extra set present
+        assert!(is_ignored_path(Path::new("/vault/.git"), &extra));
+        assert!(!is_ignored_path(Path::new("/vault/keepme"), &extra));
+    }
+
+    #[test]
+    fn gitignore_parser_keeps_only_simple_names() {
+        let dir = std::env::temp_dir().join(format!("aura-gitignore-test-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        std::fs::write(
+            dir.join(".gitignore"),
+            "# comment\n\nbuild/\n/out\n*.log\nnode_modules\n!keep\nsrc/generated\n",
+        )
+        .expect("write .gitignore");
+        let names = gitignore_names(&dir);
+        let _ = std::fs::remove_dir_all(&dir);
+
+        assert!(names.contains("build"), "trailing slash strip");
+        assert!(names.contains("out"), "leading slash strip");
+        assert!(names.contains("node_modules"));
+        assert!(!names.contains("*.log"), "glob atlanmalı");
+        assert!(!names.contains("keep"), "! negation atlanmalı");
+        assert!(!names.contains("src/generated"), "path atlanmalı");
+        assert!(!names.contains(""), "boş/comment satırı yok");
+    }
+
+    #[test]
+    fn gitignore_names_empty_when_no_file() {
+        let dir = std::env::temp_dir().join(format!("aura-gitignore-none-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let names = gitignore_names(&dir);
+        let _ = std::fs::remove_dir_all(&dir);
+        assert!(names.is_empty());
+    }
+}
