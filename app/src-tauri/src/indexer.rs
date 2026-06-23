@@ -683,9 +683,20 @@ fn file_id(path: &Path, _metadata: &fs::Metadata) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{gitignore_names, is_ignored_dir, is_ignored_path, IndexStats};
+    use super::{gitignore_names, is_ignored_dir, is_ignored_path, snippet, IndexStats};
     use std::collections::HashSet;
     use std::path::Path;
+
+    #[test]
+    fn snippet_collapses_whitespace_and_truncates_safely() {
+        assert_eq!(snippet("  a   b\n c  "), "a b c"); // boşluk daraltma
+        let long = "x".repeat(300);
+        let s = snippet(&long);
+        assert!(s.ends_with("..."), "uzun metin ... ile biter");
+        assert!(s.len() <= 243, "240 + ...");
+        // çok-baytlı sınırda panik olmamalı
+        let _ = snippet(&"ç".repeat(300));
+    }
 
     #[test]
     fn index_stats_serializes_with_snake_case_fields() {

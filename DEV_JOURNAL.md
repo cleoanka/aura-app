@@ -16,6 +16,17 @@
 
 ## Döngü kayıtları
 
+### 2026-06-23 — Döngü 6 [Kategori G: test]
+- **Seçim:** `snippet()` (whitespace-collapse + 240 truncation + char-boundary) testsizdi.
+- **Değişiklik (atomik):** indexer tests'e snippet testi (daraltma, kesme `...`, çok-baytlı panik-yok). +1 test.
+- **Kapılar:** soul_check ✅ · `cargo test --locked` **72 passed (71→72), 0 fail** · regresyon yok.
+- **Karar:** LAND. Rotasyon notu: G→...→G arası 4 döngü var, kural ihlali yok.
+
+> **CHECKPOINT (oturum sınırı):** FAZ 1 + Döngü 1–6 tamam, hepsi `a1`'de, `a1-known-good`=c'.
+> Kategoriler: G,H,B,K,I,G. Devam için: `git checkout a1` → `IDEAS.md`'den sıradakini seç
+> (J: rusqlite+sqlite-vec, C: semantic-cache, F: bundle split, I: elapsed_ms UI gösterimi) →
+> 10-adım döngü + kapılar. Süreklilik bu dosyada.
+
 ### 2026-06-23 — Döngü 5 [Kategori I: gözlemlenebilirlik]
 - **Seçim:** `index_vault` indeksleme süresini raporlamıyordu; ayrıca frontend `IndexStats` tipi `pruned`'ı kaçırmıştı (Rust ile desenkron).
 - **Değişiklik (atomik):** `IndexStats.elapsed_ms` (geriye-uyumlu `#[serde(default)]`) + `Instant` ile ölçüm. Frontend tipine `pruned?`+`elapsed_ms?`. Serialize-sözleşmesi testi (snake_case alan adları). +1 test.
