@@ -16,6 +16,11 @@
 
 ## Döngü kayıtları
 
+### 2026-06-23 — Döngü 27 [Kategori C: plan+uygula] (büyük kalem — ai.rs entegrasyonu)
+- **Değişiklik:** Indexer.embed_query + ai.rs semantic-cache wiring: exact-miss'te (semantic_cache_enabled, default OFF) sorgu embed'lenip semantic_cache_lookup; hit dep-recheck'ten geçerse Cached döner. cache_put yanında query-vec saklanır. Frontend tip zaten var.
+- **Kapılar:** soul_check ✅ · cargo **85, 0 fail, 0 uyarı** (derleme+regresyon). Candle yolu opt-in → end-to-end runtime'da; db katmanı + eval test-kanıtlı.
+- **Karar:** LAND. Semantic-cache FONKSİYONEL TAM (default OFF).
+
 ### 2026-06-23 — Döngü 26 [Kategori C: plan+uygula] (büyük kalem — db katmanı)
 - **Değişiklik:** db `cache_query_vec` tablosu + `cache_put_query_vec` + `semantic_cache_lookup` (cosine≥threshold **VE** cache_get_valid dep-recheck = anayasa Madde 9 emniyeti). +2 deterministik test (threshold/model_ver/dep-revalidation).
 - **Kapılar:** soul_check ✅ · cargo **85 (83→85), 0 fail**.
