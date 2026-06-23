@@ -7,9 +7,16 @@ Format [Keep a Changelog](https://keepachangelog.com/), sürümleme [SemVer](htt
 ### Added
 - `scripts/soul_check.py` — anayasa (gizlilik / "modele doğrudan konuşma yok" /
   shell-injection yok / ağır özellikler default-OFF / cache doğruluğu) otomatik denetimi; CI'ye bağlandı.
-- Otonom geliştirme altyapısı: `DEV_JOURNAL.md`, `IDEAS.md`, `BENCHMARKS.md`.
+- Otonom geliştirme altyapısı: `DEV_JOURNAL.md`, `IDEAS.md`, `BENCHMARKS.md`, `RESEARCH/`.
 - Standart repo dosyaları: `CONTRIBUTING.md`, `CITATION.cff`, bu `CHANGELOG.md`.
-- `docs/philosophy.md`, `docs/simple.md` (sıfır-jargon), `docs/glossary.md`.
+- `docs/philosophy.md`, `docs/simple.md` (sıfır-jargon), `docs/glossary.md`; README'den linklendi.
+- README'de gerçek **CI status rozeti**.
+- `IndexStats.elapsed_ms` (indeksleme süresi) — backend + VaultExplorer'da gösterim; `pruned` da gösteriliyor.
+- Test kapsamı: indexer `.gitignore`/`snippet`/`IndexStats`, apikey `validate_key` → **cargo test 63 → 72**.
+### Changed
+- BYOK anahtar doğrulaması: app `validate_key` + CLI `aura key set` (tek-token; boşluk/satır içeren yanlış-yapıştırma reddedilir).
+### Fixed
+- gemini→agy yeniden adlandırmasından kalma 3 stale test (`settings_robust`/`consensus_degrade`/`pty_argv`) — tam paket yeşil.
 
 ## [0.2.0] — 2026-06-23
 ### Added

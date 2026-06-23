@@ -16,6 +16,12 @@
 
 ## Döngü kayıtları
 
+### 2026-06-23 — Döngü 10 [Kategori H: tutarlılık/housekeeping]
+- **Seçim:** CHANGELOG, a1 çalışmasının (Döngü 1–9) gerisinde kalmıştı.
+- **Değişiklik:** CHANGELOG [Unreleased] — RESEARCH/, CI rozeti, elapsed_ms UI, test 63→72, BYOK validation, stale-test fix eklendi.
+- **Kapılar:** soul_check ✅ (doküman).
+- **Karar:** LAND.
+
 ### 2026-06-23 — Döngü 9 [Kategori I/F: gözlemlenebilirlik+UI]
 - **Seçim:** elapsed_ms (Döngü 5) backend'de vardı ama UI'da görünmüyordu; pruned da gösterilmiyordu.
 - **Değişiklik (atomik):** VaultExplorer index-stats satırına `· −{pruned}` ve `· {elapsed_ms} ms` (opsiyonel, geriye-uyumlu).
