@@ -16,6 +16,11 @@
 
 ## Döngü kayıtları
 
+### 2026-06-23 — Döngü 15 [Kategori D: araştırma]  (sondan-önce)
+- **Çıktı:** RESEARCH/2026-06-23-bundle-split.md — tek 1.57MB chunk'ı manualChunks ile vendor ailelerine (react/editor/graph/term/markdown/vendor) bölme planı + doğrulama kapısı.
+- **Kapılar:** soul_check ✅.
+- **Karar:** LAND → Döngü 16 uygular.
+
 ### 2026-06-23 — Döngü 14 [Kategori H: housekeeping]
 - **Değişiklik:** IDEAS.md — Döngü 1–14 biten maddeler "Tamamlandı"ya taşındı, kalan backlog önceliklendirildi (sıradaki: J rusqlite+sqlite-vec, C semantic-cache, F bundle-split, B stress test).
 - **Kapılar:** soul_check ✅.
