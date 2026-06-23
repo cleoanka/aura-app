@@ -1,0 +1,20 @@
+# Sözlük (glossary)
+
+- **Vault** — notlarının olduğu klasör (düz Markdown/kod dosyaları). AURA'nın kaynağı.
+- **Indexer** — vault'u tarayıp arama/graph için sindiren bileşen; `.gitignore` + denylist ile çöp klasörleri atlar.
+- **Chunk** — bir dosyanın aranabilir küçük parçası (başlık-hiyerarşisine göre bölünür); her birinin içerik-hash'i vardır.
+- **FTS5** — SQLite'ın tam-metin (kelime) arama motoru.
+- **Embedding** — bir metnin "anlam vektörü"; benzer anlamlılar yakın olur. Model: e5 (candle).
+- **Vektör arama** — embedding'lerle "anlamca" arama (kelime tutmasa da bulur).
+- **Hibrit arama / RRF** — kelime (FTS5) + anlam (vektör) sonuçlarını birleştiren yöntem (Reciprocal Rank Fusion).
+- **RAG** — Retrieval-Augmented Generation: önce ilgili notları bul, sonra onları bağlam olarak modele verip cevaplat.
+- **Lane** — bir soruyu cevaplama yolu: **Cache** (hazır) · **Lane 0** (yerel/Ollama) · **Fast/Deep** (Claude) · **Consensus** (3 AI + sentez). En ucuz yol kazanır.
+- **Cache (exact-match)** — daha önce sorulan sorunun cevabını saklar; kaynak dosyalar değişince geçersizleşir → sıfır yanlış-cevap.
+- **Knowledge graph** — not/dosyaların düğüm, bağların (`[[wikilink]]`/import) kenar olduğu görsel ağ.
+- **Consensus** — aynı soruyu Claude + Antigravity + Codex'e paralel sorup Claude'a sentezletme (opsiyonel, ~3× maliyet).
+- **Aura Mode** — `plan` / `review` / `fix` / `ship`: bir kod klasöründe AI iş akışları. `fix` salt-önizler, asla commit etmez.
+- **BYOK** — "Bring Your Own Key": kendi Anthropic API anahtarınla çalışma (opsiyonel).
+- **`aura` CLI** — claude/agy/codex'i tek araç gibi saran motor; AURA Desktop'ın beyni.
+- **agy** — Antigravity CLI (araştırma rolü). **codex** — implementasyon rolü. **claude** — ana beyin.
+- **soul_check** — anayasa (gizlilik/güvenlik/varsayılanlar) ihlallerini yakalayan otomatik denetim.
+- **known-good** — her şeyin yeşil olduğu, geri-dönülebilir git etiketi (maraton çıpası).
