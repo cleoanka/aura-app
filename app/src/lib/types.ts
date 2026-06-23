@@ -50,6 +50,8 @@ export type IndexStats = {
   notes: number;
   chunks: number;
   skipped: number;
+  pruned?: number;
+  elapsed_ms?: number;
 };
 
 export type GraphNode = {

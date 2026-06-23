@@ -57,6 +57,9 @@ pub struct IndexStats {
     /// audit #1: bu turda diskte bulunmadığı için DB'den temizlenen (silinen) not sayısı.
     #[serde(default)]
     pub pruned: usize,
+    /// Gözlemlenebilirlik (Döngü 5): bu indeksleme turunun süresi (ms). Geriye-uyumlu.
+    #[serde(default)]
+    pub elapsed_ms: u64,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -89,6 +92,7 @@ impl Indexer {
             ));
         }
 
+        let started = std::time::Instant::now();
         let mut stats = IndexStats::default();
         let root = root.to_path_buf();
         let mut project_files = project_files(&root)?;
@@ -202,6 +206,7 @@ impl Indexer {
         }
 
         tx.commit()?;
+        stats.elapsed_ms = started.elapsed().as_millis() as u64;
         Ok(stats)
     }
 
@@ -678,9 +683,18 @@ fn file_id(path: &Path, _metadata: &fs::Metadata) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{gitignore_names, is_ignored_dir, is_ignored_path};
+    use super::{gitignore_names, is_ignored_dir, is_ignored_path, IndexStats};
     use std::collections::HashSet;
     use std::path::Path;
+
+    #[test]
+    fn index_stats_serializes_with_snake_case_fields() {
+        // Frontend `IndexStats` tipi bu alan adlarına (snake_case) bağlı.
+        let json = serde_json::to_value(IndexStats::default()).unwrap();
+        for key in ["notes", "chunks", "skipped", "pruned", "elapsed_ms"] {
+            assert!(json.get(key).is_some(), "IndexStats.{key} serileşmeli");
+        }
+    }
 
     #[test]
     fn denylist_dirs_are_ignored() {

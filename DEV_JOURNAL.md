@@ -16,6 +16,12 @@
 
 ## Döngü kayıtları
 
+### 2026-06-23 — Döngü 5 [Kategori I: gözlemlenebilirlik]
+- **Seçim:** `index_vault` indeksleme süresini raporlamıyordu; ayrıca frontend `IndexStats` tipi `pruned`'ı kaçırmıştı (Rust ile desenkron).
+- **Değişiklik (atomik):** `IndexStats.elapsed_ms` (geriye-uyumlu `#[serde(default)]`) + `Instant` ile ölçüm. Frontend tipine `pruned?`+`elapsed_ms?`. Serialize-sözleşmesi testi (snake_case alan adları). +1 test.
+- **Kapılar:** soul_check ✅ · tsc ✅ · `cargo test --locked` **71 passed (70→71), 0 fail** · regresyon yok.
+- **Karar:** LAND. (UI'da gösterimi follow-up — IDEAS [I].)
+
 ### 2026-06-23 — Döngü 4 [Kategori K: repo/yayın]
 - **Seçim:** README'de gerçek (çalışan) CI status rozeti yoktu.
 - **Değişiklik (atomik):** README'ye `actions/workflows/ci.yml/badge.svg` rozeti (gerçek Actions durumuna linkli). main'de CI yeşil → rozet yeşil/dürüst.
