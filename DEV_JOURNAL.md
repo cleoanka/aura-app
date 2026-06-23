@@ -16,6 +16,11 @@
 
 ## Döngü kayıtları
 
+### 2026-06-23 — Döngü 28 [Kategori J: spike → ROLLBACK] (büyük kalem — çöpe atıldı)
+- **Deney:** sqlite-vec ANN'i mevcut FFI/sistem-sqlite'a auto_extension ile ekleme spike'ı (crate + vec0 KNN smoke).
+- **Sonuç:** `sqlite3_auto_extension` → **21 (SQLITE_MISUSE)** — macOS sistem libsqlite3 eklenti kaydına izin vermiyor → sqlite-vec bu mimaride ÇALIŞMAZ. Kesin.
+- **Karar:** ROLLBACK (`git reset --hard a1-known-good`), `sqlite-vec` dep kaldırıldı, brute-force korunuyor. Bulgu `RESEARCH/2026-06-23-sqlite-vec-spike.md`'de; [J] bundled-sqlite migration'a (insan-onaylı) ertelendi. Kapı: rollback sonrası cargo **85**, soul_check ✅.
+
 ### 2026-06-23 — Döngü 27 [Kategori C: plan+uygula] (büyük kalem — ai.rs entegrasyonu)
 - **Değişiklik:** Indexer.embed_query + ai.rs semantic-cache wiring: exact-miss'te (semantic_cache_enabled, default OFF) sorgu embed'lenip semantic_cache_lookup; hit dep-recheck'ten geçerse Cached döner. cache_put yanında query-vec saklanır. Frontend tip zaten var.
 - **Kapılar:** soul_check ✅ · cargo **85, 0 fail, 0 uyarı** (derleme+regresyon). Candle yolu opt-in → end-to-end runtime'da; db katmanı + eval test-kanıtlı.
