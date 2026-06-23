@@ -36,6 +36,10 @@ jobs:
       - name: Install frontend deps
         run: npm ci
 
+      - name: Soul check (constitution)
+        working-directory: ${{ github.workspace }}
+        run: python3 scripts/soul_check.py
+
       - name: Rust tests (offline-safe; aura/network tests are #[ignore])
         working-directory: app/src-tauri
         run: cargo test --locked
