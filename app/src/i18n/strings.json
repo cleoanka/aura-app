@@ -167,7 +167,15 @@
     "settings.consensus.graceHint": "after the first reply, wait this long for the rest, then synthesize (0 = wait for all)",
     "settings.consensus.agentTimeout": "Agent timeout (s)",
     "settings.consensus.agentTimeoutHint": "hard cap per agent; a slower agent is dropped",
-    "agents.role.agy": "Antigravity"
+    "agents.role.agy": "Antigravity",
+    "models.apiKey": "API Key (BYOK)",
+    "models.apiKey.present": "Key saved",
+    "models.apiKey.absent": "No key",
+    "models.apiKey.hint": "Use your own Anthropic API key. Stored locally (0600), shared with the aura CLI, never uploaded by AURA.",
+    "models.apiKey.placeholder": "sk-ant-…",
+    "models.apiKey.save": "Save",
+    "models.apiKey.clear": "Remove key",
+    "models.apiKey.enabled": "Use my API key"
   },
   "tr": {
     "app.name": "AURA Desktop",
@@ -337,6 +345,14 @@
     "settings.consensus.graceHint": "ilk yanıttan sonra geç kalanları bu kadar bekle, sonra sentezle (0 = hepsini bekle)",
     "settings.consensus.agentTimeout": "Ajan zaman aşımı (sn)",
     "settings.consensus.agentTimeoutHint": "ajan başına sert üst sınır; daha yavaş ajan düşürülür",
-    "agents.role.agy": "Antigravity"
+    "agents.role.agy": "Antigravity",
+    "models.apiKey": "API Anahtarı (BYOK)",
+    "models.apiKey.present": "Anahtar kayıtlı",
+    "models.apiKey.absent": "Anahtar yok",
+    "models.apiKey.hint": "Kendi Anthropic API anahtarını kullan. Yerelde saklanır (0600), aura CLI ile paylaşılır, AURA tarafından asla yüklenmez.",
+    "models.apiKey.placeholder": "sk-ant-…",
+    "models.apiKey.save": "Kaydet",
+    "models.apiKey.clear": "Anahtarı sil",
+    "models.apiKey.enabled": "API anahtarımı kullan"
   }
 }

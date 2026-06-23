@@ -96,6 +96,8 @@ export type Settings = {
   semantic_search?: boolean;
   advanced_retrieval?: AdvancedRetrieval;
   consensus?: ConsensusSettings;
+  /** BYOK: inject the stored Anthropic API key into spawned agents. */
+  api_key_enabled?: boolean;
   [key: string]: unknown;
 };
 

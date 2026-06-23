@@ -1,10 +1,11 @@
 use app_lib::consensus::{consensus_answer_mode, pick_synthesizer, ConsensusAnswerMode};
 
 #[test]
-fn synthesizer_prefers_claude_then_gemini_then_codex() {
-    assert_eq!(pick_synthesizer(&["codex", "gemini"]), Some("gemini"));
+fn synthesizer_prefers_claude_then_agy_then_codex() {
+    // Preference order is claude > agy (Antigravity) > codex.
+    assert_eq!(pick_synthesizer(&["codex", "agy"]), Some("agy"));
     assert_eq!(
-        pick_synthesizer(&["codex", "claude", "gemini"]),
+        pick_synthesizer(&["codex", "claude", "agy"]),
         Some("claude")
     );
     assert_eq!(pick_synthesizer(&["codex"]), Some("codex"));

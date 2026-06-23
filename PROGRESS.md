@@ -78,3 +78,12 @@ Headless yapılamayan (kullanıcı): canlı GUI tıklama akışı (vault→index
 - i18n: 'Proje' reframe (Not→Proje/Project) + 30 model/graph anahtarı; EN/TR.
 - **KRİTİK fix:** başlangıçta candle model indirme pencereyi açmıyordu (hang) → default_embedder artık indirmez.
 - Doğrulama: cargo build + 17 test PASS; npm build temiz; .app açılıyor (37 dosyalı proje indexlendi, multi-filetype çalışıyor); /Applications kurulu.
+
+## 🔧 v3 oturumu (BYOK + sağlamlaştırma + sürüm 0.2.0)
+- **API key (BYOK):** `~/.aura/anthropic_api_key` (0600) tek paylaşılan kaynak — hem app hem CLI okur. App: `apikey.rs` + `commands/apikey.rs` (set/clear/status), Settings `api_key_enabled` (default OFF), exec.rs + consensus.rs çocuk sürece `ANTHROPIC_API_KEY` enjekte eder. UI: ModelManager 4. bölüm (password input + maskeli durum + enable toggle), i18n EN/TR. CLI: `aura key set|status|clear` (v0.5.0), `_apply_api_key()` çocuklara aktarır, doctor durum satırı.
+- **`.gitignore` desteği:** indexer denylist'e EK olarak vault kök `.gitignore`'undaki basit dizin/dosya adlarını da dışlar (`gitignore_names`/`is_ignored_path`) → kara-delik klasör koruması güçlendi.
+- **Cache invalidation (doğrulandı + test):** zaten doğru (retrieval-fingerprint cache_key'de + cache_get_valid dep content-hash kontrolü); yeni `tests/cache_invalidation.rs` (3 test) bunu kanıtlıyor. ai.rs'e netleştirici yorum.
+- **Pre-existing kırık testler düzeltildi:** gemini→agy rename'inden kalma `settings_robust` (eksik alanlar), `consensus_degrade` ("gemini"→"agy"), `pty_argv` ("gemini"→"agy"). Artık tam paket yeşil.
+- **Shell-overhead:** zaten çözülmüş (env_resolver OnceLock — login shell oturumda 1 kez) → doküman netleştirildi.
+- Sürüm **0.1.0 → 0.2.0** (tauri.conf + package.json + Cargo.toml).
+- Doğrulama: `cargo test` **63 test / 27 suite PASS, 0 hata**; `npm run build` temiz (tsc 0 hata); CLI py_compile + `aura key` fonksiyonel test (0600 dosya, maskeli durum).

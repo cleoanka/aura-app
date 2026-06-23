@@ -69,6 +69,7 @@ CLIs via `zsh -lc` + `stdin`, spawning a short-lived process per job (no daemon)
 | 🛠️ **Aura Mode** | Run `plan / review / fix / ship` on a project folder from inside the app. **Fix only previews** a diff — it never edits files or commits. |
 | 🏠 **Two local layers** | (a) on-device embeddings for search & cache (candle/e5), (b) **Lane 0** local generation via Ollama (opt-in, off by default). |
 | 🧩 **Agent Manager** | Detect / install / **log in (embedded PTY)** / health / rate-limit for Claude, Antigravity & Codex — right inside the app. |
+| 🔑 **Bring your own key** | Optional **BYOK**: run on your own Anthropic API key instead of a subscription. Stored locally (`~/.aura`, `0600`), shared with the CLI, never uploaded. Off by default. |
 | ✍️ **Editor** | CodeMirror 6 Markdown editor, Obsidian-dark theme, custom icon set. |
 | 🌍 **EN / TR** | Full English & Turkish UI with a live toggle. |
 | 🧰 **Zero-config & robust** | Starts with sensible defaults; a corrupt settings field falls back instead of crashing. |
@@ -212,6 +213,8 @@ Deep dives: **[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)** ·
 - **No shell injection.** Prompts and context are written to `0600` temp files and piped via `stdin`, never interpolated into a shell line.
 - **Fix is read-only.** Aura Mode's *Fix* previews a diff; it never writes files or commits.
 - **Auth stays where it lives.** Claude → macOS Keychain; Antigravity / Codex → their own credential files. AURA never copies or stores tokens.
+- **BYOK is local.** An optional Anthropic API key lives in a `0600` file under `~/.aura` (the same one the CLI uses), is injected only into the agent you run, and is never printed in full or uploaded by AURA.
+- **Indexing skips junk.** `.git`, `node_modules`, `target`, `dist`, … and your vault's own `.gitignore` entries are excluded, so build caches can't bloat the index or leak into context.
 
 <br/>
 

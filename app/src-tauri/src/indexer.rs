@@ -392,10 +392,12 @@ fn project_files(root: &Path) -> Result<Vec<ProjectFile>, String> {
         return Err(format!("vault path is not a directory: {}", root.display()));
     }
 
+    // Built-in denylist + the vault's own top-level .gitignore (simple entries).
+    let extra_ignored = gitignore_names(root);
     let mut files = Vec::new();
     for entry in WalkDir::new(root)
         .into_iter()
-        .filter_entry(|entry| !is_ignored_dir(entry.path()))
+        .filter_entry(|entry| !is_ignored_path(entry.path(), &extra_ignored))
     {
         let entry = entry.map_err(|err| err.to_string())?;
         if entry.file_type().is_file() {
@@ -416,6 +418,45 @@ fn project_files(root: &Path) -> Result<Vec<ProjectFile>, String> {
         }
     }
     Ok(files)
+}
+
+/// Built-in denylist OR a name listed in the vault's `.gitignore`. Applied to
+/// every walked entry — pruning a directory skips its whole subtree, which is
+/// what keeps black-hole folders (node_modules, target, …) out of the index.
+fn is_ignored_path(path: &Path, extra: &HashSet<String>) -> bool {
+    if is_ignored_dir(path) {
+        return true;
+    }
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| extra.contains(name))
+}
+
+/// Read simple entries from the vault's top-level `.gitignore`. Only plain
+/// names (optionally `name/` or `/name`) are honored; glob/path patterns are
+/// left to the built-in denylist so matching stays correct and predictable.
+fn gitignore_names(root: &Path) -> HashSet<String> {
+    let mut names = HashSet::new();
+    let Ok(content) = fs::read_to_string(root.join(".gitignore")) else {
+        return names;
+    };
+    for raw in content.lines() {
+        let line = raw.trim();
+        if line.is_empty() || line.starts_with('#') || line.starts_with('!') {
+            continue;
+        }
+        let name = line.trim_start_matches('/').trim_end_matches('/');
+        if name.is_empty()
+            || name.contains('/')
+            || name.contains('*')
+            || name.contains('?')
+            || name.contains('[')
+        {
+            continue;
+        }
+        names.insert(name.to_string());
+    }
+    names
 }
 
 fn is_ignored_dir(path: &Path) -> bool {

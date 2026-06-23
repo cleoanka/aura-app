@@ -420,6 +420,12 @@ fn spawn_agent(
         .map(Stdio::from)
         .map_err(|err| format!("failed to open prompt file for {}: {err}", agent.name))?;
     let mut command = env_resolver::login_command(agent.program);
+    // BYOK: claude ajanı için kullanıcı API anahtarını (etkinse) enjekte et.
+    if agent.name == "claude" {
+        if let Some(key) = crate::apikey::child_anthropic_key() {
+            command.env("ANTHROPIC_API_KEY", key);
+        }
+    }
     command
         .args(agent.args)
         .stdin(stdin)

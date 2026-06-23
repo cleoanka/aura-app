@@ -11,7 +11,10 @@
 - **Consensus** (default OFF): 3 AI paralel → claude sentezi, graceful degrade.
 - **Lane 0** (default OFF): yerel Ollama üretimi.
 - **UI**: CodeMirror 6 editör, react-force-graph graf, vault explorer, arama/ask/settings panelleri, Obsidian-dark tema, özel ikon.
-- 14 test binary PASS; 0 derleme uyarısı; ~21 commit.
+- **BYOK** (v0.2.0): kendi Anthropic API anahtarınla çalış (app + CLI ortak `~/.aura/anthropic_api_key`, 0600; default OFF).
+- **`.gitignore`-duyarlı indeksleme**: denylist + vault'un kendi `.gitignore`'u → kara-delik klasörler dışlanır.
+- Cache invalidation dosya-hash'leriyle senkron (retrieval-fingerprint + dep content-hash); `tests/cache_invalidation.rs` ile kanıtlı.
+- `cargo test`: **63 test / 27 suite PASS** (gemini→agy rename'inden kalan 3 stale test de düzeltildi); 0 derleme uyarısı.
 
 ## ⚠️ Kullanıcı gerektiren adımlar (headless yapılamaz)
 1. **Canlı GUI QA**: `cd app && npm run tauri dev` ile aç; vault seç → indexle → ara → bir not sor (Ask). Backend komutları derlendi/test edildi ama görsel akışı senin doğrulaman gerekir.

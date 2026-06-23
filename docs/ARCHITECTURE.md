@@ -49,9 +49,11 @@ single source of truth for *which* agent runs and *how* it authenticates.
   group, so no orphaned children survive.
 - **Streaming via `--json-events`.** `aura` emits `start → chunk → done` JSON events; the
   backend forwards them over a Tauri `Channel` so the UI streams tokens live.
-- **`zsh -lc` environment.** Commands run under a login shell so the user's real `PATH`
-  (Homebrew, npm-global, `~/.local/bin`) resolves the four binaries. `env_resolver`
-  normalizes this.
+- **`zsh -lc` environment, captured once.** The login shell is run **a single time** per
+  session (`env_resolver` caches the result in a `OnceLock`); every subsequent agent spawn reuses
+  that snapshot with no shell at all. So the user's real `PATH` (Homebrew, npm-global,
+  `~/.local/bin`) is resolved **without** paying the ~100–300 ms `.zshrc`/`.zprofile` cost on each
+  job — the per-job overhead is just the process spawn.
 
 ```mermaid
 sequenceDiagram
@@ -91,11 +93,32 @@ A single **`aura.sqlite`** holds everything:
 > `rusqlite`/`sqlite-vec`, so the data layer currently uses the **system `libsqlite3` via FFI**.
 > Migrating to `rusqlite` + `sqlite-vec` (real ANN) is tracked tech-debt — see [ROADMAP](ROADMAP.md).
 
+#### Cache invalidation — kept in sync with file hashes
+
+A cached answer is only served while it would still be *produced the same way*. Two layers, both
+keyed on file content, guarantee this (regression-tested in `tests/cache_invalidation.rs`):
+
+1. **Retrieval fingerprint in the cache key.** Every ask re-runs retrieval first; the cache key
+   includes the resulting candidate set (note + heading). If you add a new file that changes what
+   gets retrieved, the fingerprint changes → the key changes → **miss** (a fresh answer). If
+   retrieval is unchanged, the model would see the same context, so a hit is correct.
+2. **Per-dependency content-hash check.** `cache_get_valid` compares each dependency note's stored
+   hash against its *current* hash; an in-place edit (or a deleted/moved chunk) flips the entry to
+   invalid → **miss**. Writes are transactional, so a partial write can never leave a "valid" entry
+   with missing deps.
+
+This is why a busy vault still benefits from the cache: only answers whose actual sources changed
+are recomputed.
+
 ### Indexer
 
 `indexer.rs` walks the vault and builds the graph incrementally:
 
 - **All file types**, not just Markdown — with cross-language edges.
+- **Exclusions**: a built-in denylist (`.git`, `node_modules`, `target`, `dist`, `build`,
+  `.venv`, `__pycache__`, …) **plus the vault's own top-level `.gitignore`** (simple entries) is
+  applied as the walk's `filter_entry`, so black-hole folders are pruned at the subtree root and
+  never bloat the index or trip OOM. Text files are also capped at 1.5 MB.
 - **Links** (`links.rs`): `[[wikilinks]]`, Markdown links, and language imports
   (`py / rs / ts / js / go / c …`) plus generic mentions.
 - **Chunking**: hierarchical, code-aware, with a **content hash** so unchanged files are skipped on re-index.
@@ -178,6 +201,7 @@ dangling), sizes them by degree, and offers global/local scope, BFS depth, searc
 | **Loopback** | Lane 0 only talks to a verified loopback URL — userinfo-bypass (`http://localhost@evil.com`) is rejected (`gen_loopback` test). |
 | **Fix safety** | Aura Mode *Fix* is **dry-run only** — previews a diff, never writes or commits. |
 | **Auth** | Claude → macOS **Keychain**; Antigravity / Codex → their own credential files. AURA never copies tokens. |
+| **BYOK** | Optional Anthropic API key in a `0600` file under `~/.aura` (shared with the CLI). Injected into a child **only** when `api_key_enabled` is on; surfaced masked (`sk-…aB3d`); never logged in full or uploaded. |
 
 **Entitlements (Phase-0 decision):** non-sandboxed **Developer ID + hardened runtime +
 `com.apple.security.inherit`**. No `keychain-access-groups`, no

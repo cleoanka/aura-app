@@ -58,6 +58,7 @@ fn partial_settings_fill_defaults_and_round_trip() {
         },
         semantic_search: false,
         advanced_retrieval: AdvancedRetrievalSettings::default(),
+        ..Settings::default()
     };
     assert_eq!(loaded, expected);
 
