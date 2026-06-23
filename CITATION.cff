@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "Bu yazılımı kullanırsanız lütfen aşağıdaki gibi atıf yapın."
+title: "AURA Desktop"
+abstract: "macOS için AI-native, yerel-öncelikli Markdown ikinci-beyin uygulaması; aura CLI orkestratörünü (Claude ana beyin) saran Tauri v2 + Rust + React masaüstü arayüzü."
+type: software
+authors:
+  - family-names: "Çevik"
+    given-names: "Hikmetullah"
+    alias: "cleoanka"
+repository-code: "https://github.com/cleoanka/aura-app"
+url: "https://github.com/cleoanka/aura-app"
+license: MIT
+version: "0.2.0"
+date-released: "2026-06-23"
+keywords:
+  - "second-brain"
+  - "local-first"
+  - "knowledge-graph"
+  - "RAG"
+  - "tauri"
+  - "rust"
+  - "macos"
