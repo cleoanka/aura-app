@@ -229,6 +229,14 @@ fn migrate(conn: &Connection) -> Result<()> {
             content_hash TEXT NOT NULL
         );
 
+        -- Semantic cache (opt-in): her cache girdisinin SORU embedding'i.
+        -- Lookup: cosine ≥ threshold + (zorunlu) cache_get_valid dep-recheck.
+        CREATE TABLE IF NOT EXISTS cache_query_vec(
+            cache_key TEXT PRIMARY KEY REFERENCES cache(key) ON DELETE CASCADE,
+            embedding BLOB NOT NULL CHECK(length(embedding) = 1536),
+            model_ver TEXT NOT NULL
+        );
+
         CREATE TABLE IF NOT EXISTS links(
             source_path TEXT NOT NULL,
             target_path TEXT NOT NULL,
@@ -1089,6 +1097,60 @@ pub fn cache_put(
     }
 }
 
+/// Semantic cache: bir cache girdisinin SORU embedding'ini sakla (opt-in yol).
+pub fn cache_put_query_vec(
+    conn: &Connection,
+    key: &str,
+    embedding: &[f32],
+    model_ver: &str,
+) -> Result<()> {
+    validate_embedding(embedding)?;
+    let normalized = normalize_embedding(embedding);
+    let blob = f32_blob(&normalized);
+    conn.execute(
+        "INSERT OR REPLACE INTO cache_query_vec(cache_key, embedding, model_ver) VALUES (?1, ?2, ?3)",
+        &[Bind::Text(key), Bind::Blob(&blob), Bind::Text(model_ver)],
+    )?;
+    Ok(())
+}
+
+/// Semantic cache lookup: aynı model_ver içinde cosine en yüksek girdiyi bul;
+/// threshold'u geçiyorsa **ve** dep-hash'leri hâlâ geçerliyse cevabı döndür.
+/// İKİ kapı (threshold + cache_get_valid) anayasa Madde 9'u (sıfır yanlış-cevap) korur.
+pub fn semantic_cache_lookup(
+    conn: &Connection,
+    query_vec: &[f32],
+    model_ver: &str,
+    threshold: f64,
+) -> Result<Option<String>> {
+    validate_embedding(query_vec)?;
+    let query = normalize_embedding(query_vec);
+    let mut best: Option<(String, f32)> = None;
+    conn.query(
+        "SELECT cache_key, embedding FROM cache_query_vec WHERE model_ver = ?1",
+        &[Bind::Text(model_ver)],
+        |statement| {
+            let key = statement.column_text(0)?;
+            let embedding = statement.column_blob(1)?;
+            if let Some(score) = dot_product_blob(&query, embedding) {
+                if best.as_ref().map_or(true, |(_, current)| score > *current) {
+                    best = Some((key, score));
+                }
+            }
+            Ok(())
+        },
+    )?;
+
+    let Some((key, score)) = best else {
+        return Ok(None);
+    };
+    if f64::from(score) < threshold {
+        return Ok(None);
+    }
+    // SAFETY: semantic eşleşme bile olsa dep geçerliliği ZORUNLU.
+    cache_get_valid(conn, &key)
+}
+
 impl Connection {
     /// PERF (codex #5): toplu yazımları TEK transaction'a sar → INSERT başına fsync yerine
     /// tek commit. begin/commit/rollback ile kullanılır (bkz. indexer TxGuard).
@@ -1427,5 +1489,57 @@ mod tests {
         let n = normalize_embedding(&[0.0, 0.0, 0.0]);
         assert_eq!(n[0], 1.0);
         assert!(n[1..].iter().all(|&x| x == 0.0));
+    }
+
+    fn unit_vec(i: usize) -> Vec<f32> {
+        let mut v = vec![0.0_f32; EMBEDDING_DIM];
+        v[i] = 1.0;
+        v
+    }
+
+    #[test]
+    fn semantic_cache_lookup_respects_threshold_model_and_deps() -> Result<()> {
+        let conn = open_in_memory()?;
+        cache_put(&conn, "k1", "answer-1", "m", &[])?;
+        cache_put_query_vec(&conn, "k1", &unit_vec(0), "m")?;
+
+        // aynı vektör → cosine 1.0 ≥ threshold, dep yok → geçerli
+        assert_eq!(
+            semantic_cache_lookup(&conn, &unit_vec(0), "m", 0.9)?,
+            Some("answer-1".to_string())
+        );
+        // ortogonal vektör → cosine 0 < threshold → miss
+        assert_eq!(semantic_cache_lookup(&conn, &unit_vec(1), "m", 0.9)?, None);
+        // farklı model_ver → miss
+        assert_eq!(semantic_cache_lookup(&conn, &unit_vec(0), "other", 0.9)?, None);
+        Ok(())
+    }
+
+    #[test]
+    fn semantic_cache_lookup_revalidates_deps() -> Result<()> {
+        // semantic eşleşse bile kaynak değiştiyse miss (anayasa Madde 9).
+        let conn = open_in_memory()?;
+        upsert_note(&conn, "a.md", "fid", 1, "h1", Some("T"))?;
+        insert_chunk(&conn, "a.md", None, 0, "T", 0, "a.md#0", "body")?;
+        cache_put(
+            &conn,
+            "k1",
+            "answer-1",
+            "m",
+            &[CacheDep {
+                note_path: "a.md".into(),
+                chunk_stable_id: "a.md#0".into(),
+                content_hash: "h1".into(),
+            }],
+        )?;
+        cache_put_query_vec(&conn, "k1", &unit_vec(0), "m")?;
+        assert_eq!(
+            semantic_cache_lookup(&conn, &unit_vec(0), "m", 0.9)?,
+            Some("answer-1".to_string())
+        );
+        // kaynak düzenlendi → semantic eşleşse bile miss
+        upsert_note(&conn, "a.md", "fid", 2, "h2", Some("T"))?;
+        assert_eq!(semantic_cache_lookup(&conn, &unit_vec(0), "m", 0.9)?, None);
+        Ok(())
     }
 }

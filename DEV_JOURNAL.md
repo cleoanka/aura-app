@@ -16,6 +16,11 @@
 
 ## Döngü kayıtları
 
+### 2026-06-23 — Döngü 26 [Kategori C: plan+uygula] (büyük kalem — db katmanı)
+- **Değişiklik:** db `cache_query_vec` tablosu + `cache_put_query_vec` + `semantic_cache_lookup` (cosine≥threshold **VE** cache_get_valid dep-recheck = anayasa Madde 9 emniyeti). +2 deterministik test (threshold/model_ver/dep-revalidation).
+- **Kapılar:** soul_check ✅ · cargo **85 (83→85), 0 fail**.
+- **Karar:** LAND. Sonraki = ai.rs entegrasyonu (default-OFF).
+
 ### 2026-06-23 — Döngü 25 [Kategori C: eval] (büyük kalem — sondan-önce)
 - **Çıktı:** tests/semantic_cache_eval.rs (#[ignore], gerçek e5). **false-positive=0 @ 0.96** → semantic-cache anayasa-güvenli/VIABLE. recall 1/3; ayrım bandı ~0.90 (bulgu). Normal gate'i yavaşlatmaz (ignore).
 - **Kapılar:** soul_check ✅ · cargo --locked **83 koşan, 0 fail** (eval atlandı).
