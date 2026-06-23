@@ -16,6 +16,12 @@
 
 ## Döngü kayıtları
 
+### 2026-06-23 — Döngü 2 [Kategori H: kod sağlığı/doküman]
+- **Seçim:** yeni docs (philosophy/simple/glossary) ve CONTRIBUTING/CHANGELOG README'den keşfedilemiyordu.
+- **Değişiklik (atomik):** README "Deep dives" + yeni "Contributing" satırları → tüm dokümanlar + soul_check linklendi.
+- **Kapılar:** soul_check ✅ · tüm link hedefleri mevcut · kod değişmedi (cargo/vitest etkilenmez).
+- **Karar:** LAND. Rotasyon: sıradaki H olamaz.
+
 ### 2026-06-23 — Döngü 1 [Kategori G: test]
 - **Seçim:** `.gitignore` indeksleme mantığı (`gitignore_names`/`is_ignored_path`/`is_ignored_dir`) testsizdi (IDEAS yüksek-öncelik, düşük risk).
 - **Değişiklik (atomik):** `indexer.rs`'e `#[cfg(test)] mod tests` — denylist, extra-gitignore-set, parser (glob/`!`/path atlanır; `build/`→`build`, `/out`→`out`), dosya-yok durumu. **+4 test.**
