@@ -7,7 +7,7 @@
 
 | Metrik | Değer | Nasıl ölçüldü |
 |---|---|---|
-| Rust testleri | **83 passed, 0 fail** (taban 63 → +20) | `cargo test --locked` |
+| Rust testleri | **85 passed, 0 fail** (taban 63 → +22) | `cargo test --locked` |
 | Frontend testleri | **10 passed** | `npm test` (vitest) |
 | Tip kontrolü | **0 hata** | `npm run build` (tsc) |
 | JS bundle | **7 chunk** (D16 split); en büyük editor 610KB / app index 80KB (önce: tek 1,572KB) | vite build çıktısı |
