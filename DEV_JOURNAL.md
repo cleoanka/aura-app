@@ -16,6 +16,11 @@
 
 ## Döngü kayıtları
 
+### 2026-06-23 — Döngü 18 [Kategori H: doküman]
+- **Değişiklik:** `docs/development.md` (branch modeli + kapılar + 10-adım döngü + süreklilik + sürüm/yayın); README'den linklendi.
+- **Kapılar:** soul_check ✅.
+- **Karar:** LAND.
+
 ### 2026-06-23 — Döngü 17 [Kategori G: test]
 - **Değişiklik:** db `normalize_embedding` testleri — unit-vektör + sıfır-vektör güvenli (NaN yerine [1,0,…]). +2 test. cosine doğruluğu korunuyor.
 - **Kapılar:** soul_check ✅ · cargo **78 (76→78), 0 fail**.
