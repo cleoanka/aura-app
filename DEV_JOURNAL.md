@@ -16,6 +16,11 @@
 
 ## Döngü kayıtları
 
+### 2026-06-23 — Döngü 29 [Kategori K: handoff]
+- **Değişiklik:** STATE_OF_PROJECT.md güncel tally (28 döngü, cargo 85, semantic-cache DONE, sqlite-vec ELENDI+gerekçe, bloklu kalemler).
+- **Kapılar:** soul_check ✅.
+- **Karar:** LAND. Backlog: büyük kalemler bitti/elendi; kalan = harici-bağımlı (notarization/GUI QA) + research (RRF eval).
+
 ### 2026-06-23 — Döngü 28 [Kategori J: spike → ROLLBACK] (büyük kalem — çöpe atıldı)
 - **Deney:** sqlite-vec ANN'i mevcut FFI/sistem-sqlite'a auto_extension ile ekleme spike'ı (crate + vec0 KNN smoke).
 - **Sonuç:** `sqlite3_auto_extension` → **21 (SQLITE_MISUSE)** — macOS sistem libsqlite3 eklenti kaydına izin vermiyor → sqlite-vec bu mimaride ÇALIŞMAZ. Kesin.
