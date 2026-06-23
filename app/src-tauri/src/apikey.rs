@@ -37,11 +37,22 @@ pub fn read_key() -> Option<String> {
     }
 }
 
-pub fn write_key(key: &str) -> Result<(), String> {
+/// Trim + validate a key WITHOUT touching disk (pure → unit-testable). A real key
+/// is a single token; rejecting internal whitespace catches the common paste error
+/// (multi-line paste, `Bearer sk-…`, trailing junk) before it's stored.
+fn validate_key(key: &str) -> Result<&str, String> {
     let key = key.trim();
     if key.is_empty() {
         return Err("API key is empty".to_string());
     }
+    if key.split_whitespace().count() != 1 {
+        return Err("API key must be a single token (no spaces or newlines)".to_string());
+    }
+    Ok(key)
+}
+
+pub fn write_key(key: &str) -> Result<(), String> {
+    let key = validate_key(key)?;
     let dir = aura_home().ok_or_else(|| "could not resolve home directory".to_string())?;
     fs::create_dir_all(&dir).map_err(|err| format!("failed to create {}: {err}", dir.display()))?;
     #[cfg(unix)]
@@ -135,5 +146,23 @@ mod tests {
     fn mask_never_returns_the_full_key() {
         let key = "sk-ant-secret-value-1234";
         assert!(!mask(key).contains("secret"));
+    }
+
+    #[test]
+    fn validate_key_accepts_a_clean_single_token() {
+        assert_eq!(validate_key("  sk-ant-api03-abcd  ").unwrap(), "sk-ant-api03-abcd");
+    }
+
+    #[test]
+    fn validate_key_rejects_empty_and_whitespace_only() {
+        assert!(validate_key("").is_err());
+        assert!(validate_key("   ").is_err());
+    }
+
+    #[test]
+    fn validate_key_rejects_internal_whitespace() {
+        assert!(validate_key("sk-ant foo").is_err()); // accidental space
+        assert!(validate_key("Bearer sk-ant-xyz").is_err()); // pasted prefix
+        assert!(validate_key("sk-ant-1\nsk-ant-2").is_err()); // multi-line paste
     }
 }
