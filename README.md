@@ -75,6 +75,26 @@ CLIs via `zsh -lc` + `stdin`, spawning a short-lived process per job (no daemon)
 
 <br/>
 
+## 💡 Why it pays off — at every level
+
+AURA isn't only for people with a stack of AI subscriptions. It earns its place whether you have
+**none, one, or all three** agents — and the *same install* scales up as you do.
+
+<div align="center">
+<img src="docs/assets/tiers.png" alt="AURA value at four levels: no AI (local second brain), local AI via Ollama, just Claude (large token savings), and the full Claude + Antigravity + Codex stack" width="94%" />
+</div>
+
+- **No AI at all** — AURA is already a first-class local second brain: a knowledge graph built from
+  your `[[wikilinks]]`, hybrid search (keyword **+ on-device** vector embeddings), and a Markdown
+  editor. 100% offline, **$0**, nothing leaves your machine.
+- **Local AI only** — point **Lane 0** at Ollama and query your notes with a model running on your
+  own hardware. Private, offline, no account, no quota.
+- **Just Claude** — where it shines even with a *single* subscription: the pipeline is built to
+  **spend as few tokens as possible** (see below), so one plan goes much, much further.
+- **Full stack** — add Antigravity (research) and Codex (implementation), with consensus on top.
+
+<br/>
+
 ## 🔍 How it works
 
 When you **Ask**, the request flows through a deterministic pipeline before any model is called —
@@ -97,6 +117,36 @@ flowchart LR
     classDef cloud fill:#8f8cf5,stroke:#8f8cf5,color:#0c0b1a;
     classDef ok fill:#4ea1ff,stroke:#4ea1ff,color:#04101f;
 ```
+
+### The token economy — more from the same Claude
+
+Even with only Claude, AURA is designed to **minimize what you spend**. The cheapest path that can
+answer always wins, so most questions never hit a paid model at full price:
+
+<div align="center">
+<img src="docs/assets/savings.png" alt="Token economy: a naïve paste-the-vault-into-chat approach costs ~5× more tokens than AURA's cache + retrieval + lane pipeline, where repeated questions are free" width="94%" />
+</div>
+
+- **Exact-match cache** — ask the same thing twice and the second answer is free and instant (0 tokens).
+- **Hybrid retrieval** — only the *relevant* chunks become context, instead of pasting your whole vault.
+- **Lane routing** — simple asks use the light model; the strong one is reserved for when it's needed, and complex prompts auto-escalate only then.
+- **Plan-first** — read-only **Plan** lets you think before you spend on implementation.
+
+### Aura Mode — plan / review / fix / ship
+
+Beyond Q&A, AURA runs the `aura` engine's workflow modes on a project folder, straight from the app:
+
+<div align="center">
+<img src="docs/assets/modes.png" alt="Aura Mode cards: Plan (read-only, safe default), Review (critiques your git diff), Fix (dry-run preview, never commits), Ship (plan to implement to review)" width="94%" />
+</div>
+
+- **Plan** *(safe default)* — outlines the approach and steps, read-only.
+- **Review** — Claude critiques your current `git diff` — no copy-pasting files into a chat.
+- **Fix** — makes the change in one step; `--dry` previews the patch first, and it **never commits**.
+- **Ship** — plan → implement → review in a single command.
+
+This is why AURA replaces a lot of manual back-and-forth: you describe intent, it does the
+mechanical, token-heavy work, and you stay in control of what actually changes.
 
 **The consensus path** runs three agents concurrently and lets the main brain reconcile them:
 
@@ -220,6 +270,15 @@ Full breakdown in [`PROGRESS.md`](PROGRESS.md); known limits & plans in [`docs/R
 **AURA Desktop**, macOS (Apple Silicon) için **AI-native, yerel-öncelikli Markdown "ikinci beyin"**
 uygulamasıdır — notların cihazdan çıkmaz.
 
+**Her seviyede işe yarar:** *Hiç AI'ın olmasa bile* tam bir yerel ikinci beyin (bilgi grafiği +
+hibrit arama + editör, %100 çevrimdışı, $0). *Sadece yerel AI* ile (Ollama/Lane 0) notlarını
+cihazında sorgularsın. *Sadece Claude'un olsa bile* boru hattı **token tüketimini minimumda
+tutar** (cache → tekrarlar bedava, retrieval → sadece ilgili parçalar, lane → ucuz/güçlü ayrımı,
+plan-önce), yani tek abonelik çok daha uzağa gider. *Üçü birden* varsa araştırma + implementasyon +
+consensus eklenir.
+
+- **Token ekonomisi:** exact-match cache (tekrar = 0 token), sadece ilgili chunk'lar context'e, lane yönlendirme, plan-önce → aynı Claude'dan kat kat fazla iş.
+- **Aura Modu avantajı:** `plan` (salt-okunur, güvenli varsayılan) / `review` (git diff'ini eleştirir, dosya yapıştırma yok) / `fix` (`--dry` önizler, asla commit etmez) / `ship`.
 - **Notlarına sor:** hibrit arama (FTS5 + vektör → RRF) + RAG, **exact-match cache** (sıfır yanlış cevap), streaming yanıt.
 - **Bilgi grafiği:** `[[wikilink]]` + diller-arası import'lardan üretilen, tipe göre renklendirilmiş etkileşimli graf.
 - **Consensus** *(opsiyonel, varsayılan KAPALI):** soru aynı anda Claude + Antigravity + Codex'e sorulur, **Claude sentezler**.
