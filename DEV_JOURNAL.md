@@ -16,6 +16,13 @@
 
 ## Döngü kayıtları
 
+### 2026-06-23 — Döngü 8 [Kategori A: plan+uygula]  (son adım → yeni plan)
+- **Plan (kritik F1'den):** CLI `aura key set`'e app `validate_key` paritesi.
+- **Değişiklik (atomik):** `cmd_key set` tek-token kontrolü ekledi (boşluk/satır → reddet). Kurulu `~/.local/bin/aura` senkronlandı.
+- **Kapılar:** soul_check ✅ · py_compile ✅ · fonksiyonel: "Bearer sk-…" reddedildi (exit 1), temiz key kabul + maskeli durum.
+- **Karar:** LAND.
+- **YENİ PLAN (sonraki tur):** sıradaki sondan-önce=test/kritik/araştırma → son=plan+uygula. Aday backlog (IDEAS): [C] semantic-cache eval fixture · [I] elapsed_ms UI · [D] RRF/graph ağırlık taraması · [J] rusqlite+sqlite-vec. `a1-known-good`'tan devam.
+
 ### 2026-06-23 — Döngü 7 [Kategori D: araştırma/kritik]  (sondan-önceki adım)
 - **Seçim:** eleştirel öz-denetim — cache/BYOK/indexer tasarımı.
 - **Çıktı:** `RESEARCH/2026-06-23-cache-byok-indexer-critique.md` — 5 bulgu + sıradaki deneyler. En somut: **F1 CLI↔app BYOK validation parite boşluğu** (→ Döngü 8'de uygulanacak). F2 vault_epoch ölü (zararsız, bırak). F3 brute-force O(N) (IDEAS J). F4/F5 sağlam/kabul edilen tradeoff.
