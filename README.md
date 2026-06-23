@@ -201,8 +201,15 @@ flowchart TB
   model API directly.
 
 Deep dives: **[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)** ·
+[`docs/philosophy.md`](docs/philosophy.md) (the soul) ·
+[`docs/simple.md`](docs/simple.md) (zero-jargon) ·
+[`docs/glossary.md`](docs/glossary.md) ·
 [`docs/ultraplan-FINAL.md`](docs/ultraplan-FINAL.md) ·
 [`docs/ROADMAP.md`](docs/ROADMAP.md) · [`PROGRESS.md`](PROGRESS.md).
+
+Contributing: **[`CONTRIBUTING.md`](CONTRIBUTING.md)** (constitution + green-gates) ·
+[`CHANGELOG.md`](CHANGELOG.md) · the constitution is enforced by
+[`scripts/soul_check.py`](scripts/soul_check.py) in CI.
 
 <br/>
 
