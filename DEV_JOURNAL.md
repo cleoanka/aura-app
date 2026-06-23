@@ -16,6 +16,12 @@
 
 ## Döngü kayıtları
 
+### 2026-06-23 — Döngü 13 [Kategori J: yetenek — plan+uygula]  (son adım)
+- **Plan:** kullanıcı bir not/klasörü `.gitignore`'a dokunmadan AURA indekslemesinden hariç tutabilsin.
+- **Değişiklik:** `.auraignore` desteği — `gitignore_names` artık `.gitignore` + `.auraignore` birleşimini okur (additive, güvenli). +1 test (union). README/ARCHITECTURE/glossary güncellendi.
+- **Kapılar:** soul_check ✅ · cargo **76 passed (75→76), 0 fail** · regresyon yok.
+- **Karar:** LAND.
+
 ### 2026-06-23 — Döngü 12 [Kategori G: test]
 - **Seçim:** ai.rs lane-seçim/cache mantığı (deep_query, normalize_query, retrieval_fingerprint) testsizdi.
 - **Değişiklik:** ai.rs'e `#[cfg(test)] mod tests` — normalize (whitespace collapse), deep_query (analytical→deep, uzun→deep), retrieval_fingerprint sıralamadan-bağımsız (cache-hit kararlılığı). +3 test.

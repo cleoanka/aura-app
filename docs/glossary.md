@@ -1,7 +1,8 @@
 # Sözlük (glossary)
 
 - **Vault** — notlarının olduğu klasör (düz Markdown/kod dosyaları). AURA'nın kaynağı.
-- **Indexer** — vault'u tarayıp arama/graph için sindiren bileşen; `.gitignore` + denylist ile çöp klasörleri atlar.
+- **Indexer** — vault'u tarayıp arama/graph için sindiren bileşen; denylist + `.gitignore` + `.auraignore` ile çöp/istenmeyen klasörleri atlar.
+- **`.auraignore`** — vault kökünde, AURA'ya özel ignore dosyası: bir dosya/klasörü `.gitignore`'a dokunmadan indekslemeden hariç tutar (basit isim girdileri).
 - **Chunk** — bir dosyanın aranabilir küçük parçası (başlık-hiyerarşisine göre bölünür); her birinin içerik-hash'i vardır.
 - **FTS5** — SQLite'ın tam-metin (kelime) arama motoru.
 - **Embedding** — bir metnin "anlam vektörü"; benzer anlamlılar yakın olur. Model: e5 (candle).

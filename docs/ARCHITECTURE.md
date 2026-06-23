@@ -116,7 +116,8 @@ are recomputed.
 
 - **All file types**, not just Markdown — with cross-language edges.
 - **Exclusions**: a built-in denylist (`.git`, `node_modules`, `target`, `dist`, `build`,
-  `.venv`, `__pycache__`, …) **plus the vault's own top-level `.gitignore`** (simple entries) is
+  `.venv`, `__pycache__`, …) **plus the vault's own top-level `.gitignore` and `.auraignore`**
+  (AURA-specific — exclude files from indexing without touching git; simple name entries) is
   applied as the walk's `filter_entry`, so black-hole folders are pruned at the subtree root and
   never bloat the index or trip OOM. Text files are also capped at 1.5 MB.
 - **Links** (`links.rs`): `[[wikilinks]]`, Markdown links, and language imports

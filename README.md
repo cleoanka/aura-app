@@ -222,7 +222,7 @@ Contributing: **[`CONTRIBUTING.md`](CONTRIBUTING.md)** (constitution + green-gat
 - **Fix is read-only.** Aura Mode's *Fix* previews a diff; it never writes files or commits.
 - **Auth stays where it lives.** Claude → macOS Keychain; Antigravity / Codex → their own credential files. AURA never copies or stores tokens.
 - **BYOK is local.** An optional Anthropic API key lives in a `0600` file under `~/.aura` (the same one the CLI uses), is injected only into the agent you run, and is never printed in full or uploaded by AURA.
-- **Indexing skips junk.** `.git`, `node_modules`, `target`, `dist`, … and your vault's own `.gitignore` entries are excluded, so build caches can't bloat the index or leak into context.
+- **Indexing skips junk.** `.git`, `node_modules`, `target`, `dist`, … plus your vault's own `.gitignore` **and `.auraignore`** entries are excluded, so build caches (and anything you mark private) can't bloat the index or leak into context.
 
 <br/>
 
