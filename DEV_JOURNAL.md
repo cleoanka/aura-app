@@ -16,6 +16,12 @@
 
 ## Döngü kayıtları
 
+### 2026-06-23 — Döngü 9 [Kategori I/F: gözlemlenebilirlik+UI]
+- **Seçim:** elapsed_ms (Döngü 5) backend'de vardı ama UI'da görünmüyordu; pruned da gösterilmiyordu.
+- **Değişiklik (atomik):** VaultExplorer index-stats satırına `· −{pruned}` ve `· {elapsed_ms} ms` (opsiyonel, geriye-uyumlu).
+- **Kapılar:** soul_check ✅ · tsc ✅ · vitest 10/10 · regresyon yok.
+- **Karar:** LAND.
+
 ### 2026-06-23 — Döngü 8 [Kategori A: plan+uygula]  (son adım → yeni plan)
 - **Plan (kritik F1'den):** CLI `aura key set`'e app `validate_key` paritesi.
 - **Değişiklik (atomik):** `cmd_key set` tek-token kontrolü ekledi (boşluk/satır → reddet). Kurulu `~/.local/bin/aura` senkronlandı.
