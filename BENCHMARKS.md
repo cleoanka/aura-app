@@ -7,7 +7,7 @@
 
 | Metrik | Değer | Nasıl ölçüldü |
 |---|---|---|
-| Rust testleri | **75 passed, 0 fail** (taban 63 → +12: indexer D1/D5/D6, apikey D3, ai D12) | `cargo test --locked` |
+| Rust testleri | **76 passed, 0 fail** (taban 63 → +13: indexer D1/D5/D6/D13, apikey D3, ai D12) | `cargo test --locked` |
 | Frontend testleri | **10 passed** | `npm test` (vitest) |
 | Tip kontrolü | **0 hata** | `npm run build` (tsc) |
 | JS bundle | **1,572 KB** (gzip **491 KB**), tek chunk | vite build çıktısı |

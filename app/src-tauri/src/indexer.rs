@@ -437,29 +437,32 @@ fn is_ignored_path(path: &Path, extra: &HashSet<String>) -> bool {
         .is_some_and(|name| extra.contains(name))
 }
 
-/// Read simple entries from the vault's top-level `.gitignore`. Only plain
-/// names (optionally `name/` or `/name`) are honored; glob/path patterns are
-/// left to the built-in denylist so matching stays correct and predictable.
+/// Read simple entries from the vault's top-level `.gitignore` AND `.auraignore`
+/// (AURA-specific: exclude files from indexing without touching git). Only plain
+/// names (optionally `name/` or `/name`) are honored; glob/path patterns are left
+/// to the built-in denylist so matching stays correct and predictable.
 fn gitignore_names(root: &Path) -> HashSet<String> {
     let mut names = HashSet::new();
-    let Ok(content) = fs::read_to_string(root.join(".gitignore")) else {
-        return names;
-    };
-    for raw in content.lines() {
-        let line = raw.trim();
-        if line.is_empty() || line.starts_with('#') || line.starts_with('!') {
+    for file in [".gitignore", ".auraignore"] {
+        let Ok(content) = fs::read_to_string(root.join(file)) else {
             continue;
+        };
+        for raw in content.lines() {
+            let line = raw.trim();
+            if line.is_empty() || line.starts_with('#') || line.starts_with('!') {
+                continue;
+            }
+            let name = line.trim_start_matches('/').trim_end_matches('/');
+            if name.is_empty()
+                || name.contains('/')
+                || name.contains('*')
+                || name.contains('?')
+                || name.contains('[')
+            {
+                continue;
+            }
+            names.insert(name.to_string());
         }
-        let name = line.trim_start_matches('/').trim_end_matches('/');
-        if name.is_empty()
-            || name.contains('/')
-            || name.contains('*')
-            || name.contains('?')
-            || name.contains('[')
-        {
-            continue;
-        }
-        names.insert(name.to_string());
     }
     names
 }
@@ -750,6 +753,19 @@ mod tests {
         assert!(!names.contains("keep"), "! negation atlanmalı");
         assert!(!names.contains("src/generated"), "path atlanmalı");
         assert!(!names.contains(""), "boş/comment satırı yok");
+    }
+
+    #[test]
+    fn auraignore_is_unioned_with_gitignore() {
+        let dir = std::env::temp_dir().join(format!("aura-auraignore-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        std::fs::write(dir.join(".gitignore"), "node_modules\n").expect("gitignore");
+        std::fs::write(dir.join(".auraignore"), "scratch\n# not\nprivate/\n").expect("auraignore");
+        let names = gitignore_names(&dir);
+        let _ = std::fs::remove_dir_all(&dir);
+        assert!(names.contains("node_modules"), ".gitignore girdisi");
+        assert!(names.contains("scratch"), ".auraignore girdisi");
+        assert!(names.contains("private"), ".auraignore trailing-slash");
     }
 
     #[test]
