@@ -16,6 +16,12 @@
 
 ## Döngü kayıtları
 
+### 2026-06-23 — Döngü 16 [Kategori F: optimizasyon — plan+uygula]  (son adım)
+- **Plan (D15'ten):** tek 1.57MB chunk'ı vendor ailelerine böl.
+- **Değişiklik:** vite.config.ts manualChunks (graph/editor/term/markdown/react/vendor). Sonuç: **1.57MB tek chunk → 7 chunk** (max editor 610KB, app index 80KB ayrı). App kodu değişince vendor cache korunur.
+- **Kapılar:** soul_check ✅ · npm run build (tsc+vite) ✅ · vitest 10/10 · regresyon yok.
+- **Karar:** LAND.
+
 ### 2026-06-23 — Döngü 15 [Kategori D: araştırma]  (sondan-önce)
 - **Çıktı:** RESEARCH/2026-06-23-bundle-split.md — tek 1.57MB chunk'ı manualChunks ile vendor ailelerine (react/editor/graph/term/markdown/vendor) bölme planı + doğrulama kapısı.
 - **Kapılar:** soul_check ✅.
