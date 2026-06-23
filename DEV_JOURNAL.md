@@ -16,6 +16,11 @@
 
 ## Döngü kayıtları
 
+### 2026-06-23 — Döngü 19 [Kategori B: robustness]
+- **Değişiklik:** apikey `parse_key_file` (ilk boş-olmayan satır) — dosyaya stray 2. satır/newline girerse key bozulmaz. read_key onu kullanır. +1 test.
+- **Kapılar:** soul_check ✅ · cargo **79 (78→79), 0 fail**.
+- **Karar:** LAND.
+
 ### 2026-06-23 — Döngü 18 [Kategori H: doküman]
 - **Değişiklik:** `docs/development.md` (branch modeli + kapılar + 10-adım döngü + süreklilik + sürüm/yayın); README'den linklendi.
 - **Kapılar:** soul_check ✅.
