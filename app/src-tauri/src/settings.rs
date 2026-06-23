@@ -42,6 +42,11 @@ pub struct Settings {
     pub advanced_retrieval: AdvancedRetrievalSettings,
     #[serde(default = "default_consensus_settings")]
     pub consensus: ConsensusSettings,
+    /// BYOK: when true, the stored Anthropic API key (`~/.aura/anthropic_api_key`)
+    /// is injected into spawned agents as `ANTHROPIC_API_KEY`. Default OFF →
+    /// existing subscription / OAuth auth is used unchanged.
+    #[serde(default)]
+    pub api_key_enabled: bool,
 }
 
 // Consensus zamanlaması — kullanıcı uygulama içinden ayarlar.
@@ -197,6 +202,7 @@ impl Default for Settings {
             semantic_search: false,
             advanced_retrieval: AdvancedRetrievalSettings::default(),
             consensus: default_consensus_settings(),
+            api_key_enabled: false,
         }
     }
 }

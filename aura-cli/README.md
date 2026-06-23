@@ -51,6 +51,8 @@ aura fix "..."  [--dry]          # codex makes the change in one step (--dry pre
 aura ship "..."                  # plan → implement → review, in one command
 aura review                      # claude reviews your current git diff
 aura doctor                      # check the three agents are healthy
+aura key set sk-ant-...          # BYOK: run on your own Anthropic API key
+aura key status | aura key clear # show (masked) / remove the stored key
 aura last  [--open] [--log]      # re-print the previous run
 ```
 
@@ -71,10 +73,28 @@ The desktop app additionally uses the machine-readable surface (`--json-events`,
 
 ---
 
+## BYOK — bring your own API key
+
+By default `aura` runs the `claude` child on your existing subscription / OAuth session. If you'd
+rather pay per token with your own **Anthropic API key**:
+
+```bash
+aura key set sk-ant-...     # stored at ~/.aura/anthropic_api_key (chmod 600)
+aura key status             # shows a masked preview (e.g. sk-…aB3d) — never the full key
+aura key clear              # remove it
+```
+
+When a key is stored (or `ANTHROPIC_API_KEY` is already exported), `aura` exports it so the `claude`
+child inherits it through the login shell. The same file is what **AURA Desktop** reads, so a single
+key drives both. The value is never printed in full and never leaves your machine via `aura`.
+
+---
+
 ## Note
 
-`aura-cli/aura` is the current orchestrator (v0.4.0). Earlier pinned snapshots the app was built
-against live in [`../vendor/`](../vendor) (`aura-0.4.0.py`, `aura-patched.py`).
+`aura-cli/aura` is the current orchestrator (v0.5.0 — adds BYOK `aura key`). Earlier pinned
+snapshots the app was built against live in [`../vendor/`](../vendor) (`aura-0.4.0.py`,
+`aura-patched.py`).
 
 ## License
 

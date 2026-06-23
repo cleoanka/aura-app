@@ -56,6 +56,15 @@ pub async fn ask(
         };
         let deps = cache_deps(&hits);
         let fingerprint = retrieval_fingerprint(&hits);
+        // Cache doğruluğu İKİ katmanlıdır ve dosya hash'leriyle senkrondur:
+        //  1) `fingerprint` = bu sorgunun GÜNCEL retrieval kümesi (note+heading). Vault'a
+        //     ilgili yeni bir dosya eklenip retrieval'a girerse fingerprint → cache_key değişir
+        //     → MISS (taze cevap). Retrieval kümesi değişmiyorsa modele giden bağlam da aynıdır,
+        //     dolayısıyla cache HIT geçerlidir.
+        //  2) `cache_get_valid` her dep'in saklanan content_hash'ini notun GÜNCEL hash'iyle
+        //     karşılaştırır → yerinde düzenleme/silme stale cevabı geçersiz kılar.
+        // `vault_epoch` ek bir global geçersizleştirme kancasıdır (şu an sabit; katman 1+2 zaten
+        // tüm doğruluk durumlarını yakalar — bkz. tests/cache_invalidation.rs).
         let vault_epoch = db::meta_value(indexer.conn(), "vault_epoch")
             .map_err(|err| err.to_string())?
             .unwrap_or_else(|| "0".to_string());

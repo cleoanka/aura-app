@@ -4,10 +4,16 @@ import { useI18n } from "../../i18n";
 import {
   agentDetect,
   agentInstall,
+  apiKeyStatus,
+  clearApiKey,
   embeddingStatus,
+  getSettings,
   ollamaPull,
   ollamaStatus,
   prepareEmbeddingModel,
+  setApiKey,
+  setSettings,
+  type ApiKeyStatus,
   type EmbeddingStatus,
   type OllamaStatus,
 } from "../../lib/ipc";
@@ -231,6 +237,80 @@ export function ModelManager({ onReportChange }: ModelManagerProps) {
       setOllamaError(t("common.error"));
     } finally {
       setPulling(false);
+    }
+  };
+
+  // ---- Section 4: API key (BYOK) ----
+  const [apiStatus, setApiStatus] = useState<ApiKeyStatus | null>(null);
+  const [apiEnabled, setApiEnabled] = useState(false);
+  const [apiInput, setApiInput] = useState("");
+  const [apiBusy, setApiBusy] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
+
+  const refreshApiKey = useCallback(async () => {
+    try {
+      const [status, settings] = await Promise.all([
+        apiKeyStatus(),
+        getSettings(),
+      ]);
+      setApiStatus(status);
+      setApiEnabled(Boolean(settings.api_key_enabled));
+    } catch {
+      setApiStatus(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshApiKey();
+  }, [refreshApiKey]);
+
+  const saveApiKey = async () => {
+    const key = apiInput.trim();
+    if (!key) {
+      return;
+    }
+    setApiBusy(true);
+    setApiError(null);
+    try {
+      const status = await setApiKey(key);
+      setApiStatus(status);
+      setApiEnabled(true);
+      setApiInput("");
+    } catch {
+      setApiError(t("common.error"));
+    } finally {
+      setApiBusy(false);
+    }
+  };
+
+  const removeApiKey = async () => {
+    setApiBusy(true);
+    setApiError(null);
+    try {
+      const status = await clearApiKey();
+      setApiStatus(status);
+      setApiEnabled(false);
+    } catch {
+      setApiError(t("common.error"));
+    } finally {
+      setApiBusy(false);
+    }
+  };
+
+  const toggleApiEnabled = async (next: boolean) => {
+    setApiEnabled(next);
+    setApiError(null);
+    // Guard against rapid re-toggling: the checkbox is disabled while apiBusy,
+    // so the read-modify-write of settings can't race with itself or save/clear.
+    setApiBusy(true);
+    try {
+      const settings = await getSettings();
+      await setSettings({ ...settings, api_key_enabled: next });
+    } catch {
+      setApiError(t("common.error"));
+      setApiEnabled(!next);
+    } finally {
+      setApiBusy(false);
     }
   };
 
@@ -578,6 +658,92 @@ export function ModelManager({ onReportChange }: ModelManagerProps) {
               </div>
             </>
           )}
+        </article>
+      </div>
+
+      {/* Section 4: API key (BYOK) */}
+      <div className="model-section">
+        <div className="model-section-head">
+          <h2>{t("models.apiKey")}</h2>
+        </div>
+
+        <article className="agent-card" style={{ minHeight: 0 }}>
+          <div className="badge-row" style={{ marginTop: 0 }}>
+            <span className={`badge ${apiStatus?.present ? "good" : ""}`}>
+              {apiStatus?.present
+                ? t("models.apiKey.present")
+                : t("models.apiKey.absent")}
+            </span>
+            {apiStatus?.present && apiStatus.masked ? (
+              <span className="badge mono">{apiStatus.masked}</span>
+            ) : null}
+          </div>
+
+          <p className="agent-role" style={{ marginTop: 12 }}>
+            {t("models.apiKey.hint")}
+          </p>
+
+          <div className="input-row" style={{ marginTop: 16 }}>
+            <input
+              className="text-input"
+              disabled={apiBusy}
+              onChange={(event) => setApiInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  void saveApiKey();
+                }
+              }}
+              placeholder={t("models.apiKey.placeholder")}
+              type="password"
+              value={apiInput}
+            />
+            <button
+              className="button primary"
+              disabled={apiBusy || apiInput.trim().length === 0}
+              onClick={() => void saveApiKey()}
+              type="button"
+            >
+              {t("models.apiKey.save")}
+            </button>
+          </div>
+
+          {apiStatus?.present ? (
+            <>
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 12,
+                  marginTop: 16,
+                  color: "var(--text-muted)",
+                  fontSize: 13,
+                  fontWeight: 600,
+                }}
+              >
+                <span>{t("models.apiKey.enabled")}</span>
+                <input
+                  checked={apiEnabled}
+                  disabled={apiBusy}
+                  onChange={(event) => void toggleApiEnabled(event.target.checked)}
+                  style={{ width: 16, height: 16, accentColor: "var(--accent)" }}
+                  type="checkbox"
+                />
+              </label>
+              <div className="card-actions">
+                <button
+                  className="button ghost"
+                  disabled={apiBusy}
+                  onClick={() => void removeApiKey()}
+                  type="button"
+                >
+                  {t("models.apiKey.clear")}
+                </button>
+              </div>
+            </>
+          ) : null}
+
+          {apiError ? <p className="inline-result error">{apiError}</p> : null}
         </article>
       </div>
 

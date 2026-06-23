@@ -216,6 +216,10 @@ async fn run_aura_mode_with_argv(
     if let Some(project_dir) = project_dir.filter(|dir| !dir.trim().is_empty()) {
         command.current_dir(project_dir);
     }
+    // BYOK (aura-mode): API anahtarı etkinse çocuk sürece enjekte et.
+    if let Some(key) = crate::apikey::child_anthropic_key() {
+        command.env("ANTHROPIC_API_KEY", key);
+    }
 
     let mut child = command
         .group_spawn()
@@ -305,6 +309,11 @@ async fn run_aura_with_files(
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .stdin(Stdio::null());
+    // BYOK: kullanıcı API anahtarını etkinleştirdiyse çocuk sürece enjekte et
+    // (aura → claude env üzerinden devralır). Kapalıysa abonelik/OAuth yolu değişmez.
+    if let Some(key) = crate::apikey::child_anthropic_key() {
+        command.env("ANTHROPIC_API_KEY", key);
+    }
 
     let mut child = command
         .group_spawn()

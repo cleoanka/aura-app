@@ -1,5 +1,6 @@
 pub mod agent;
 mod agent_manager;
+pub mod apikey;
 pub mod commands;
 pub mod consensus;
 pub mod db;
@@ -18,11 +19,11 @@ pub mod search;
 pub mod settings;
 
 use commands::{
-    agent_detect, agent_install, agent_test, ask, ask_consensus, cancel_job, chat, embedding_status,
-    get_graph,
-    get_settings, index_vault, list_notes, ollama_pull, ollama_status, pick_vault_folder,
-    prepare_embedding_model, pty_close, pty_open, pty_resize, pty_write, read_note, run_mode,
-    save_note, search_fts, search_hybrid, set_settings, write_note,
+    agent_detect, agent_install, agent_test, api_key_status, ask, ask_consensus, cancel_job, chat,
+    clear_api_key, embedding_status, get_graph, get_settings, index_vault, list_notes, ollama_pull,
+    ollama_status, pick_vault_folder, prepare_embedding_model, pty_close, pty_open, pty_resize,
+    pty_write, read_note, run_mode, save_note, search_fts, search_hybrid, set_api_key, set_settings,
+    write_note,
 };
 use embed::default_embedder;
 use indexer::Indexer;
@@ -113,7 +114,10 @@ pub fn run() {
             pty_open,
             pty_write,
             pty_resize,
-            pty_close
+            pty_close,
+            api_key_status,
+            set_api_key,
+            clear_api_key
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,5 +1,6 @@
 pub mod agents;
 pub mod ai;
+pub mod apikey;
 pub mod index;
 pub mod models;
 pub mod modes;
@@ -9,6 +10,7 @@ pub mod vault;
 
 pub use agents::{agent_detect, agent_install, agent_test};
 pub use ai::{ask, ask_consensus, cancel_job, chat};
+pub use apikey::{api_key_status, clear_api_key, set_api_key};
 pub use index::{get_graph, index_vault, search_fts};
 pub use models::{embedding_status, ollama_pull, ollama_status, prepare_embedding_model};
 pub use modes::run_mode;

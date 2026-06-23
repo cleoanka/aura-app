@@ -1,0 +1,139 @@
+//! BYOK (bring-your-own-key) Anthropic API key storage.
+//!
+//! The key is kept in a single 0600 file at `~/.aura/anthropic_api_key` — the
+//! SAME location the `aura` CLI reads — so one key drives both the desktop app
+//! and the terminal CLI. The app only injects it into child processes when the
+//! user has enabled BYOK in Settings (`api_key_enabled`); otherwise the existing
+//! subscription / OAuth path is used unchanged. The key value is never logged.
+
+use serde::Serialize;
+use std::fs;
+use std::path::{Path, PathBuf};
+
+const KEY_FILE: &str = "anthropic_api_key";
+
+/// Mirror the CLI's home resolution: `$AURA_RUNS_DIR_HOME` if set, else `~/.aura`.
+fn aura_home() -> Option<PathBuf> {
+    if let Ok(custom) = std::env::var("AURA_RUNS_DIR_HOME") {
+        if !custom.trim().is_empty() {
+            return Some(PathBuf::from(custom));
+        }
+    }
+    dirs::home_dir().map(|home| home.join(".aura"))
+}
+
+pub fn key_path() -> Option<PathBuf> {
+    aura_home().map(|dir| dir.join(KEY_FILE))
+}
+
+/// The stored key, trimmed; `None` if absent or empty.
+pub fn read_key() -> Option<String> {
+    let raw = fs::read_to_string(key_path()?).ok()?;
+    let key = raw.trim().to_string();
+    if key.is_empty() {
+        None
+    } else {
+        Some(key)
+    }
+}
+
+pub fn write_key(key: &str) -> Result<(), String> {
+    let key = key.trim();
+    if key.is_empty() {
+        return Err("API key is empty".to_string());
+    }
+    let dir = aura_home().ok_or_else(|| "could not resolve home directory".to_string())?;
+    fs::create_dir_all(&dir).map_err(|err| format!("failed to create {}: {err}", dir.display()))?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = fs::set_permissions(&dir, fs::Permissions::from_mode(0o700));
+    }
+    write_private(&dir.join(KEY_FILE), key)
+}
+
+pub fn clear_key() -> Result<(), String> {
+    let Some(path) = key_path() else {
+        return Ok(());
+    };
+    match fs::remove_file(&path) {
+        Ok(()) => Ok(()),
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(err) => Err(format!("failed to remove API key: {err}")),
+    }
+}
+
+#[derive(Serialize)]
+pub struct ApiKeyStatus {
+    pub present: bool,
+    /// A masked preview (e.g. `sk-…aB3d`) — never the full key.
+    pub masked: Option<String>,
+}
+
+pub fn status() -> ApiKeyStatus {
+    match read_key() {
+        Some(key) => ApiKeyStatus {
+            present: true,
+            masked: Some(mask(&key)),
+        },
+        None => ApiKeyStatus {
+            present: false,
+            masked: None,
+        },
+    }
+}
+
+/// The key to inject into spawned children — only when the user enabled BYOK
+/// AND a key is stored. `None` otherwise (default subscription / OAuth path).
+pub fn child_anthropic_key() -> Option<String> {
+    if crate::settings::load().api_key_enabled {
+        read_key()
+    } else {
+        None
+    }
+}
+
+fn mask(key: &str) -> String {
+    let chars: Vec<char> = key.chars().collect();
+    let n = chars.len();
+    if n <= 8 {
+        return "•".repeat(n.max(1));
+    }
+    let head: String = chars[..3].iter().collect();
+    let tail: String = chars[n - 4..].iter().collect();
+    format!("{head}…{tail}")
+}
+
+fn write_private(path: &Path, content: &str) -> Result<(), String> {
+    use std::io::Write;
+    let mut options = fs::OpenOptions::new();
+    options.write(true).create(true).truncate(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    let mut file = options
+        .open(path)
+        .map_err(|err| format!("failed to write API key: {err}"))?;
+    file.write_all(content.as_bytes())
+        .map_err(|err| format!("failed to write API key: {err}"))?;
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mask_hides_the_middle() {
+        assert_eq!(mask("sk-ant-api03-abcd1234"), "sk-…1234");
+        assert_eq!(mask("short"), "•••••");
+    }
+
+    #[test]
+    fn mask_never_returns_the_full_key() {
+        let key = "sk-ant-secret-value-1234";
+        assert!(!mask(key).contains("secret"));
+    }
+}

@@ -8,10 +8,10 @@ fn claude_login_argv_is_fixed() {
 }
 
 #[test]
-fn gemini_login_argv_is_fixed() {
-    let argv = login_argv("gemini").expect("gemini should be supported");
+fn agy_login_argv_is_fixed() {
+    let argv = login_argv("agy").expect("agy should be supported");
 
-    assert_eq!(argv, vec!["gemini"]);
+    assert_eq!(argv, vec!["agy"]);
 }
 
 #[test]

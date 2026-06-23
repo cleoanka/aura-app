@@ -56,6 +56,36 @@ export type OllamaStatus = {
   models: string[];
 };
 
+export type ApiKeyStatus = {
+  present: boolean;
+  /** Masked preview (e.g. `sk-…aB3d`) — never the full key. */
+  masked: string | null;
+};
+
+export async function apiKeyStatus(): Promise<ApiKeyStatus> {
+  try {
+    return await invoke<ApiKeyStatus>("api_key_status");
+  } catch (error) {
+    throw readableError(error);
+  }
+}
+
+export async function setApiKey(key: string): Promise<ApiKeyStatus> {
+  try {
+    return await invoke<ApiKeyStatus>("set_api_key", { key });
+  } catch (error) {
+    throw readableError(error);
+  }
+}
+
+export async function clearApiKey(): Promise<ApiKeyStatus> {
+  try {
+    return await invoke<ApiKeyStatus>("clear_api_key");
+  } catch (error) {
+    throw readableError(error);
+  }
+}
+
 export async function embeddingStatus(): Promise<EmbeddingStatus> {
   try {
     return await invoke<EmbeddingStatus>("embedding_status");

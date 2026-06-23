@@ -30,8 +30,12 @@ AURA_HOME = Path(os.environ.get("AURA_RUNS_DIR_HOME", Path.home() / ".aura"))
 RUNS_DIR = Path(os.environ.get("AURA_RUNS_DIR", AURA_HOME / "runs"))
 LATEST = RUNS_DIR / "latest"
 INIT_SENTINEL = AURA_HOME / ".initialized"
+# BYOK: optional Anthropic API key (shared with AURA Desktop). When set it is
+# exported as ANTHROPIC_API_KEY so the claude child runs on your own key instead
+# of the subscription/OAuth session. Stored 0600; never printed in full.
+API_KEY_FILE = AURA_HOME / "anthropic_api_key"
 
-VERSION = "0.4.0"
+VERSION = "0.5.0"
 VERBS = ["plan", "review", "fix", "ship", "doctor", "last"]
 
 # ---------------------------------------------------------------- colors
@@ -522,6 +526,76 @@ def _doctor_agent_json(agent: str) -> dict:
     }
 
 
+# ============================================================ BYOK api key
+def _read_api_key() -> str | None:
+    """Resolve a BYOK Anthropic key: $ANTHROPIC_API_KEY first, then the stored
+    file. Returns None if neither is set."""
+    env = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+    if env:
+        return env
+    try:
+        key = API_KEY_FILE.read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    return key or None
+
+
+def _apply_api_key() -> None:
+    """If a key file exists and the env var isn't already set, export it so every
+    child agent (claude) inherits it through the login shell."""
+    if os.environ.get("ANTHROPIC_API_KEY", "").strip():
+        return
+    try:
+        key = API_KEY_FILE.read_text(encoding="utf-8").strip()
+    except OSError:
+        return
+    if key:
+        os.environ["ANTHROPIC_API_KEY"] = key
+
+
+def _mask_key(key: str) -> str:
+    return (key[:3] + "…" + key[-4:]) if len(key) > 8 else "•" * max(1, len(key))
+
+
+def cmd_key(args: list[str]) -> int:
+    """Manage the BYOK Anthropic API key (shared with AURA Desktop)."""
+    sub = args[0] if args else "status"
+    if sub in ("status", "show", "-h", "--help"):
+        key = _read_api_key()
+        if key:
+            src = "env" if os.environ.get("ANTHROPIC_API_KEY", "").strip() else str(API_KEY_FILE)
+            print(GREEN("  anthropic api key: present") + DIM(f"   {_mask_key(key)}  ({src})"))
+        else:
+            print(YELLOW("  anthropic api key: absent") +
+                  DIM("   set one with: ") + "aura key set sk-ant-...")
+        return 0
+    if sub == "set":
+        value = (args[1] if len(args) > 1 else "").strip()
+        if not value:
+            return die("argument error", "usage: aura key set <KEY>", "aura key set sk-ant-...")
+        AURA_HOME.mkdir(parents=True, exist_ok=True)
+        try:
+            os.chmod(AURA_HOME, 0o700)
+        except OSError:
+            pass
+        API_KEY_FILE.write_text(value + "\n", encoding="utf-8")
+        try:
+            os.chmod(API_KEY_FILE, 0o600)
+        except OSError:
+            pass
+        print(GREEN("  saved.") + DIM(f"   {_mask_key(value)} → {API_KEY_FILE}"))
+        return 0
+    if sub in ("clear", "rm", "delete", "unset"):
+        try:
+            API_KEY_FILE.unlink()
+            print(GREEN("  cleared."))
+        except FileNotFoundError:
+            print(DIM("  no key was stored."))
+        return 0
+    return die("argument error", f"unknown: aura key {sub}",
+               "aura key [status|set <KEY>|clear]")
+
+
 # ============================================================ commands
 def cmd_doctor(opts: dict) -> int:
     if opts.get("doctor_json"):
@@ -529,6 +603,10 @@ def cmd_doctor(opts: dict) -> int:
     ensure_home()
     print(BOLD("aura doctor") + DIM("  — checking the three agents via login shell"))
     print(DIM(f"  home: {AURA_HOME}   shell: /bin/zsh -lc"))
+    if _read_api_key():
+        print(DIM("  anthropic api key: ") + GREEN("present (BYOK)"))
+    else:
+        print(DIM("  anthropic api key: absent (subscription / OAuth)"))
     print()
     run_dir = new_run_dir("doctor")
     checks = [
@@ -1301,6 +1379,7 @@ def help_text() -> int:
         ("review", "claude critiques your current git diff"),
         ("fix --apply", "apply the patch from your last --dry preview"),
         ("doctor", "check the three agents are healthy"),
+        ("key set <KEY>", "use your own Anthropic API key (BYOK) · key status / key clear"),
         ("last", "re-print the previous run (--open, --log)"),
     ]
     for a, b in rows:
@@ -1432,6 +1511,11 @@ def parse(argv: list[str]) -> dict:
 
 
 def main(argv: list[str]) -> int:
+    # BYOK key management runs before anything else (no LLM call).
+    if argv and argv[0] == "key":
+        return cmd_key(argv[1:])
+    # Export the stored API key (if any) so every child agent inherits it.
+    _apply_api_key()
     opts = parse(argv)
     if opts["version"]:
         print(f"aura {VERSION}")
