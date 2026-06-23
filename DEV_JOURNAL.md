@@ -16,6 +16,14 @@
 
 ## Döngü kayıtları
 
+### 2026-06-23 — Döngü 30 [Kategori J: plan+uygula] (BÜYÜK — bundled-sqlite migration)
+- **Plan:** sistem-sqlite (extension'a MISUSE) → rusqlite **bundled** sqlite; el-yazımı FFI mantığını AYNEN koru (test oracle'ı doğrulasın).
+- **Değişiklik (hibrit, düşük-risk):** `#[link(name=sqlite3)]` kaldırıldı → semboller libsqlite3-sys'ten; Connection rusqlite::Connection sarar, FFI fonksiyonları `raw()=inner.handle()` üzerinden çalışır; open/open_in_memory rusqlite ile + `register_sqlite_vec` (auto_extension, Once). Tüm SQL/bind/query mantığı değişmedi.
+- **TUZAK & DÜZELTME:** rusqlite 0.40→libsqlite3-sys 0.38 `cfg_select!` kullanıyor (rustc 1.93'te unstable) → **rusqlite 0.32 (libsqlite3-sys 0.30)**'a indirildi. handle() 0.32'de unsafe → unsafe blok.
+- **Kanıt:** **85 test davranış-eşdeğer geçti** + **vec0 KNN smoke GEÇTİ** (sqlite-vec artık bundled ile çalışıyor; sistem sqlite MISUSE'undan çıkıldı). cargo **86**.
+- **Kapılar:** soul_check ✅ · cargo 86, 0 fail.
+- **Karar:** LAND. Sonraki = vec_search'i vec0 ANN'e bağla (Döngü 31).
+
 ### 2026-06-23 — Döngü 29 [Kategori K: handoff]
 - **Değişiklik:** STATE_OF_PROJECT.md güncel tally (28 döngü, cargo 85, semantic-cache DONE, sqlite-vec ELENDI+gerekçe, bloklu kalemler).
 - **Kapılar:** soul_check ✅.
