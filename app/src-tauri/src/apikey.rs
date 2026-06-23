@@ -26,15 +26,21 @@ pub fn key_path() -> Option<PathBuf> {
     aura_home().map(|dir| dir.join(KEY_FILE))
 }
 
-/// The stored key, trimmed; `None` if absent or empty.
+/// Parse the key-file contents: the first non-empty, trimmed line. Robust to a
+/// stray trailing line or accidental newline (which `trim()` alone would keep,
+/// corrupting the key). Pure → unit-testable.
+fn parse_key_file(contents: &str) -> Option<String> {
+    contents
+        .lines()
+        .map(str::trim)
+        .find(|line| !line.is_empty())
+        .map(str::to_string)
+}
+
+/// The stored key; `None` if absent or empty.
 pub fn read_key() -> Option<String> {
     let raw = fs::read_to_string(key_path()?).ok()?;
-    let key = raw.trim().to_string();
-    if key.is_empty() {
-        None
-    } else {
-        Some(key)
-    }
+    parse_key_file(&raw)
 }
 
 /// Trim + validate a key WITHOUT touching disk (pure → unit-testable). A real key
@@ -164,5 +170,13 @@ mod tests {
         assert!(validate_key("sk-ant foo").is_err()); // accidental space
         assert!(validate_key("Bearer sk-ant-xyz").is_err()); // pasted prefix
         assert!(validate_key("sk-ant-1\nsk-ant-2").is_err()); // multi-line paste
+    }
+
+    #[test]
+    fn parse_key_file_takes_first_nonempty_line() {
+        assert_eq!(parse_key_file("sk-ant-x\n").as_deref(), Some("sk-ant-x"));
+        assert_eq!(parse_key_file("\n  sk-ant-y  \n# note\n").as_deref(), Some("sk-ant-y"));
+        assert_eq!(parse_key_file("\n\n"), None);
+        assert_eq!(parse_key_file(""), None);
     }
 }
