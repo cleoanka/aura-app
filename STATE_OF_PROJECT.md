@@ -12,7 +12,7 @@ Anlık durum (final değil).
 ## Metrikler (taban v0.2.0 → şimdi)
 | | taban | a1 |
 |---|---|---|
-| Rust testleri | 63 | **85** (+22) · ayrıca `#[ignore]` gerçek-e5 eval |
+| Rust testleri | 63 | **87** (+24) · ayrıca `#[ignore]` gerçek-e5 eval |
 | Frontend (vitest) | 10 | 10 |
 | tsc / soul_check | — | 0 hata / ✅ (CI'de) |
 | JS bundle | tek 1.57MB | **7 chunk** (max editor 610KB) |
@@ -27,8 +27,9 @@ Anlık durum (final değil).
 - **[G] +22 test:** indexer (.gitignore/.auraignore/snippet/IndexStats), ai (deep_query/normalize/fingerprint), apikey, db (normalize_embedding/semantic-cache), markdown (chunk_stable_id), cache (edit/no-op/missing).
 - **Altyapı:** `soul_check.py`+CI, DEV_JOURNAL/IDEAS/BENCHMARKS/RESEARCH, CONTRIBUTING/CHANGELOG/CITATION, docs/{philosophy,simple,glossary,development}, CI rozeti.
 
-## Test edilip ELENEN (yaramayan → çöpe)
-- **[J] sqlite-vec ANN:** spike yapıldı → `sqlite3_auto_extension` **SQLITE_MISUSE(21)**; macOS sistem libsqlite3 eklenti kaydına izin vermiyor → bu mimaride çalışmaz. Rollback edildi. Yalnız **bundled-sqlite (rusqlite) migration** ile mümkün (büyük, anayasa-kritik, insan-onaylı ayrı iş). Bkz. `RESEARCH/2026-06-23-sqlite-vec-spike.md`. (<~50k chunk'ta brute-force yeterli.)
+## [J] sqlite-vec ANN — TAMAMLANDI (D28 spike → D30-31)
+- Spike sistem-sqlite'ta SQLITE_MISUSE verdi → veri katmanı **rusqlite bundled sqlite**'a taşındı (hibrit: FFI mantığı korundu, Connection rusqlite'ı sarar). rusqlite 0.32 (0.40→libsqlite3-sys 0.38 `cfg_select` rustc1.93'te unstable'dı).
+- `vec_search` artık **sqlite-vec vec0 KNN** (cosine); vec_ann türetilmiş index (self-heal backfill + stale-filter + brute-force fallback). **87 test davranış-eşdeğer.** Bkz. `RESEARCH/2026-06-23-sqlite-vec-spike.md`.
 
 ## Bloklu / harici bağımlılık
 - **Notarization:** Apple Developer ID gerektirir (runtime değil; senin hesabın).
