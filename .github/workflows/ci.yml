@@ -43,5 +43,9 @@ jobs:
       - name: Frontend typecheck + build
         run: npm run build
 
-      - name: Bundle .app + .dmg (release)
-        run: npm run tauri build
+      - name: Bundle .app (release)
+        # Build only the .app on CI. The .dmg step (bundle_dmg.sh) drives Finder via
+        # AppleScript to lay out the disk-image window, which needs a GUI session and
+        # fails on headless runners. This still verifies the full release compile +
+        # .app bundling; the signed .dmg is produced locally for GitHub Releases.
+        run: npm run tauri build -- --bundles app
