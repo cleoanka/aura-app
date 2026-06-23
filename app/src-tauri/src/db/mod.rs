@@ -184,13 +184,25 @@ fn migrate(conn: &Connection) -> Result<()> {
             text TEXT NOT NULL
         );
 
-        -- sqlite-vec fallback: brute-force cosine.
-        -- The sandbox cannot fetch the sqlite-vec crate, so this table keeps the
-        -- requested vec_chunks surface while storing 384-dim float32 vectors as BLOBs.
+        -- vec_chunks = KAYNAK-DOĞRULUK (chunks'a FK + ON DELETE CASCADE → cascade-temiz).
+        -- 384-dim float32 vektörler 1536-byte BLOB olarak.
         CREATE TABLE IF NOT EXISTS vec_chunks(
             chunk_id INTEGER PRIMARY KEY REFERENCES chunks(id) ON DELETE CASCADE,
             embedding BLOB NOT NULL CHECK(length(embedding) = 1536)
         );
+
+        -- sqlite-vec ANN index'i (cosine). TÜRETİLMİŞ: vec_chunks'tan beslenir.
+        -- Eksikler aşağıdaki backfill ile her açılışta iyileşir; silinmiş (stale)
+        -- satırlar arama-anında vec_chunks join'iyle elenir (vtab cascade yapamaz).
+        CREATE VIRTUAL TABLE IF NOT EXISTS vec_ann USING vec0(
+            embedding float[384] distance_metric=cosine
+        );
+
+        -- Self-heal backfill: vec_chunks'ta olup vec_ann'de olmayanları ekle
+        -- (mevcut DB'ler + drift için; senkronken 0 satır → ucuz).
+        INSERT INTO vec_ann(rowid, embedding)
+            SELECT chunk_id, embedding FROM vec_chunks
+            WHERE chunk_id NOT IN (SELECT rowid FROM vec_ann);
 
         CREATE VIRTUAL TABLE IF NOT EXISTS fts_chunks USING fts5(
             text,
@@ -445,6 +457,12 @@ pub fn insert_embedding(conn: &Connection, chunk_id: i64, embedding: &[f32]) -> 
         "INSERT OR REPLACE INTO vec_chunks(chunk_id, embedding) VALUES (?1, ?2)",
         &[Bind::I64(chunk_id), Bind::Blob(&embedding)],
     )?;
+    // ANN index'i senkron tut (vec0 OR REPLACE desteklemez → önce sil, sonra ekle).
+    let _ = conn.execute("DELETE FROM vec_ann WHERE rowid = ?1", &[Bind::I64(chunk_id)]);
+    conn.execute(
+        "INSERT INTO vec_ann(rowid, embedding) VALUES (?1, ?2)",
+        &[Bind::I64(chunk_id), Bind::Blob(&embedding)],
+    )?;
     Ok(())
 }
 
@@ -453,19 +471,72 @@ pub fn vec_search(conn: &Connection, query_vec: &[f32], k: usize) -> Result<Vec<
     if k == 0 {
         return Ok(Vec::new());
     }
-    let query_vec = normalize_embedding(query_vec);
-    // Bellek koruması (audit #2): k yanlış-yapılandırma ile dev olabilir → eager kapasiteyi sınırla
-    // (vec zaten gerektikçe büyür; sonuç değişmez).
-    let mut best: Vec<(i64, f32)> = Vec::with_capacity(k.min(4096));
+    let normalized = normalize_embedding(query_vec);
+    // Önce sqlite-vec ANN (vec0). Boş/hata → brute-force fallback (davranış korunur).
+    match vec_search_ann(conn, &normalized, k) {
+        Ok(hits) if !hits.is_empty() => Ok(hits),
+        _ => vec_search_brute(conn, &normalized, k),
+    }
+}
 
+/// sqlite-vec vec0 KNN (cosine). Stale (cascade-silinmiş) satırları absorbe etmek
+/// için fazladan çeker ve hâlâ var olan chunk'lara (vec_chunks) filtreler.
+fn vec_search_ann(conn: &Connection, normalized: &[f32], k: usize) -> Result<Vec<(i64, f64)>> {
+    let blob = f32_blob(normalized);
+    let overfetch = k.saturating_mul(4).min(4096);
+    // overfetch hesaplı sabit int (enjeksiyon yok); sqlite-vec KNN literal LIMIT bekler.
+    let sql = format!(
+        "SELECT rowid, distance FROM vec_ann WHERE embedding MATCH ?1 ORDER BY distance LIMIT {overfetch}"
+    );
+    let mut cand: Vec<(i64, f64)> = Vec::new();
+    conn.query(&sql, &[Bind::Blob(&blob)], |statement| {
+        let id = unsafe { sqlite3_column_int64(statement.raw, 0) };
+        let dist = unsafe { sqlite3_column_double(statement.raw, 1) };
+        cand.push((id, 1.0 - dist)); // cosine distance → similarity
+        Ok(())
+    })?;
+    if cand.is_empty() {
+        return Ok(Vec::new());
+    }
+    let ids: Vec<i64> = cand.iter().map(|(id, _)| *id).collect();
+    let live = live_chunk_ids(conn, &ids)?;
+    let mut out: Vec<(i64, f64)> = cand
+        .into_iter()
+        .filter(|(id, _)| live.contains(id))
+        .collect();
+    out.truncate(k);
+    Ok(out)
+}
+
+/// Verilen chunk_id'lerden vec_chunks'ta (cascade-temiz kaynak) HÂLÂ var olanlar.
+fn live_chunk_ids(conn: &Connection, ids: &[i64]) -> Result<std::collections::HashSet<i64>> {
+    let mut live = std::collections::HashSet::new();
+    if ids.is_empty() {
+        return Ok(live);
+    }
+    let placeholders = (1..=ids.len())
+        .map(|i| format!("?{i}"))
+        .collect::<Vec<_>>()
+        .join(",");
+    let sql = format!("SELECT chunk_id FROM vec_chunks WHERE chunk_id IN ({placeholders})");
+    let binds: Vec<Bind> = ids.iter().map(|id| Bind::I64(*id)).collect();
+    conn.query(&sql, &binds, |statement| {
+        live.insert(unsafe { sqlite3_column_int64(statement.raw, 0) });
+        Ok(())
+    })?;
+    Ok(live)
+}
+
+/// Eski güvenilir yol: vec_chunks üzerinde brute-force cosine (partial top-k).
+fn vec_search_brute(conn: &Connection, query_vec: &[f32], k: usize) -> Result<Vec<(i64, f64)>> {
+    let mut best: Vec<(i64, f32)> = Vec::with_capacity(k.min(4096));
     conn.query(
         "SELECT chunk_id, embedding FROM vec_chunks",
         &[],
         |statement| {
             let chunk_id = unsafe { sqlite3_column_int64(statement.raw, 0) };
             let embedding = statement.column_blob(1)?;
-            // Sıfır-alloc dot; bozuk uzunluktaki satırı atla.
-            let Some(score) = dot_product_blob(&query_vec, embedding) else {
+            let Some(score) = dot_product_blob(query_vec, embedding) else {
                 return Ok(());
             };
             if best.len() < k {
@@ -482,13 +553,7 @@ pub fn vec_search(conn: &Connection, query_vec: &[f32], k: usize) -> Result<Vec<
             Ok(())
         },
     )?;
-
-    best.sort_by(|left, right| {
-        right
-            .1
-            .total_cmp(&left.1)
-            .then_with(|| left.0.cmp(&right.0))
-    });
+    best.sort_by(|left, right| right.1.total_cmp(&left.1).then_with(|| left.0.cmp(&right.0)));
     Ok(best
         .into_iter()
         .map(|(chunk_id, score)| (chunk_id, f64::from(score)))
@@ -819,6 +884,7 @@ pub fn delete_embedding(conn: &Connection, chunk_id: i64) -> Result<()> {
         "DELETE FROM vec_chunks WHERE chunk_id = ?1",
         &[Bind::I64(chunk_id)],
     )?;
+    let _ = conn.execute("DELETE FROM vec_ann WHERE rowid = ?1", &[Bind::I64(chunk_id)]);
     Ok(())
 }
 
@@ -1511,6 +1577,30 @@ mod tests {
             },
         )?;
         assert_eq!(got, Some(1), "vec0 KNN en yakın rowid=1");
+        Ok(())
+    }
+
+    #[test]
+    fn vec_search_uses_ann_and_returns_nearest() -> Result<()> {
+        let conn = open_in_memory()?;
+        upsert_note(&conn, "a.md", "f", 1, "h", Some("T"))?;
+        let c1 = insert_chunk(&conn, "a.md", None, 0, "T", 0, "a#0", "x")?;
+        let c2 = insert_chunk(&conn, "a.md", None, 0, "T", 1, "a#1", "y")?;
+        insert_embedding(&conn, c1, &unit_vec(0))?; // [1,0,0,…]
+        insert_embedding(&conn, c2, &unit_vec(1))?; // [0,1,0,…]
+
+        let mut q = vec![0.0_f32; EMBEDDING_DIM];
+        q[0] = 0.9;
+        q[1] = 0.1;
+        let hits = vec_search(&conn, &q, 2)?;
+        assert_eq!(hits.first().map(|(id, _)| *id), Some(c1), "ANN en yakın c1");
+        // ANN ile brute-force aynı en-yakını vermeli (eşdeğerlik)
+        let brute = vec_search_brute(&conn, &normalize_embedding(&q), 2)?;
+        assert_eq!(
+            hits.first().map(|(id, _)| *id),
+            brute.first().map(|(id, _)| *id),
+            "ANN ↔ brute en-yakın uyumu"
+        );
         Ok(())
     }
 

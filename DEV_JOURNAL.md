@@ -16,6 +16,11 @@
 
 ## Döngü kayıtları
 
+### 2026-06-23 — Döngü 31 [Kategori J: plan+uygula] (BÜYÜK — vec0 ANN entegrasyonu) → [J] TAM BİTTİ
+- **Değişiklik:** vec_search artık **sqlite-vec vec0 KNN** (cosine) kullanıyor; brute-force fallback korunuyor. vec_ann TÜRETİLMİŞ index: migrate'te **self-heal backfill** (vec_chunks'tan eksikleri ekler) + insert/delete_embedding senkron + arama-anında **stale-filter** (vec_chunks=cascade-temiz kaynak). +2 test (vec0 smoke, ANN↔brute eşdeğerlik).
+- **Kapılar:** soul_check ✅ · cargo **87 (0 fail)** — entegrasyon testleri (db_smoke vector, search_rrf, advanced_realdb) vec0 yolunda geçti → davranış-eşdeğer.
+- **Karar:** LAND. [J] (bundled-sqlite + sqlite-vec ANN) TAMAMLANDI. Brute-force <~50k için fallback; ANN büyük vault'ta ölçeklenir.
+
 ### 2026-06-23 — Döngü 30 [Kategori J: plan+uygula] (BÜYÜK — bundled-sqlite migration)
 - **Plan:** sistem-sqlite (extension'a MISUSE) → rusqlite **bundled** sqlite; el-yazımı FFI mantığını AYNEN koru (test oracle'ı doğrulasın).
 - **Değişiklik (hibrit, düşük-risk):** `#[link(name=sqlite3)]` kaldırıldı → semboller libsqlite3-sys'ten; Connection rusqlite::Connection sarar, FFI fonksiyonları `raw()=inner.handle()` üzerinden çalışır; open/open_in_memory rusqlite ile + `register_sqlite_vec` (auto_extension, Once). Tüm SQL/bind/query mantığı değişmedi.
