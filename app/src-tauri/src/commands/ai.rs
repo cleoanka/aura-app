@@ -362,3 +362,40 @@ fn hex_digest(bytes: &[u8]) -> String {
     }
     value
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{deep_query, normalize_query, retrieval_fingerprint};
+    use crate::search::SearchHit;
+
+    #[test]
+    fn normalize_query_collapses_whitespace() {
+        assert_eq!(normalize_query("  what   is\n alpha?  "), "what is alpha?");
+        assert_eq!(normalize_query("single"), "single");
+    }
+
+    #[test]
+    fn deep_query_routes_analytical_prompts_to_deep() {
+        for q in ["explain the architecture", "why is this slow", "compare A and B"] {
+            assert!(deep_query(q), "{q:?} deep olmalı");
+        }
+        assert!(deep_query(&"x".repeat(300)), "uzun sorgu deep");
+        assert!(!deep_query("note title"), "kısa/anahtarsız sorgu fast");
+    }
+
+    #[test]
+    fn retrieval_fingerprint_is_order_independent() {
+        let hit = |note: &str, head: &str| SearchHit {
+            note_path: note.into(),
+            heading_path: head.into(),
+            chunk_stable_id: format!("{note}#{head}"),
+            content_hash: "h".into(),
+            snippet: String::new(),
+            score: 1.0,
+            via: "hybrid".into(),
+        };
+        let a = retrieval_fingerprint(&[hit("a.md", "A"), hit("b.md", "B")]);
+        let b = retrieval_fingerprint(&[hit("b.md", "B"), hit("a.md", "A")]);
+        assert_eq!(a, b, "fingerprint sıralamadan bağımsız olmalı (cache hit kararlılığı)");
+    }
+}
