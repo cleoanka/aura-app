@@ -16,6 +16,12 @@
 
 ## Döngü kayıtları
 
+### 2026-06-23 — Döngü 24 [Kategori B: stress] (büyük kalem)
+- **Değişiklik:** tests/stress_reindex.rs — 6 thread × 10 iter eşzamanlı reindex↔search (Mutex/db yolu). +1 test.
+- **TUZAK & DÜZELTME:** ilk sürüm `default_embedder()` cache'li candle modelini her query'de çalıştırıp 60s+ TAKILDI → süreç öldürüldü, deterministik `StubEmbedder`'a çevrildi (1.75s). Kapı disiplini: yaramayan sürüm atıldı.
+- **Kapılar:** soul_check ✅ · cargo **83 (82→83), 0 fail**, takılma yok.
+- **Karar:** LAND.
+
 ### 2026-06-23 — Döngü 23 [Kategori K: repo/handoff]
 - **Değişiklik:** STATE_OF_PROJECT.md — insan-incelemesi devir dokümanı (metrikler taban→şimdi, ne yapıldı, neye bakmalı, runtime gerektiren kalanlar). Final değil, anlık durum.
 - **Kapılar:** soul_check ✅.
