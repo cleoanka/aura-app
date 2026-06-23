@@ -573,6 +573,11 @@ def cmd_key(args: list[str]) -> int:
         value = (args[1] if len(args) > 1 else "").strip()
         if not value:
             return die("argument error", "usage: aura key set <KEY>", "aura key set sk-ant-...")
+        # App'in apikey::validate_key'iyle parite: gerçek anahtar tek token'dır.
+        # İçinde boşluk/satır olan yanlış-yapıştırmayı (çok-satır, "Bearer sk-…") reddet.
+        if len(value.split()) != 1:
+            return die("argument error", "API key tek token olmalı (boşluk/satır yok)",
+                       "aura key set sk-ant-...")
         AURA_HOME.mkdir(parents=True, exist_ok=True)
         try:
             os.chmod(AURA_HOME, 0o700)
