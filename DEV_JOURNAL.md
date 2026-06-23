@@ -16,6 +16,11 @@
 
 ## Döngü kayıtları
 
+### 2026-06-23 — Döngü 25 [Kategori C: eval] (büyük kalem — sondan-önce)
+- **Çıktı:** tests/semantic_cache_eval.rs (#[ignore], gerçek e5). **false-positive=0 @ 0.96** → semantic-cache anayasa-güvenli/VIABLE. recall 1/3; ayrım bandı ~0.90 (bulgu). Normal gate'i yavaşlatmaz (ignore).
+- **Kapılar:** soul_check ✅ · cargo --locked **83 koşan, 0 fail** (eval atlandı).
+- **Karar:** LAND. Sonraki = primitive + storage + gated entegrasyon (plan+uygula).
+
 ### 2026-06-23 — Döngü 24 [Kategori B: stress] (büyük kalem)
 - **Değişiklik:** tests/stress_reindex.rs — 6 thread × 10 iter eşzamanlı reindex↔search (Mutex/db yolu). +1 test.
 - **TUZAK & DÜZELTME:** ilk sürüm `default_embedder()` cache'li candle modelini her query'de çalıştırıp 60s+ TAKILDI → süreç öldürüldü, deterministik `StubEmbedder`'a çevrildi (1.75s). Kapı disiplini: yaramayan sürüm atıldı.
