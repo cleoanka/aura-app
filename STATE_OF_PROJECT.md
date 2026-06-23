@@ -2,38 +2,39 @@
 
 İnsan-incelemesi için devir dokümanı. `a1`, `main` (v0.2.0) üzerine otonom maraton
 dalı; gözden geçirilip uygun görülürse merge edilir. Hiçbir döngü `main`'e dokunmadı.
+Anlık durum (final değil).
 
 ## Özet
-- **FAZ 1 + 22 döngü**, hepsi atomik + koruma kapılarından geçti.
+- **FAZ 1 + 28 döngü**, hepsi atomik + koruma kapılarından geçti (ya da kapı patladıysa ROLLBACK + belge).
 - **`a1-known-good`** her zaman yeşil noktada (rollback çıpası).
-- Kategori rotasyonu uygulandı (aynı kategori ardışık 2'den fazla seçilmedi).
+- Backlog'un tamamı: ya **uygulandı+test edildi**, ya **test edilip gerekçeyle elendi**, ya da **harici bağımlılık** nedeniyle bloklu.
 
-## Metrikler (taban → şimdi)
-| | taban (v0.2.0) | a1 |
+## Metrikler (taban v0.2.0 → şimdi)
+| | taban | a1 |
 |---|---|---|
-| Rust testleri | 63 | **82** (+19) |
+| Rust testleri | 63 | **85** (+22) · ayrıca `#[ignore]` gerçek-e5 eval |
 | Frontend (vitest) | 10 | 10 |
-| tsc | 0 hata | 0 hata |
+| tsc / soul_check | — | 0 hata / ✅ (CI'de) |
 | JS bundle | tek 1.57MB | **7 chunk** (max editor 610KB) |
-| soul_check | yoktu | **✅ CI'de** |
 
-## Ne yapıldı (kategoriye göre)
-- **Altyapı/anayasa:** `scripts/soul_check.py` (gizlilik/güvenlik/varsayılan denetimi) + CI; `DEV_JOURNAL`/`IDEAS`/`BENCHMARKS`/`RESEARCH/`; `CONTRIBUTING`/`CHANGELOG`/`CITATION`; `docs/{philosophy,simple,glossary,development}.md`.
-- **Test (+19):** indexer `.gitignore`/`.auraignore`/`snippet`/`IndexStats`; ai `deep_query`/`normalize`/`fingerprint`; apikey `validate_key`/`parse_key_file`; db `normalize_embedding`; markdown `chunk_stable_id`; cache no-op-reindex.
-- **Özellik/sağlamlık:** BYOK key doğrulaması (app+CLI parite); `.auraignore` (git'e dokunmadan hariç tut); `IndexStats.elapsed_ms` (backend+UI+görsel); read_key ilk-satır parse.
-- **Perf:** vite manualChunks (bundle split).
-- **Görsel/doküman:** CI rozeti, workspace screenshot index-stats footer, README/CHANGELOG/docs güncel.
+## Eklenen & test edilen (büyük→küçük)
+- **[C] Semantic-cache (opt-in, default OFF):** db `cache_query_vec` + `semantic_cache_lookup` (cosine≥threshold **VE** dep-hash recheck = anayasa Madde 9) + ai.rs entegrasyonu. **Gerçek-e5 eval'i: false-positive=0 @0.96** (`tests/semantic_cache_eval.rs`, #[ignore]). Açık: UI toggle + daha geniş eval ile eşik ~0.90.
+- **[B] Stress:** eşzamanlı reindex↔search stabilite testi.
+- **[F] Bundle split:** vite manualChunks → 1.57MB tek chunk yerine 7 chunk.
+- **[J] `.auraignore`:** git'e dokunmadan indekslemeden hariç tutma.
+- **[B/A] BYOK doğrulaması:** app `validate_key` + CLI `aura key set` parite; read_key first-line parse.
+- **[I] `elapsed_ms`:** backend + VaultExplorer UI + workspace görseli.
+- **[G] +22 test:** indexer (.gitignore/.auraignore/snippet/IndexStats), ai (deep_query/normalize/fingerprint), apikey, db (normalize_embedding/semantic-cache), markdown (chunk_stable_id), cache (edit/no-op/missing).
+- **Altyapı:** `soul_check.py`+CI, DEV_JOURNAL/IDEAS/BENCHMARKS/RESEARCH, CONTRIBUTING/CHANGELOG/CITATION, docs/{philosophy,simple,glossary,development}, CI rozeti.
 
-## İncelerken bak
-- `git log --oneline main..a1` (24 commit) · her commit atomik + DEV_JOURNAL'da gerekçeli.
-- Kapıları kendin koştur: `python3 scripts/soul_check.py` · `cd app/src-tauri && cargo test --locked` · `cd app && npm run build && npm test`.
-- Merge kararı: hepsi yeşil + main'e dokunulmadı + kişisel veri yok (soul_check enforce).
+## Test edilip ELENEN (yaramayan → çöpe)
+- **[J] sqlite-vec ANN:** spike yapıldı → `sqlite3_auto_extension` **SQLITE_MISUSE(21)**; macOS sistem libsqlite3 eklenti kaydına izin vermiyor → bu mimaride çalışmaz. Rollback edildi. Yalnız **bundled-sqlite (rusqlite) migration** ile mümkün (büyük, anayasa-kritik, insan-onaylı ayrı iş). Bkz. `RESEARCH/2026-06-23-sqlite-vec-spike.md`. (<~50k chunk'ta brute-force yeterli.)
 
-## Sıradaki (runtime/insan gerektirir — kör otonom loop'ta yapılmadı)
-- **[C] semantic-cache:** tasarım hazır (`RESEARCH/2026-06-23-semantic-cache.md`) ama **eval fixture gerçek e5 modeli** ister; anayasa Madde 9 (sıfır yanlış-cevap) → false-positive=0 kanıtlanmadan default açılamaz.
-- **[J] rusqlite + sqlite-vec (ANN):** yüksek riskli dep/FFI değişimi; gerçek vault'ta gecikme benchmark'ı ile A/B.
-- **[B] eşzamanlı reindex↔ask stress:** çok-thread runtime senaryosu.
-- **Notarization:** kullanıcı Apple Developer ID'si gerektirir.
-- **Canlı GUI QA:** `cd app && npm run tauri dev`.
+## Bloklu / harici bağımlılık
+- **Notarization:** Apple Developer ID gerektirir (runtime değil; senin hesabın).
+- **Canlı GUI QA:** `cd app && npm run tauri dev` (görsel akış senin onayın).
 
-> Bu doküman maraton ilerledikçe güncellenir; final değil, anlık durum.
+## İncelerken
+- `git log --oneline main..a1` · her commit atomik + DEV_JOURNAL'da gerekçeli.
+- Kapılar: `python3 scripts/soul_check.py` · `cd app/src-tauri && cargo test --locked` · `cd app && npm run build && npm test`.
+- Merge: hepsi yeşil + main'e dokunulmadı + kişisel veri yok (soul_check enforce).
