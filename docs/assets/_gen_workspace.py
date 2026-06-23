@@ -142,6 +142,10 @@ for name, dot, indent, active in tree:
         t(tx, ty, name, TEXT, 12.5, "700")
     ty += 30
 
+# index-stats footer (mirrors VaultExplorer: files · chunks · elapsed)
+line(RAIL + 14, BODYB - 40, EXPL - 14, BODYB - 40, BORDER, 1, 0.6)
+t(ex, BODYB - 22, "37 files · 214 chunks · 812 ms", MUTED, 11, "500")
+
 # ---- editor ----
 r(EXPL, BODYT, EDIT-EXPL, BODYB-BODYT, 0, "url(#edBg)")
 line(EDIT, BODYT, EDIT, BODYB, BORDER)
