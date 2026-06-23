@@ -13,7 +13,7 @@
 - [x] [K/H] CI rozeti (D4), docs linkleme + CHANGELOG güncel (D2/D10), RESEARCH kritiği (D7)
 
 ## Yüksek öncelik (sıradaki)
-- [J] **rusqlite(bundled) + sqlite-vec** (tech-debt): SPIKE yapıldı (D28) → sistem libsqlite3 auto_extension'a SQLITE_MISUSE(21) verdi; sqlite-vec mevcut FFI mimarisinde ÇALIŞMIYOR. Yalnız **bundled-sqlite migration** ile mümkün (büyük, anayasa-kritik). İnsan-onaylı ayrı iş — bkz. `RESEARCH/2026-06-23-sqlite-vec-spike.md`. (<~50k chunk'ta brute-force yeterli.)
+- [~] [J] **rusqlite(bundled) MIGRATION TAMAM (D30)** — sistem→bundled sqlite, davranış-eşdeğer (85 test), sqlite-vec vec0 KNN ÇALIŞIYOR. KALAN: vec_search'i vec0 ANN'e bağla (D31). Eski not: (tech-debt): SPIKE yapıldı (D28) → sistem libsqlite3 auto_extension'a SQLITE_MISUSE(21) verdi; sqlite-vec mevcut FFI mimarisinde ÇALIŞMIYOR. Yalnız **bundled-sqlite migration** ile mümkün (büyük, anayasa-kritik). İnsan-onaylı ayrı iş — bkz. `RESEARCH/2026-06-23-sqlite-vec-spike.md`. (<~50k chunk'ta brute-force yeterli.)
 - [x] [C] **Semantic-cache** TAMAM (D25 eval FP=0 / D26 db / D27 ai-wiring, default-OFF). Açık: UI toggle + daha geniş eval ile eşik ~0.90'a indirme.
 - [F] **JS bundle code-split**: tek chunk ~1.57MB (gzip 491KB). manualChunks ile böl.
 - [x] [B] **Stress test** eşzamanlı reindex↔ask TAMAM (D24).

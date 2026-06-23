@@ -1,7 +1,6 @@
 use std::ffi::{CStr, CString};
 use std::fmt;
 use std::os::raw::{c_char, c_double, c_int, c_void};
-use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 use std::ptr::{self, NonNull};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -20,15 +19,10 @@ enum sqlite3 {}
 #[allow(non_camel_case_types)]
 enum sqlite3_stmt {}
 
-#[link(name = "sqlite3")]
+// sqlite sembolleri rusqlite (bundled libsqlite3-sys) tarafından sağlanır.
+// Kendi `#[link(name="sqlite3")]`'imiz YOK → sistem sqlite ile iki-kütüphane
+// çakışması olmaz; bundled sqlite extension kaydına (sqlite-vec) izin verir.
 extern "C" {
-    fn sqlite3_open_v2(
-        filename: *const c_char,
-        pp_db: *mut *mut sqlite3,
-        flags: c_int,
-        z_vfs: *const c_char,
-    ) -> c_int;
-    fn sqlite3_close(db: *mut sqlite3) -> c_int;
     fn sqlite3_exec(
         db: *mut sqlite3,
         sql: *const c_char,
@@ -72,14 +66,12 @@ extern "C" {
     fn sqlite3_column_bytes(stmt: *mut sqlite3_stmt, index: c_int) -> c_int;
     fn sqlite3_last_insert_rowid(db: *mut sqlite3) -> i64;
     fn sqlite3_changes(db: *mut sqlite3) -> c_int;
+    fn sqlite3_auto_extension(entry: Option<unsafe extern "C" fn() -> c_int>) -> c_int;
 }
 
 const SQLITE_OK: c_int = 0;
 const SQLITE_ROW: c_int = 100;
 const SQLITE_DONE: c_int = 101;
-const SQLITE_OPEN_READWRITE: c_int = 0x0000_0002;
-const SQLITE_OPEN_CREATE: c_int = 0x0000_0004;
-const SQLITE_OPEN_FULLMUTEX: c_int = 0x0001_0000;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -105,51 +97,57 @@ impl fmt::Display for Error {
 impl std::error::Error for Error {}
 
 pub struct Connection {
-    raw: NonNull<sqlite3>,
+    // rusqlite (bundled sqlite) bağlantıyı SAHİPLENİR ve drop'ta kapatır.
+    // Mevcut el-yazımı FFI fonksiyonları ham handle (`raw()`) üzerinden çalışır.
+    // rusqlite::Connection Send (Sync değil); app erişimi tek-yazar Mutex ile guard'lı.
+    inner: rusqlite::Connection,
 }
 
-// Connections are opened with SQLITE_OPEN_FULLMUTEX and app access is guarded by
-// a single-writer Mutex in the indexer state.
-unsafe impl Send for Connection {}
-
-impl Drop for Connection {
-    fn drop(&mut self) {
-        unsafe {
-            sqlite3_close(self.raw.as_ptr());
-        }
+impl Connection {
+    /// Ham sqlite handle'ı (FFI fonksiyonları için). rusqlite ile aynı bağlantı.
+    fn raw(&self) -> *mut sqlite3 {
+        // SAFETY: handle yalnız okunur; bağlantı `self` yaşadığı sürece geçerli.
+        unsafe { self.inner.handle() }.cast()
     }
 }
 
 pub fn open(path: &Path) -> Result<Connection> {
-    let path = cstring_from_path(path)?;
-    let conn = open_raw(&path)?;
+    let conn = open_rusqlite(Some(path))?;
     configure(&conn)?;
     migrate(&conn)?;
     Ok(conn)
 }
 
 pub fn open_in_memory() -> Result<Connection> {
-    let path = CString::new(":memory:").expect("static memory path has no nul");
-    let conn = open_raw(&path)?;
+    let conn = open_rusqlite(None)?;
     configure(&conn)?;
     migrate(&conn)?;
     Ok(conn)
 }
 
-fn open_raw(path: &CString) -> Result<Connection> {
-    let mut db = ptr::null_mut();
-    let flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX;
-    let code = unsafe { sqlite3_open_v2(path.as_ptr(), &mut db, flags, ptr::null()) };
-    let raw = NonNull::new(db).ok_or_else(|| Error::new("sqlite3_open_v2 returned null"))?;
-    let conn = Connection { raw };
+/// sqlite-vec (vec0 ANN) eklentisini tüm yeni bağlantılar için BİR KEZ kaydet.
+/// Bundled sqlite ile çalışır (sistem sqlite auto_extension'a MISUSE veriyordu).
+fn register_sqlite_vec() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| unsafe {
+        let _ = sqlite3_auto_extension(Some(std::mem::transmute::<
+            *const (),
+            unsafe extern "C" fn() -> c_int,
+        >(sqlite_vec::sqlite3_vec_init as *const ())));
+    });
+}
 
-    if code == SQLITE_OK {
-        Ok(conn)
-    } else {
-        let message = conn.error_message();
-        drop(conn);
-        Err(Error::new(message))
+fn open_rusqlite(path: Option<&Path>) -> Result<Connection> {
+    register_sqlite_vec();
+    let flags = rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE
+        | rusqlite::OpenFlags::SQLITE_OPEN_CREATE
+        | rusqlite::OpenFlags::SQLITE_OPEN_FULL_MUTEX;
+    let inner = match path {
+        Some(p) => rusqlite::Connection::open_with_flags(p, flags),
+        None => rusqlite::Connection::open_in_memory_with_flags(flags),
     }
+    .map_err(|err| Error::new(err.to_string()))?;
+    Ok(Connection { inner })
 }
 
 fn configure(conn: &Connection) -> Result<()> {
@@ -385,7 +383,7 @@ pub fn insert_chunk_with_hash(
         ],
     )?;
 
-    Ok(unsafe { sqlite3_last_insert_rowid(conn.raw.as_ptr()) })
+    Ok(unsafe { sqlite3_last_insert_rowid(conn.raw()) })
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1174,7 +1172,7 @@ impl Connection {
         let mut errmsg = ptr::null_mut();
         let code = unsafe {
             sqlite3_exec(
-                self.raw.as_ptr(),
+                self.raw(),
                 sql.as_ptr(),
                 None,
                 ptr::null_mut(),
@@ -1202,7 +1200,7 @@ impl Connection {
         statement.bind_all(params)?;
 
         match unsafe { sqlite3_step(statement.raw) } {
-            SQLITE_DONE => Ok(unsafe { sqlite3_changes(self.raw.as_ptr()) as usize }),
+            SQLITE_DONE => Ok(unsafe { sqlite3_changes(self.raw()) as usize }),
             code => Err(self.step_error(code)),
         }
     }
@@ -1228,7 +1226,7 @@ impl Connection {
         let mut statement = ptr::null_mut();
         let code = unsafe {
             sqlite3_prepare_v2(
-                self.raw.as_ptr(),
+                self.raw(),
                 sql.as_ptr(),
                 -1,
                 &mut statement,
@@ -1255,7 +1253,7 @@ impl Connection {
     }
 
     fn error_message(&self) -> String {
-        unsafe { CStr::from_ptr(sqlite3_errmsg(self.raw.as_ptr())) }
+        unsafe { CStr::from_ptr(sqlite3_errmsg(self.raw())) }
             .to_string_lossy()
             .into_owned()
     }
@@ -1458,10 +1456,6 @@ fn cstring(value: &str) -> Result<CString> {
     CString::new(value).map_err(|_| Error::new("string contains nul byte"))
 }
 
-fn cstring_from_path(path: &Path) -> Result<CString> {
-    CString::new(path.as_os_str().as_bytes()).map_err(|_| Error::new("path contains nul byte"))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1495,6 +1489,29 @@ mod tests {
         let mut v = vec![0.0_f32; EMBEDDING_DIM];
         v[i] = 1.0;
         v
+    }
+
+    // sqlite-vec'in vec0 ANN'i bundled sqlite ile çalışıyor mu (sistem sqlite
+    // MISUSE veriyordu)? open_in_memory zaten register_sqlite_vec çağırıyor.
+    #[test]
+    fn sqlite_vec_vec0_knn_works() -> Result<()> {
+        let conn = open_in_memory()?;
+        conn.execute_batch("CREATE VIRTUAL TABLE v USING vec0(emb float[3])")?;
+        conn.execute(
+            "INSERT INTO v(rowid, emb) VALUES (1, '[1,0,0]'), (2, '[0,1,0]')",
+            &[],
+        )?;
+        let mut got = None;
+        conn.query(
+            "SELECT rowid FROM v WHERE emb MATCH '[0.9,0.1,0.0]' ORDER BY distance LIMIT 1",
+            &[],
+            |st| {
+                got = Some(unsafe { sqlite3_column_int64(st.raw, 0) });
+                Ok(())
+            },
+        )?;
+        assert_eq!(got, Some(1), "vec0 KNN en yakın rowid=1");
+        Ok(())
     }
 
     #[test]
