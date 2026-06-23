@@ -16,6 +16,12 @@
 
 ## Döngü kayıtları
 
+### 2026-06-23 — Döngü 7 [Kategori D: araştırma/kritik]  (sondan-önceki adım)
+- **Seçim:** eleştirel öz-denetim — cache/BYOK/indexer tasarımı.
+- **Çıktı:** `RESEARCH/2026-06-23-cache-byok-indexer-critique.md` — 5 bulgu + sıradaki deneyler. En somut: **F1 CLI↔app BYOK validation parite boşluğu** (→ Döngü 8'de uygulanacak). F2 vault_epoch ölü (zararsız, bırak). F3 brute-force O(N) (IDEAS J). F4/F5 sağlam/kabul edilen tradeoff.
+- **Kapılar:** soul_check ✅ (doküman).
+- **Karar:** LAND. Sonraki adım = plan+uygula (Döngü 8).
+
 ### 2026-06-23 — Döngü 6 [Kategori G: test]
 - **Seçim:** `snippet()` (whitespace-collapse + 240 truncation + char-boundary) testsizdi.
 - **Değişiklik (atomik):** indexer tests'e snippet testi (daraltma, kesme `...`, çok-baytlı panik-yok). +1 test.
