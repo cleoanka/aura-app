@@ -1413,4 +1413,19 @@ mod tests {
     fn cosine_distance_is_zero_for_same_vector() {
         assert_eq!(cosine_distance(&[1.0, 2.0], &[1.0, 2.0]), 0.0);
     }
+
+    #[test]
+    fn normalize_embedding_produces_unit_vector() {
+        let n = normalize_embedding(&[3.0, 4.0]);
+        assert!((n[0] - 0.6).abs() < 1e-6);
+        assert!((n[1] - 0.8).abs() < 1e-6);
+    }
+
+    #[test]
+    fn normalize_embedding_zero_is_safe() {
+        // sıfır vektör → NaN yerine deterministik [1,0,0,…] (cosine bozulmaz)
+        let n = normalize_embedding(&[0.0, 0.0, 0.0]);
+        assert_eq!(n[0], 1.0);
+        assert!(n[1..].iter().all(|&x| x == 0.0));
+    }
 }
