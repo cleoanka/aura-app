@@ -13,6 +13,7 @@ Format [Keep a Changelog](https://keepachangelog.com/), sürümleme [SemVer](htt
 - README'de gerçek **CI status rozeti**.
 - `IndexStats.elapsed_ms` (indeksleme süresi) — backend + VaultExplorer'da gösterim; `pruned` da gösteriliyor.
 - **Semantic-cache** (opt-in, default OFF): anlamca-benzer soruları cosine≥threshold ile yakalar; İKİ kapı (threshold + dep-hash recheck) anayasa Madde 9'u (sıfır yanlış-cevap) korur. Gerçek-e5 eval'i FP=0 @0.96 ile kanıtlı (`tests/semantic_cache_eval.rs`).
+- **sqlite-vec ANN** (D30-31): veri katmanı **bundled sqlite**'a (rusqlite) taşındı; `vec_search` artık vec0 KNN (cosine) — büyük vault'ta ölçekli ANN, brute-force fallback. Davranış-eşdeğer (tüm testler).
 - **Stress test** (eşzamanlı reindex↔ask) + db/ai/markdown/cache testleri → **cargo test 63 → 85**.
 ### Changed
 - BYOK anahtar doğrulaması: app `validate_key` + CLI `aura key set` (tek-token; boşluk/satır içeren yanlış-yapıştırma reddedilir).
