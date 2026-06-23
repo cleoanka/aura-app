@@ -16,6 +16,11 @@
 
 ## Döngü kayıtları
 
+### 2026-06-23 — Döngü 14 [Kategori H: housekeeping]
+- **Değişiklik:** IDEAS.md — Döngü 1–14 biten maddeler "Tamamlandı"ya taşındı, kalan backlog önceliklendirildi (sıradaki: J rusqlite+sqlite-vec, C semantic-cache, F bundle-split, B stress test).
+- **Kapılar:** soul_check ✅.
+- **Karar:** LAND.
+
 ### 2026-06-23 — Döngü 13 [Kategori J: yetenek — plan+uygula]  (son adım)
 - **Plan:** kullanıcı bir not/klasörü `.gitignore`'a dokunmadan AURA indekslemesinden hariç tutabilsin.
 - **Değişiklik:** `.auraignore` desteği — `gitignore_names` artık `.gitignore` + `.auraignore` birleşimini okur (additive, güvenli). +1 test (union). README/ARCHITECTURE/glossary güncellendi.
