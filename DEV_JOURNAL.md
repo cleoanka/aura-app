@@ -16,6 +16,12 @@
 
 ## Döngü kayıtları
 
+### 2026-06-23 — Döngü 3 [Kategori B: kararlılık/sağlamlık]
+- **Seçim:** `apikey::write_key` herhangi bir non-empty string'i kabul ediyordu → içinde boşluk/satır olan yanlış-yapıştırma sessizce kaydedilirdi.
+- **Değişiklik (atomik):** saf `validate_key` (trim + tek-token kontrolü, disk'e dokunmaz → test-edilebilir; success path'i test etmek ~/.aura'yı ezerdi). `write_key` artık onu kullanıyor; UI hata mesajı gösterir. +3 test.
+- **Kapılar:** soul_check ✅ · `cargo test --locked` **70 passed (67→70), 0 fail** · regresyon yok.
+- **Karar:** LAND. Rotasyon: B kullanıldı.
+
 ### 2026-06-23 — Döngü 2 [Kategori H: kod sağlığı/doküman]
 - **Seçim:** yeni docs (philosophy/simple/glossary) ve CONTRIBUTING/CHANGELOG README'den keşfedilemiyordu.
 - **Değişiklik (atomik):** README "Deep dives" + yeni "Contributing" satırları → tüm dokümanlar + soul_check linklendi.
