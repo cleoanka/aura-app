@@ -379,6 +379,11 @@ impl Indexer {
     pub fn search_hybrid(&self, query: &str, k: usize) -> Result<Vec<search::SearchHit>, String> {
         search::hybrid_search(&self.conn, self.embedder.as_ref(), query, k)
     }
+
+    /// Sorgu embedding'i (semantic cache için). Opt-in yolda kullanılır.
+    pub fn embed_query(&self, query: &str) -> Vec<f32> {
+        self.embedder.embed_query(query)
+    }
 }
 
 const MAX_TEXT_BYTES: u64 = 1_500_000;

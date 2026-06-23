@@ -14,9 +14,9 @@
 
 ## Yüksek öncelik (sıradaki)
 - [J] **rusqlite + sqlite-vec'e geçiş** (tech-debt): sistem `libsqlite3` FFI + brute-force cosine → gerçek ANN. Flag arkasında A/B, `BENCHMARKS.md`'de gecikme ölç. (RİSK: yüksek — dep+FFI; kapılarla koru.)
-- [C] **Semantic-yakınlık cache** (opt-in) + eval fixture: exact-match üstüne, anayasayı (sıfır yanlış-cevap) bozmadan; threshold + eval şart.
+- [x] [C] **Semantic-cache** TAMAM (D25 eval FP=0 / D26 db / D27 ai-wiring, default-OFF). Açık: UI toggle + daha geniş eval ile eşik ~0.90'a indirme.
 - [F] **JS bundle code-split**: tek chunk ~1.57MB (gzip 491KB). manualChunks ile böl.
-- [B] **Eşzamanlı reindex ↔ ask** stress/fuzz testi (edge-case'ler ele alınmış; regresyon kalkanı ekle).
+- [x] [B] **Stress test** eşzamanlı reindex↔ask TAMAM (D24).
 
 ## Orta
 - [H] **`docs/` derinleştir**: API yüzeyini dokümante et; diyagramları güncel tut.

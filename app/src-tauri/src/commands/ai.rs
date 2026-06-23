@@ -39,7 +39,7 @@ pub async fn ask(
         None
     };
 
-    let (context, deps, fingerprint, vault_epoch, cache_hit) = {
+    let (context, deps, fingerprint, vault_epoch, cache_hit, query_vec) = {
         let indexer = indexer.lock().map_err(|err| err.to_string())?;
         // Advanced (default-off): tüm pipeline retrieval::assemble'da
         // (çok-sorgulu → graph → rerank → parent). Kapalıyken birebir eski yol.
@@ -69,13 +69,32 @@ pub async fn ask(
             .map_err(|err| err.to_string())?
             .unwrap_or_else(|| "0".to_string());
         let key = cache_key(&normalized_query, &fingerprint, &model_ver, &vault_epoch);
-        // audit #7: 'semantic' için ayrı yol yok → exact cache kullan (sessiz no-op yerine).
-        let cache_hit = if settings.cache_mode != "off" {
+        let exact = if settings.cache_mode != "off" {
             db::cache_get_valid(indexer.conn(), &key).map_err(|err| err.to_string())?
         } else {
             None
         };
-        (context, deps, fingerprint, vault_epoch, cache_hit)
+        // Semantic cache (opt-in, default OFF): exact miss'te sorgu embedding'iyle
+        // cosine≥threshold eşleşme ara; bulunan girdi ayrıca cache_get_valid'den
+        // (dep-hash) geçmek ZORUNDA (anayasa Madde 9). query_vec'i put için sakla.
+        let semantic_on =
+            settings.cache_mode != "off" && settings.advanced_retrieval.semantic_cache_enabled;
+        let query_vec = if semantic_on {
+            Some(indexer.embed_query(&query))
+        } else {
+            None
+        };
+        let cache_hit = match (exact, &query_vec) {
+            (Some(hit), _) => Some(hit),
+            (None, Some(qvec)) => {
+                let threshold =
+                    f64::from(settings.advanced_retrieval.semantic_cache_threshold) / 100.0;
+                db::semantic_cache_lookup(indexer.conn(), qvec, &model_ver, threshold)
+                    .map_err(|err| err.to_string())?
+            }
+            (None, None) => None,
+        };
+        (context, deps, fingerprint, vault_epoch, cache_hit, query_vec)
     };
 
     if let Some(text) = cache_hit {
@@ -135,6 +154,9 @@ pub async fn ask(
                 // audit #7: cevap UI'a zaten stream edildi → cache yazımı ÖLÜMCÜL DEĞİL
                 // (eşzamanlı reindex bir chunk'ı silmişse FK hatası ask'i düşürmesin).
                 let _ = db::cache_put(indexer.conn(), &key, &response, &model_ver, &deps);
+                if let Some(qvec) = &query_vec {
+                    let _ = db::cache_put_query_vec(indexer.conn(), &key, qvec, &model_ver);
+                }
             }
 
             return Ok(response);
@@ -161,6 +183,9 @@ pub async fn ask(
         let indexer = indexer.lock().map_err(|err| err.to_string())?;
         // audit #7: cevap zaten stream edildi → cache yazımı ölümcül değil.
         let _ = db::cache_put(indexer.conn(), &key, &response, &model_ver, &deps);
+        if let Some(qvec) = &query_vec {
+            let _ = db::cache_put_query_vec(indexer.conn(), &key, qvec, &model_ver);
+        }
     }
 
     Ok(response)

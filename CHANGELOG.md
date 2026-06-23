@@ -12,7 +12,8 @@ Format [Keep a Changelog](https://keepachangelog.com/), sürümleme [SemVer](htt
 - `docs/philosophy.md`, `docs/simple.md` (sıfır-jargon), `docs/glossary.md`; README'den linklendi.
 - README'de gerçek **CI status rozeti**.
 - `IndexStats.elapsed_ms` (indeksleme süresi) — backend + VaultExplorer'da gösterim; `pruned` da gösteriliyor.
-- Test kapsamı: indexer `.gitignore`/`snippet`/`IndexStats`, apikey `validate_key` → **cargo test 63 → 72**.
+- **Semantic-cache** (opt-in, default OFF): anlamca-benzer soruları cosine≥threshold ile yakalar; İKİ kapı (threshold + dep-hash recheck) anayasa Madde 9'u (sıfır yanlış-cevap) korur. Gerçek-e5 eval'i FP=0 @0.96 ile kanıtlı (`tests/semantic_cache_eval.rs`).
+- **Stress test** (eşzamanlı reindex↔ask) + db/ai/markdown/cache testleri → **cargo test 63 → 85**.
 ### Changed
 - BYOK anahtar doğrulaması: app `validate_key` + CLI `aura key set` (tek-token; boşluk/satır içeren yanlış-yapıştırma reddedilir).
 ### Fixed
