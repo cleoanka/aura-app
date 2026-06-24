@@ -16,6 +16,11 @@
 
 ## Döngü kayıtları
 
+### 2026-06-24 — Döngü 36 [Kategori H: doküman] ARCHITECTURE/ROADMAP veri-katmanı güncel
+- **Değişiklik:** ARCHITECTURE veri-katmanı + ROADMAP, artık doğru: rusqlite bundled + sqlite-vec vec0 ANN (cosine, brute-fallback) + semantic-cache. Eski "sistem libsqlite3 FFI / brute-force / sqlite-vec planned" ifadeleri düzeltildi/işaretlendi.
+- **Kapılar:** soul_check ✅ (doküman; kod değişmedi).
+- **Karar:** LAND. Dokümanlar koda hizalı.
+
 ### 2026-06-24 — Döngü 35 [Kategori G: test] vec0 ANN stale-filter
 - **Değişiklik:** cascade-silinmiş chunk'ın vec_ann'de kalıp aramada elendiğini kanıtlayan test (Loop 31'deki live-filter korumasının regresyon kalkanı). +1 test.
 - **Kapılar:** soul_check ✅ · cargo **88 (87→88), 0 fail**.

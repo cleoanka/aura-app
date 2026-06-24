@@ -85,13 +85,19 @@ A single **`aura.sqlite`** holds everything:
 | Concern | How |
 |---|---|
 | **Keyword search** | SQLite **FTS5** virtual table (real, not emulated). |
-| **Semantic search** | Vector column + brute-force cosine (sqlite-vec ANN is a planned upgrade). |
-| **Answer cache** | `cache` + `cache_deps` tables — **exact-match** keying for zero false-positive answers; invalidated by note content hash. |
+| **Semantic search** | **sqlite-vec `vec0` ANN** (cosine) over `vec_ann`, with `vec_chunks` (blob) as cascade-clean source of truth + a brute-force fallback for small sets. |
+| **Answer cache** | `cache` + `cache_deps` — **exact-match** (zero false-positive); plus opt-in **semantic cache** (`cache_query_vec`, cosine≥threshold **+** dep-recheck). Invalidated by note content hash. |
 | **Metadata** | `meta` table; `links` table (v2) for the cross-file graph. |
 
-> **Note on the SQLite binding.** The implementer agent ran offline and could not fetch
-> `rusqlite`/`sqlite-vec`, so the data layer currently uses the **system `libsqlite3` via FFI**.
-> Migrating to `rusqlite` + `sqlite-vec` (real ANN) is tracked tech-debt — see [ROADMAP](ROADMAP.md).
+> **SQLite binding.** The data layer uses **rusqlite with bundled SQLite** (compiled in,
+> consistent across machines, extension-loading enabled). `sqlite-vec` is registered via
+> `sqlite3_auto_extension`. (The original hand-rolled FFI to system `libsqlite3` was migrated —
+> system SQLite returned `SQLITE_MISUSE` for extension registration; see
+> `RESEARCH/2026-06-23-sqlite-vec-spike.md`.)
+>
+> `vec_search` uses the `vec0` ANN above a row-count threshold and brute-force below it (fast for
+> small vaults); `vec_ann` is a derived index — self-healed on open + filtered against `vec_chunks`
+> at query time so cascade-deleted rows never surface.
 
 #### Cache invalidation — kept in sync with file hashes
 
