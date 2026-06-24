@@ -16,6 +16,11 @@
 
 ## Döngü kayıtları
 
+### 2026-06-24 — Döngü 34 [Kategori F: feature — /loop devam] semantic-cache UI toggle
+- **Değişiklik:** SettingsPanel'e `semantic_cache_enabled` toggle'ı (form + normalize + save + JSX) + i18n EN/TR. Artık kullanıcı semantic-cache'i Settings'ten açabilir (önceden yalnız settings.json).
+- **Kapılar:** soul_check ✅ · tsc ✅ · vitest 10/10.
+- **Karar:** LAND. Semantic-cache özelliği UI dahil TAM.
+
 ### 2026-06-24 — Döngü 33 [Kategori C/F: perf — UI kasması] (kullanıcı bildirimi)
 - **Tanı:** "her zaman/yazarken/genel UI kasıyor" → frontend render. Asıl yük: VaultExplorer not listesi SANALLAŞTIRILMAMIŞ (her dosya bir <button>); büyük vault'ta yüzlerce/binlerce düğüm = ağır DOM → tüm webview layout/paint'i (yazma/scroll dahil) yavaşlar. (write_note reindex/emit etmiyor → autosave remount değil; candle default kapalı → o değil.)
 - **Değişiklik:** `.note-row { content-visibility: auto; contain-intrinsic-size: auto 32px }` (ekran-dışı satırlar layout/paint'i atlar — JS sanallaştırma olmadan) + `.note-tree { contain: layout paint }`. Saf CSS, davranış değişmez.
