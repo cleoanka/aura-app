@@ -1605,6 +1605,27 @@ mod tests {
     }
 
     #[test]
+    fn vec_search_ann_filters_stale_after_cascade_delete() -> Result<()> {
+        // chunk silinince vec_chunks cascade temizlenir ama vec_ann (vtab, FK yok)
+        // stale satırı tutar → vec_search_ann onu live-filter ile elemeli.
+        let conn = open_in_memory()?;
+        upsert_note(&conn, "a.md", "f", 1, "h", Some("T"))?;
+        let c1 = insert_chunk(&conn, "a.md", None, 0, "T", 0, "a#0", "x")?;
+        let c2 = insert_chunk(&conn, "a.md", None, 0, "T", 1, "a#1", "y")?;
+        insert_embedding(&conn, c1, &unit_vec(0))?;
+        insert_embedding(&conn, c2, &unit_vec(1))?;
+
+        delete_chunk_by_stable_id(&conn, "a#0")?; // cascade: vec_chunks'tan c1 gider, vec_ann'de kalır
+
+        let hits = vec_search_ann(&conn, &normalize_embedding(&unit_vec(0)), 5)?;
+        assert!(
+            hits.iter().all(|(id, _)| *id != c1),
+            "stale (cascade-silinmiş) chunk ANN sonucunda olmamalı"
+        );
+        Ok(())
+    }
+
+    #[test]
     fn semantic_cache_lookup_respects_threshold_model_and_deps() -> Result<()> {
         let conn = open_in_memory()?;
         cache_put(&conn, "k1", "answer-1", "m", &[])?;
