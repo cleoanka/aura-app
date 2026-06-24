@@ -412,6 +412,8 @@ code,
   min-height: 0;
   overflow: auto;
   padding-right: 2px;
+  /* PERF: liste layout/paint'ini gövdeden izole et (büyük listede reflow ucuzlar). */
+  contain: layout paint;
 }
 
 .note-group {
@@ -446,6 +448,11 @@ code,
   min-height: 32px;
   padding: 7px 9px;
   color: var(--text-muted);
+  /* PERF: büyük vault'ta (yüzlerce/binlerce dosya) ekran-dışı satırların
+     layout/paint'ini atla → liste sanallaştırma olmadan ucuzlar, genel UI
+     kasması (yazma/scroll dahil) düşer. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 32px;
 }
 
 .note-row:hover,
