@@ -16,6 +16,12 @@
 
 ## Döngü kayıtları
 
+### 2026-06-24 — Döngü 33 [Kategori C/F: perf — UI kasması] (kullanıcı bildirimi)
+- **Tanı:** "her zaman/yazarken/genel UI kasıyor" → frontend render. Asıl yük: VaultExplorer not listesi SANALLAŞTIRILMAMIŞ (her dosya bir <button>); büyük vault'ta yüzlerce/binlerce düğüm = ağır DOM → tüm webview layout/paint'i (yazma/scroll dahil) yavaşlar. (write_note reindex/emit etmiyor → autosave remount değil; candle default kapalı → o değil.)
+- **Değişiklik:** `.note-row { content-visibility: auto; contain-intrinsic-size: auto 32px }` (ekran-dışı satırlar layout/paint'i atlar — JS sanallaştırma olmadan) + `.note-tree { contain: layout paint }`. Saf CSS, davranış değişmez.
+- **Kapılar:** soul_check ✅ · npm build ✅ · vitest 10/10.
+- **Karar:** LAND. (Küçük vault'ta etkisizdir; kasma sürerse hangi görünüm + vault boyutu gerekir.)
+
 ### 2026-06-23 — Döngü 31 [Kategori J: plan+uygula] (BÜYÜK — vec0 ANN entegrasyonu) → [J] TAM BİTTİ
 - **Değişiklik:** vec_search artık **sqlite-vec vec0 KNN** (cosine) kullanıyor; brute-force fallback korunuyor. vec_ann TÜRETİLMİŞ index: migrate'te **self-heal backfill** (vec_chunks'tan eksikleri ekler) + insert/delete_embedding senkron + arama-anında **stale-filter** (vec_chunks=cascade-temiz kaynak). +2 test (vec0 smoke, ANN↔brute eşdeğerlik).
 - **Kapılar:** soul_check ✅ · cargo **87 (0 fail)** — entegrasyon testleri (db_smoke vector, search_rrf, advanced_realdb) vec0 yolunda geçti → davranış-eşdeğer.
