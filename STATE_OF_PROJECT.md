@@ -12,7 +12,7 @@ Anlık durum (final değil).
 ## Metrikler (taban v0.2.0 → şimdi)
 | | taban | a1 |
 |---|---|---|
-| Rust testleri | 63 | **87** (+24) · ayrıca `#[ignore]` gerçek-e5 eval |
+| Rust testleri | 63 | **88** (+25) · ayrıca `#[ignore]` gerçek-e5 eval |
 | Frontend (vitest) | 10 | 10 |
 | tsc / soul_check | — | 0 hata / ✅ (CI'de) |
 | JS bundle | tek 1.57MB | **7 chunk** (max editor 610KB) |
@@ -39,3 +39,6 @@ Anlık durum (final değil).
 - `git log --oneline main..a1` · her commit atomik + DEV_JOURNAL'da gerekçeli.
 - Kapılar: `python3 scripts/soul_check.py` · `cd app/src-tauri && cargo test --locked` · `cd app && npm run build && npm test`.
 - Merge: hepsi yeşil + main'e dokunulmadı + kişisel veri yok (soul_check enforce).
+
+## Maraton durumu (2026-06-24, FAZ 1 + 38 döngü)
+Genuine güvenli backlog **tükendi** — büyük kalemler (semantic-cache, sqlite-vec ANN, stress, bundle-split, BYOK, .auraignore) bitti; 88 test, docs koda hizalı, perf (content-visibility) + gözlemlenebilirlik (elapsed_ms, arama gecikmesi) yapıldı. Kalan işler **deliberate** (semantic-cache threshold'u release-build + 50+ çiftlik eval ister; cron-paced değil) ya da **harici-bloklu** (notarization=Apple ID, GUI QA). Padding yapmamak için 5-dk cron durduruldu. `a1` inceleme/merge'e hazır.

@@ -16,6 +16,11 @@
 
 ## Döngü kayıtları
 
+### 2026-06-24 — FINAL-STOP (FAZ 1 + 38 döngü)
+- **EN SON TAM TEST:** soul_check ✅ · cargo **88** · npm build ✅ · vitest 10/10 — hepsi yeşil.
+- **Durum:** genuine güvenli quick-backlog tükendi; kalan = deliberate-slow-eval / Apple-ID-bloklu. Padding yapmamak için 5-dk cron (908b361b) DURDURULDU.
+- `a1` @ known-good, inceleme/merge'e hazır. Devam istenirse: spesifik deliberate iş (threshold tuning release-eval, notarization, GUI QA) ya da yeni cron.
+
 ### 2026-06-24 — Döngü 38 [Kategori D/C: araştırma] semantic-cache threshold tuning
 - **Değişiklik:** eval 12 çifte genişletildi + ayrım bandı raporu. Bulgu: tuzak tavanı ≈0.864 (2 eval tutarlı), para tabanı ≈0.919.
 - **KARAR:** default threshold 0.96 KORUNDU — anayasa FP=0 güvenlik-kritik; ~12 çiftlik ince veriyle düşürme riskli (deliberate release-eval + 50+ çift gerekir). Eval test'i daha güçlü guard olarak kaldı.
