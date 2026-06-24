@@ -177,7 +177,8 @@
     "models.apiKey.clear": "Remove key",
     "models.apiKey.enabled": "Use my API key",
     "settings.semanticCache": "Semantic cache",
-    "settings.semanticCache.hint": "cache semantically-similar questions (needs embeddings; threshold + dep-check keep zero wrong answers)"
+    "settings.semanticCache.hint": "cache semantically-similar questions (needs embeddings; threshold + dep-check keep zero wrong answers)",
+    "search.results": "results"
   },
   "tr": {
     "app.name": "AURA Desktop",
@@ -357,6 +358,7 @@
     "models.apiKey.clear": "Anahtarı sil",
     "models.apiKey.enabled": "API anahtarımı kullan",
     "settings.semanticCache": "Semantic cache",
-    "settings.semanticCache.hint": "anlamca-benzer soruları cache'le (embedding gerekir; threshold + dep kontrolü ile sıfır yanlış-cevap)"
+    "settings.semanticCache.hint": "anlamca-benzer soruları cache'le (embedding gerekir; threshold + dep kontrolü ile sıfır yanlış-cevap)",
+    "search.results": "sonuç"
   }
 }

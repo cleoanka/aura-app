@@ -34,6 +34,7 @@ export function SearchPanel({ onOpenNote }: SearchPanelProps) {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [elapsedMs, setElapsedMs] = useState<number | null>(null);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -50,10 +51,14 @@ export function SearchPanel({ onOpenNote }: SearchPanelProps) {
     setSearched(true);
 
     try {
-      setHits(await searchHybrid(trimmed, 10));
+      const started = performance.now();
+      const results = await searchHybrid(trimmed, 10);
+      setElapsedMs(Math.round(performance.now() - started));
+      setHits(results);
     } catch {
       setError(t("ask.error"));
       setHits([]);
+      setElapsedMs(null);
     } finally {
       setLoading(false);
     }
@@ -93,6 +98,13 @@ export function SearchPanel({ onOpenNote }: SearchPanelProps) {
       <div className="result-list" aria-label={t("nav.search")}>
         {searched && !loading && hits.length === 0 ? (
           <p className="empty-state">{t("search.noResults")}</p>
+        ) : null}
+
+        {!loading && hits.length > 0 ? (
+          <p className="result-summary">
+            {hits.length} {t("search.results")}
+            {elapsedMs !== null ? ` · ${elapsedMs} ms` : ""}
+          </p>
         ) : null}
 
         {hits.map((hit) => {
