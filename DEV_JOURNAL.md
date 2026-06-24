@@ -16,6 +16,11 @@
 
 ## Döngü kayıtları
 
+### 2026-06-24 — Döngü 35 [Kategori G: test] vec0 ANN stale-filter
+- **Değişiklik:** cascade-silinmiş chunk'ın vec_ann'de kalıp aramada elendiğini kanıtlayan test (Loop 31'deki live-filter korumasının regresyon kalkanı). +1 test.
+- **Kapılar:** soul_check ✅ · cargo **88 (87→88), 0 fail**.
+- **Karar:** LAND.
+
 ### 2026-06-24 — Döngü 34 [Kategori F: feature — /loop devam] semantic-cache UI toggle
 - **Değişiklik:** SettingsPanel'e `semantic_cache_enabled` toggle'ı (form + normalize + save + JSX) + i18n EN/TR. Artık kullanıcı semantic-cache'i Settings'ten açabilir (önceden yalnız settings.json).
 - **Kapılar:** soul_check ✅ · tsc ✅ · vitest 10/10.
