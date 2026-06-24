@@ -1598,3 +1598,10 @@ select.text-input:focus {
 .consensus-timing .text-input {
   max-width: 140px;
 }
+
+.result-summary {
+  margin: 0 0 10px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}

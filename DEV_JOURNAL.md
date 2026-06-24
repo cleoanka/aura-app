@@ -16,6 +16,11 @@
 
 ## Döngü kayıtları
 
+### 2026-06-24 — Döngü 37 [Kategori I: gözlemlenebilirlik] arama gecikmesi UI
+- **Değişiklik:** SearchPanel arama süresini ölçüp gösteriyor ("N sonuç · X ms", saf-frontend performance.now). + i18n search.results EN/TR + .result-summary CSS.
+- **Kapılar:** soul_check ✅ · tsc ✅ · vitest 10/10.
+- **Karar:** LAND.
+
 ### 2026-06-24 — Döngü 36 [Kategori H: doküman] ARCHITECTURE/ROADMAP veri-katmanı güncel
 - **Değişiklik:** ARCHITECTURE veri-katmanı + ROADMAP, artık doğru: rusqlite bundled + sqlite-vec vec0 ANN (cosine, brute-fallback) + semantic-cache. Eski "sistem libsqlite3 FFI / brute-force / sqlite-vec planned" ifadeleri düzeltildi/işaretlendi.
 - **Kapılar:** soul_check ✅ (doküman; kod değişmedi).
