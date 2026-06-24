@@ -3,7 +3,7 @@
 ## ✅ Tamamlanan (kodlandı + derlendi + test edildi)
 - Tauri v2 + Rust + React/TS iskeleti; release **`.app` + `.dmg`** build oluyor, açılıyor, çökmüyor.
 - **Agent Manager**: detect/install/health/limit + **gömülü PTY login** (xterm), claude=ANA BEYİN. doctor JSON sözleşmesi (Python+Rust tek kaynak, test).
-- **Veri**: tek `aura.sqlite` — FTS5 (gerçek) + vektör (brute-force) + cache/cache_deps/meta.
+- **Veri**: tek `aura.sqlite` (rusqlite **bundled**) — FTS5 + **sqlite-vec vec0 ANN** (cosine, brute-force fallback) + cache/cache_deps/cache_query_vec/meta.
 - **Indexer**: markdown/wikilink/hierarchical chunk + petgraph knowledge graph + content-hash incremental.
 - **Arama**: hibrit FTS5+vektör → RRF.
 - **AI ask**: exact-match cache (sıfır false-positive) → retrieval → lane → per-job `aura --json-events` spawn → Channel streaming → pgid cancel.
@@ -23,7 +23,7 @@
 
 ## 🔭 Bilinçli ertelenenler (çalışan build'i riske atmamak için)
 - **Gerçek candle/MLX embedding**: şu an `StubEmbedder` (deterministik) + FTS5 ana arama. candle+Metal ağır/riskli dep; FTS5 zaten gerçek arama veriyor. Sonra `Embedder` trait arkasında değiştirilebilir.
-- **sqlite-vec gerçek ANN**: şu an brute-force cosine (ultraplan'da kabul edilen fallback); büyük vault'ta rusqlite+sqlite-vec'e geçiş.
+- ~~sqlite-vec gerçek ANN~~ **TAMAM** (a1): rusqlite bundled + vec0 KNN; brute-force artık yalnız küçük-vault fallback'i.
 - **Semantic-yakınlık cache**: şu an exact-match (sıfır yanlış-cevap); semantic opt-in + eval fixture sonraki sürüm.
 - **Graph backend-layout**: >2000 düğümde JS yerine Rust layout.
 - **JS bundle code-split**: tek chunk ~1MB (gzip 344KB) — desktop için sorun değil, istenirse bölünür.
