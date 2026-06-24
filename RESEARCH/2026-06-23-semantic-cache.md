@@ -35,3 +35,10 @@ anayasa ihlali. Bu yüzden **eval fixture olmadan default'a alınmaz.** Zaten
 - **false-positive = 0** @ 0.96 → anayasa Madde 9 sağlanıyor; semantic-cache **VIABLE**.
 - **Bulgu:** 0.96 fazla yüksek (düşük recall). Tuzaklar ≤0.864, paraphrase'ler ≥0.919 → **ayrım bandı ~0.88–0.90**; daha geniş eval set'iyle eşik ~0.90'a indirilirse FP=0 + recall↑. (Default 0.96 muhafazakâr kalsın; düşürmeden önce daha çok çift gerekir.)
 - **Sonraki:** saf `best_semantic_match` primitive (test) + query-embedding storage + ai.rs'e default-OFF, dep-hash-recheck'li entegrasyon.
+
+## Threshold tuning — genişletilmiş eval (2026-06-24)
+`semantic_cache_eval.rs` 12 çifte (6 paraphrase + 6 trap) çıkarıldı + ayrım bandı raporlar.
+- İki eval'de de TUZAK tavanı ≈ **0.864** (0.750/0.780/0.837/0.864); paraphrase tabanı ≈ **0.919**.
+- Band ~(0.864, 0.919] → teorik olarak ~0.90 eşiği FP=0 + recall↑ verir.
+- **KARAR: default 0.96 KORUNUYOR.** Anayasa Madde 9 (sıfır yanlış-cevap) güvenlik-kritik; ~10-12 çiftlik veriyle eşiği 0.90'a indirmenin FP marjı (~0.036) gerçek-dünyada güvensiz. Düşürme, candle debug'da çok yavaş olan eval'in **release-build + ~50+ çiftle** deliberate koşulmasını gerektirir (cron-paced loop'a uygun değil).
+- Genişletilmiş eval test'i daha güçlü bir FP=0 @0.96 regresyon guard'ı olarak kalır (#[ignore]).
