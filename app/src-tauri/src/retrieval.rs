@@ -213,11 +213,12 @@ pub fn assemble(
     let final_k = (adv.final_k as usize).max(6);
     let cand_k = (adv.candidate_k as usize).max(final_k);
 
-    // 1) Çok-sorgulu birleşim (over-retrieve)
+    // 1) Çok-sorgulu birleşim (over-retrieve) — yalnız AKTİF workspace'ten (repo mantığı).
+    let root = settings.active_root();
     let variants = query_variants(query, plan);
     let mut groups = Vec::with_capacity(variants.len());
     for (i, q) in variants.iter().enumerate() {
-        match indexer.search_hybrid(q, cand_k) {
+        match indexer.search_hybrid_in(q, cand_k, root) {
             Ok(g) => groups.push(g),
             Err(err) if i == 0 => return Err(err),
             Err(_) => {}

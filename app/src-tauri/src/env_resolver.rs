@@ -1,6 +1,7 @@
 use std::collections::HashMap;
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::sync::OnceLock;
+use std::time::{Duration, Instant};
 
 static LOGIN_ENV: OnceLock<HashMap<String, String>> = OnceLock::new();
 
@@ -14,12 +15,16 @@ pub fn login_command(program: &str) -> Command {
     command
 }
 
+/// Bozuk dotfile (sonsuz döngü, ağ bekleyen nvm vs.) tüm uygulamayı asamaz:
+/// login-shell env yakalamaya sert üst sınır (audit C9).
+const LOGIN_ENV_TIMEOUT: Duration = Duration::from_secs(10);
+
 fn capture_login_env() -> HashMap<String, String> {
-    let output = Command::new("/bin/zsh").args(["-lc", "env -0"]).output();
+    let output = login_env_output_with_timeout();
 
     let mut env = match output {
-        Ok(output) if output.status.success() => parse_env_output(&output.stdout),
-        _ => std::env::vars().collect(),
+        Some(stdout) => parse_env_output(&stdout),
+        None => std::env::vars().collect(),
     };
 
     // HOME garanti olsun.
@@ -71,6 +76,50 @@ fn augment_path(env: &mut HashMap<String, String>, home: &str) {
         .filter(|d| seen.insert(d.clone()))
         .collect();
     env.insert("PATH".to_string(), merged.join(":"));
+}
+
+/// `/bin/zsh -lc env -0` çıktısını TIMEOUT ile al: bekleme poll'lu, süre aşımında
+/// süreç öldürülür ve None döner (çağıran mevcut sürecin env'ine düşer).
+/// Okuyucu sonucu channel'la alınır (codex: dotfile'ın stdout'u miras bırakan bir
+/// arka-plan süreci join()'i child çıktıktan sonra bile süresiz asabilirdi).
+fn login_env_output_with_timeout() -> Option<Vec<u8>> {
+    let mut child = Command::new("/bin/zsh")
+        .args(["-lc", "env -0"])
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .ok()?;
+
+    // stdout'u ayrı thread'de oku: pipe dolarsa child bloklanmasın (deadlock önlemi).
+    let mut stdout = child.stdout.take()?;
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        use std::io::Read;
+        let mut buf = Vec::new();
+        let _ = stdout.read_to_end(&mut buf);
+        let _ = tx.send(buf);
+    });
+
+    let started = Instant::now();
+    let remaining = |started: Instant| LOGIN_ENV_TIMEOUT.saturating_sub(started.elapsed());
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) if status.success() => {
+                // Kalan bütçe içinde çıktıyı bekle; gelmezse (stdout'u tutan torun
+                // süreç) None → mevcut env'e düş. Thread arkada kendi kendine biter.
+                return rx.recv_timeout(remaining(started).max(Duration::from_millis(50))).ok();
+            }
+            Ok(Some(_)) => return None,
+            Ok(None) if started.elapsed() > LOGIN_ENV_TIMEOUT => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return None;
+            }
+            Ok(None) => std::thread::sleep(Duration::from_millis(25)),
+            Err(_) => return None,
+        }
+    }
 }
 
 fn parse_env_output(stdout: &[u8]) -> HashMap<String, String> {

@@ -33,6 +33,9 @@ export function PtyLogin({ agent, onClose }: PtyLoginProps) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Önceki oturumun cleanup'ı bayrağı true bırakır; kapatma oturum-başına tek-seferliktir.
+    closeStartedRef.current = false;
+
     let disposed = false;
     let resizeObserver: ResizeObserver | null = null;
 

@@ -21,17 +21,56 @@ pub fn hybrid_search(
     query: &str,
     k: usize,
 ) -> Result<Vec<SearchHit>, String> {
+    hybrid_search_in(conn, embedder, query, k, None)
+}
+
+/// Root-filtreli aramada aday derinliği bu tavana kadar 4×'lenerek artar (codex:
+/// sabit k×6, çok-workspace'li DB'de aktif kökün sonuçlarını aç bırakabiliyordu).
+const MAX_SEARCH_DEPTH: usize = 5000;
+
+/// Root-filtreli hybrid arama (workspace semantiği): sonuçlar yalnız `root` altındaki
+/// notlardan gelir. Filtre skorlamadan SONRA uygulanır; k dolmadıysa ve daha derinde
+/// aday kalmış olabilirse limit 4×'lenerek yeniden denenir (progressive deepening).
+pub fn hybrid_search_in(
+    conn: &db::Connection,
+    embedder: &dyn Embedder,
+    query: &str,
+    k: usize,
+    root: Option<&str>,
+) -> Result<Vec<SearchHit>, String> {
     if k == 0 {
         return Ok(Vec::new());
     }
 
-    let search_limit = k.saturating_mul(2);
+    let query_embedding = embedder.embed_query(query);
+    let mut search_limit = k.saturating_mul(if root.is_some() { 6 } else { 2 });
+    loop {
+        let (hits, exhausted) =
+            hybrid_search_pass(conn, query, &query_embedding, k, root, search_limit)?;
+        // Filtresiz yol tek geçiş (eski davranışla bit-aynı). Filtreli yolda: k dolduysa,
+        // kaynaklar tükendiyse ya da tavana geldiysek dur; yoksa derinleş.
+        if root.is_none() || hits.len() >= k || exhausted || search_limit >= MAX_SEARCH_DEPTH {
+            return Ok(hits);
+        }
+        search_limit = search_limit.saturating_mul(4).min(MAX_SEARCH_DEPTH);
+    }
+}
+
+fn hybrid_search_pass(
+    conn: &db::Connection,
+    query: &str,
+    query_embedding: &[f32],
+    k: usize,
+    root: Option<&str>,
+    search_limit: usize,
+) -> Result<(Vec<SearchHit>, bool), String> {
     // FTS5 MATCH özel karakterlerde (C++, tırnak, ?, -foo) syntax hatası verebilir.
     // Bu ÖLÜMCÜL olmasın → boş FTS'e düş, vektör araması yine çalışsın (ask düşmez).
     let fts_ranked = db::fts_search(conn, query, search_limit).unwrap_or_default();
-    let query_embedding = embedder.embed_query(query);
     let vec_ranked =
-        db::vec_search(conn, &query_embedding, search_limit).map_err(|err| err.to_string())?;
+        db::vec_search(conn, query_embedding, search_limit).map_err(|err| err.to_string())?;
+    // Her iki kaynak da limitin altında döndüyse daha derinde aday YOK.
+    let exhausted = fts_ranked.len() < search_limit && vec_ranked.len() < search_limit;
 
     let fts_ids = fts_ranked
         .iter()
@@ -41,7 +80,9 @@ pub fn hybrid_search(
         .iter()
         .map(|(chunk_id, _distance)| *chunk_id)
         .collect::<Vec<_>>();
-    let fused = rrf_fuse(&fts_ids, &vec_ids, k);
+    // Root filtresi varken fusion'ı derin tut (filtre sonrası k'yı doldurabilmek için);
+    // filtresiz yol k ile aynı davranışta kalır (bit-aynı sonuç).
+    let fused = rrf_fuse(&fts_ids, &vec_ids, if root.is_some() { search_limit } else { k });
 
     let fts_set = fts_ids.iter().copied().collect::<HashSet<_>>();
     let vec_set = vec_ids.iter().copied().collect::<HashSet<_>>();
@@ -52,11 +93,19 @@ pub fn hybrid_search(
     let meta = db::chunk_ai_meta_batch(conn, &fused_ids).map_err(|err| err.to_string())?;
 
     for (chunk_id, score) in fused {
+        if hits.len() >= k {
+            break;
+        }
         let Some((note_path, heading_path, text, chunk_stable_id, content_hash)) =
             meta.get(&chunk_id).cloned()
         else {
             continue;
         };
+        if let Some(root) = root {
+            if !db::path_under_root(&note_path, root) {
+                continue;
+            }
+        }
         let via = match (fts_set.contains(&chunk_id), vec_set.contains(&chunk_id)) {
             (true, true) => "both",
             (true, false) => "fts",
@@ -74,7 +123,7 @@ pub fn hybrid_search(
         });
     }
 
-    Ok(hits)
+    Ok((hits, exhausted))
 }
 
 pub fn rrf_fuse(fts: &[i64], vec: &[i64], k: usize) -> Vec<(i64, f64)> {

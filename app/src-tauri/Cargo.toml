@@ -44,6 +44,15 @@ sqlite-vec = "0.1.9"
 
 [features]
 default = ["candle"]
-# Opt-in gerçek yerel embedding (e5-small, candle/Metal). Varsayılan KAPALI:
-# default build StubEmbedder kullanır (FTS5 ana arama). `cargo build --features candle`.
+# Gerçek yerel embedding (e5-small, candle). Feature varsayılan AÇIK (binary'de derli);
+# RUNTIME'da candle yalnız Settings'te semantic_search açık VE model cache'liyken kullanılır,
+# aksi halde StubEmbedder + FTS5 (bkz. embed.rs::default_embedder). `--no-default-features`
+# ile candle'sız (küçük/hızlı) build alınabilir.
 candle = ["dep:candle-core", "dep:candle-nn", "dep:candle-transformers", "dep:tokenizers", "dep:hf-hub"]
+
+# Release: LTO + tek codegen-unit → candle CPU matmul'u belirgin hızlanır, binary küçülür.
+# strip: dağıtılan binary'de sembol/yol bilgisi kalmaz (remap-path-prefix ile birlikte).
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true

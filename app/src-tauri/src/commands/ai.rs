@@ -46,7 +46,8 @@ pub async fn ask(
         let hits = if settings.advanced_retrieval.enabled {
             crate::retrieval::assemble(&indexer, &settings, &query, plan.as_ref())?
         } else {
-            indexer.search_hybrid(&query, 6)?
+            // Workspace semantiği: bağlam yalnız AKTİF workspace'ten toplanır.
+            indexer.search_hybrid_in(&query, 6, settings.active_root())?
         };
 
         let context = if settings.advanced_retrieval.enabled {
@@ -118,21 +119,61 @@ pub async fn ask(
                 })
                 .map_err(|err| format!("failed to send lane0 start AI event: {err}"))?;
 
+            // audit C19: lane0 artık job registry'de → Stop butonu çalışır. HTTP çağrısı
+            // bloklayıcı olduğundan iptal "erken dön" şeklindedir: arkadaki istek kendi
+            // 300s timeout'una kadar sürebilir ama kullanıcı beklemekten kurtulur.
+            let job_id = new_job_id();
+            let handle = exec::JobHandle::new();
+            jobs.lock()
+                .map_err(|err| err.to_string())?
+                .insert(job_id.clone(), handle.clone());
+            // codex: event gönderimi düşerse registry'de sızıntı bırakma.
+            if let Err(err) = on_event.send(AiEvent::Job {
+                job_id: job_id.clone(),
+            }) {
+                if let Ok(mut jobs) = jobs.lock() {
+                    jobs.remove(&job_id);
+                }
+                return Err(format!("failed to send lane0 job AI event: {err}"));
+            }
+
             let prompt = build_lane0_prompt(&context, &query);
             let ollama_url = settings.local_gen.ollama_url.clone();
             let model = settings.local_gen.model.clone();
-            let response = match tokio::task::spawn_blocking(move || {
+            let mut generation = tokio::task::spawn_blocking(move || {
                 lane0::ollama_generate(&ollama_url, &model, &prompt)
-            })
-            .await
-            .map_err(|err| format!("lane0 generation task failed: {err}"))?
-            {
+            });
+            let outcome = loop {
+                if handle.is_cancelled() {
+                    generation.abort();
+                    break Err("lane0 job cancelled".to_string());
+                }
+                match tokio::time::timeout(std::time::Duration::from_millis(150), &mut generation)
+                    .await
+                {
+                    Ok(joined) => {
+                        break joined
+                            .map_err(|err| format!("lane0 generation task failed: {err}"))
+                            .and_then(|res| res);
+                    }
+                    Err(_) => continue,
+                }
+            };
+            if let Ok(mut jobs) = jobs.lock() {
+                jobs.remove(&job_id);
+            }
+            let response = match outcome {
                 Ok(response) => response,
                 Err(reason) => {
+                    let taxonomy = if reason.contains("cancelled") {
+                        "cancelled"
+                    } else {
+                        "local"
+                    };
                     on_event
                         .send(AiEvent::Error {
                             reason: reason.clone(),
-                            taxonomy: "local".to_string(),
+                            taxonomy: taxonomy.to_string(),
                         })
                         .map_err(|err| format!("failed to send lane0 error AI event: {err}"))?;
                     return Err(reason);
@@ -200,8 +241,10 @@ pub async fn ask_consensus(
     on_event: Channel<AiEvent>,
 ) -> Result<String, String> {
     let context = {
+        let settings = crate::settings::load();
         let indexer = indexer.lock().map_err(|err| err.to_string())?;
-        let hits = indexer.search_hybrid(&query, 6)?;
+        // Workspace semantiği: konsensüs bağlamı da yalnız AKTİF workspace'ten.
+        let hits = indexer.search_hybrid_in(&query, 6, settings.active_root())?;
         build_context(&hits)
     };
 
@@ -340,20 +383,23 @@ fn lane0_candidate(settings: &Settings, query: &str) -> bool {
 }
 
 fn deep_query(query: &str) -> bool {
+    const KEYWORDS: [&str; 8] = [
+        "analyze",
+        "compare",
+        "tradeoff",
+        "trade-off",
+        "plan",
+        "architecture",
+        "why",
+        "explain",
+    ];
     let lower = query.to_ascii_lowercase();
+    // audit S15: kelime-sınırlı eşleşme — "planet"/"airplane" gibi kelimeler 'plan'
+    // substring'i yüzünden deep'e yönlenmesin ('-' kelime içi sayılır: trade-off).
     query.len() > 240
-        || [
-            "analyze",
-            "compare",
-            "tradeoff",
-            "trade-off",
-            "plan",
-            "architecture",
-            "why",
-            "explain",
-        ]
-        .iter()
-        .any(|keyword| lower.contains(keyword))
+        || lower
+            .split(|c: char| !c.is_alphanumeric() && c != '-')
+            .any(|word| KEYWORDS.contains(&word))
 }
 
 fn build_lane0_prompt(context: &str, query: &str) -> String {
@@ -406,6 +452,11 @@ mod tests {
         }
         assert!(deep_query(&"x".repeat(300)), "uzun sorgu deep");
         assert!(!deep_query("note title"), "kısa/anahtarsız sorgu fast");
+        // audit S15: substring tuzağı — kelime-sınırı olmadan bunlar yanlışlıkla deep'ti.
+        for q in ["what is a planet", "airplane ticket note", "esplanade photos"] {
+            assert!(!deep_query(q), "{q:?} fast kalmalı (substring tuzağı)");
+        }
+        assert!(deep_query("what is the trade-off here"), "trade-off deep");
     }
 
     #[test]

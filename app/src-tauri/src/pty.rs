@@ -144,6 +144,10 @@ fn registry() -> &'static Mutex<HashMap<String, PtySession>> {
 fn remove_and_kill(session_id: &str) -> Option<()> {
     let mut session = registry().lock().ok()?.remove(session_id)?;
     let _ = session.child.kill();
+    // Zombi önlemi: kill'den sonra reap edilmeyen çocuk süreç tablosunda kalıyordu
+    // (her login oturumu bir zombi). wait() registry kilidi BIRAKILDIKTAN sonra ve
+    // kill edilmiş süreçte anında döner.
+    let _ = session.child.wait();
     Some(())
 }
 

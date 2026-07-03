@@ -36,6 +36,12 @@ export type NoteRef = {
   title: string;
 };
 
+/** Workspace (repo) semantiği: tek aktif kök + son kullanılanlar (MRU). */
+export type WorkspaceInfo = {
+  active: string | null;
+  recents: string[];
+};
+
 export type SearchVia = "fts" | "vec" | "both" | string;
 
 export type SearchHit = {
@@ -78,10 +84,12 @@ export type AuraMode = "chat" | "consensus" | "plan" | "review" | "fix" | "ship"
 
 export type CacheMode = "off" | "exact" | "semantic" | string;
 
+// Alan adları Rust backend'in LaneSettings'iyle (settings.rs) birebir aynı olmalı;
+// aksi halde toggle'lar sessizce no-op olur.
 export type LaneSettings = {
-  fast?: boolean;
-  deep?: boolean;
-  lane0?: boolean;
+  fast_enabled?: boolean;
+  deep_enabled?: boolean;
+  lane0_enabled?: boolean;
 };
 
 export type ConsensusSettings = {

@@ -41,11 +41,21 @@ pub fn detect(probe: bool) -> Result<DoctorReport, AppError> {
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    serde_json::from_str::<DoctorReport>(&stdout).map_err(|error| AppError {
+    // audit C20: login-shell dotfile'ları JSON'dan önce gürültü basabilir (nvm/brew
+    // mesajı). Tüm stdout yerine ilk '{' ... son '}' aralığını parse et.
+    let json = extract_json_block(&stdout).unwrap_or(&stdout);
+    serde_json::from_str::<DoctorReport>(json).map_err(|error| AppError {
         taxonomy: ErrorTaxonomy::Sidecar,
         detail: format!("doctor JSON çözümlenemedi: {error}"),
         log_path: None,
     })
+}
+
+/// stdout içindeki ilk `{` ile son `}` arasını döndürür (dotfile gürültüsüne karşı).
+fn extract_json_block(s: &str) -> Option<&str> {
+    let start = s.find('{')?;
+    let end = s.rfind('}')?;
+    (end > start).then(|| &s[start..=end])
 }
 
 pub fn install_recipe(agent: &str) -> Option<&'static [&'static str]> {

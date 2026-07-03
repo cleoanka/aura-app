@@ -84,8 +84,19 @@ pub fn build(notes: &[(String, Vec<String>, String)]) -> GraphData {
 }
 
 pub fn build_from_db(conn: &db::Connection) -> db::Result<GraphData> {
-    let files = db::list_files(conn)?;
-    let links = db::list_links(conn)?;
+    build_from_db_under(conn, None)
+}
+
+/// Root-filtreli graph (workspace semantiği): düğümler aktif kökün dosyaları; bağlantılar
+/// kaynağı kök içinde olanlar. Kök dışına işaret eden hedefler "dangling" olarak kalır
+/// (known_paths yalnız kök-içi dosyaları içerdiğinden bu doğal düşer).
+pub fn build_from_db_under(conn: &db::Connection, root: Option<&str>) -> db::Result<GraphData> {
+    let mut files = db::list_files(conn)?;
+    let mut links = db::list_links(conn)?;
+    if let Some(root) = root {
+        files.retain(|file| db::path_under_root(&file.path, root));
+        links.retain(|link| db::path_under_root(&link.source_path, root));
+    }
     let mut seen: HashSet<String> = HashSet::new();
     let mut nodes = Vec::new();
     let mut graph_links = Vec::new();

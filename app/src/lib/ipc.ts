@@ -11,6 +11,7 @@ import type {
   NoteRef,
   SearchHit,
   Settings,
+  WorkspaceInfo,
 } from "./types";
 
 function readableError(error: unknown): Error {
@@ -233,6 +234,30 @@ export async function searchHybrid(query: string, k = 10): Promise<SearchHit[]> 
 export async function pickVaultFolder(): Promise<string | null> {
   try {
     return await invoke<string | null>("pick_vault_folder");
+  } catch (error) {
+    throw readableError(error);
+  }
+}
+
+export async function getWorkspace(): Promise<WorkspaceInfo> {
+  try {
+    return await invoke<WorkspaceInfo>("get_workspace");
+  } catch (error) {
+    throw readableError(error);
+  }
+}
+
+export async function setActiveWorkspace(path: string): Promise<WorkspaceInfo> {
+  try {
+    return await invoke<WorkspaceInfo>("set_active_workspace", { path });
+  } catch (error) {
+    throw readableError(error);
+  }
+}
+
+export async function forgetWorkspace(path: string): Promise<WorkspaceInfo> {
+  try {
+    return await invoke<WorkspaceInfo>("forget_workspace", { path });
   } catch (error) {
     throw readableError(error);
   }

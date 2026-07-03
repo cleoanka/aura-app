@@ -21,9 +21,9 @@ const defaultForm: SettingsForm = {
   theme: "dark",
   defaultMode: "ask",
   lanes: {
-    fast: true,
-    deep: true,
-    lane0: false,
+    fast_enabled: true,
+    deep_enabled: true,
+    lane0_enabled: false,
   },
   consensusEnabled: false,
   consensusGrace: 30,
@@ -39,9 +39,9 @@ function normalize(settings: Settings | null): SettingsForm {
     theme: settings?.theme === "light" ? "light" : "dark",
     defaultMode: settings?.default_mode === "aura" ? "aura" : "ask",
     lanes: {
-      fast: settings?.lanes?.fast ?? defaultForm.lanes.fast,
-      deep: settings?.lanes?.deep ?? defaultForm.lanes.deep,
-      lane0: settings?.lanes?.lane0 ?? defaultForm.lanes.lane0,
+      fast_enabled: settings?.lanes?.fast_enabled ?? defaultForm.lanes.fast_enabled,
+      deep_enabled: settings?.lanes?.deep_enabled ?? defaultForm.lanes.deep_enabled,
+      lane0_enabled: settings?.lanes?.lane0_enabled ?? defaultForm.lanes.lane0_enabled,
     },
     consensusEnabled: settings?.consensus_enabled ?? defaultForm.consensusEnabled,
     consensusGrace: settings?.consensus?.grace_secs ?? defaultForm.consensusGrace,
@@ -141,6 +141,8 @@ export function SettingsPanel() {
     try {
       await setSettings(nextSettings);
       setBaseSettings(nextSettings);
+      // FOUC fix'inin ikinci yarısı: main.tsx ilk boyada bu anahtardan okur.
+      localStorage.setItem("aura.theme", form.theme);
       setMessage(t("settings.saved"));
       // Hep-mount panellere (Ask) ayarın değiştiğini bildir → anında yansısın.
       window.dispatchEvent(new CustomEvent("aura:settings-saved"));
@@ -216,24 +218,24 @@ export function SettingsPanel() {
           <label className="toggle-row">
             <span>{t("settings.lane.fast")}</span>
             <input
-              checked={form.lanes.fast}
-              onChange={(event) => updateLane("fast", event.currentTarget.checked)}
+              checked={form.lanes.fast_enabled}
+              onChange={(event) => updateLane("fast_enabled", event.currentTarget.checked)}
               type="checkbox"
             />
           </label>
           <label className="toggle-row">
             <span>{t("settings.lane.deep")}</span>
             <input
-              checked={form.lanes.deep}
-              onChange={(event) => updateLane("deep", event.currentTarget.checked)}
+              checked={form.lanes.deep_enabled}
+              onChange={(event) => updateLane("deep_enabled", event.currentTarget.checked)}
               type="checkbox"
             />
           </label>
           <label className="toggle-row">
             <span>{t("settings.lane.lane0")}</span>
             <input
-              checked={form.lanes.lane0}
-              onChange={(event) => updateLane("lane0", event.currentTarget.checked)}
+              checked={form.lanes.lane0_enabled}
+              onChange={(event) => updateLane("lane0_enabled", event.currentTarget.checked)}
               type="checkbox"
             />
           </label>

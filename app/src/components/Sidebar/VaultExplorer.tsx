@@ -1,13 +1,24 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useI18n } from "../../i18n";
-import { indexVault, listNotes, pickVaultFolder } from "../../lib/ipc";
-import type { IndexStats, NoteRef } from "../../lib/types";
+import {
+  forgetWorkspace,
+  getWorkspace,
+  indexVault,
+  listNotes,
+  pickVaultFolder,
+  setActiveWorkspace,
+} from "../../lib/ipc";
+import type { IndexStats, NoteRef, WorkspaceInfo } from "../../lib/types";
 
 type VaultExplorerProps = {
   activePath: string | null;
+  /** Arttığında liste + workspace bilgisi yeniden çekilir (remount değil → scroll korunur). */
+  refreshToken: number;
   onNotesChange: (count: number) => void;
   onOpenNote: (note: NoteRef) => void;
+  /** Aktif workspace değişti (seç/geç/unut) → üst katman seçim/görünümleri sıfırlar. */
+  onWorkspaceChange: () => void;
 };
 
 type NoteGroup = {
@@ -15,16 +26,24 @@ type NoteGroup = {
   notes: NoteRef[];
 };
 
+// Kök grubu için dil-bağımsız sentinel: gruplama anahtarı stabil kalır, render'da çevrilir.
+const ROOT_GROUP = "";
+
 function folderName(path: string) {
   const normalized = path.replace(/\\/g, "/");
   const parts = normalized.split("/");
 
   if (parts.length <= 1) {
-    return "Kök";
+    return ROOT_GROUP;
   }
 
-  const folder = parts.slice(0, -1).join("/");
-  return folder || "Kök";
+  return parts.slice(0, -1).join("/") || ROOT_GROUP;
+}
+
+function baseName(path: string) {
+  const normalized = path.replace(/\\/g, "/").replace(/\/+$/, "");
+  const parts = normalized.split("/");
+  return parts[parts.length - 1] || normalized;
 }
 
 function sortNotes(notes: NoteRef[]) {
@@ -36,23 +55,32 @@ function sortNotes(notes: NoteRef[]) {
 
 export function VaultExplorer({
   activePath,
+  refreshToken,
   onNotesChange,
   onOpenNote,
+  onWorkspaceChange,
 }: VaultExplorerProps) {
   const { t } = useI18n();
   const [notes, setNotes] = useState<NoteRef[]>([]);
+  const [workspace, setWorkspace] = useState<WorkspaceInfo | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [indexing, setIndexing] = useState(false);
   const [indexStats, setIndexStats] = useState<IndexStats | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
-  const refreshNotes = useCallback(async () => {
+  const refresh = useCallback(async () => {
     setError(null);
     setLoading(true);
 
     try {
-      const nextNotes = sortNotes(await listNotes());
+      const [nextNotes, nextWorkspace] = await Promise.all([
+        listNotes().then(sortNotes),
+        getWorkspace(),
+      ]);
       setNotes(nextNotes);
+      setWorkspace(nextWorkspace);
       onNotesChange(nextNotes.length);
     } catch {
       setError(t("common.error"));
@@ -64,8 +92,22 @@ export function VaultExplorer({
   }, [onNotesChange, t]);
 
   useEffect(() => {
-    void refreshNotes();
-  }, [refreshNotes]);
+    void refresh();
+  }, [refresh, refreshToken]);
+
+  // Menü dışına tıklayınca kapan (dependency'siz, tek global listener).
+  useEffect(() => {
+    if (!menuOpen) {
+      return;
+    }
+    const close = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    window.addEventListener("mousedown", close);
+    return () => window.removeEventListener("mousedown", close);
+  }, [menuOpen]);
 
   const groups = useMemo<NoteGroup[]>(() => {
     const byFolder = new Map<string, NoteRef[]>();
@@ -80,35 +122,75 @@ export function VaultExplorer({
       .map(([name, groupNotes]) => ({ name, notes: sortNotes(groupNotes) }));
   }, [notes]);
 
+  const activateAndIndex = useCallback(
+    async (path: string) => {
+      setError(null);
+      setIndexing(true);
+      setIndexStats(null);
+      setMenuOpen(false);
+
+      try {
+        const stats = await indexVault(path);
+        setIndexStats(stats);
+        onWorkspaceChange();
+      } catch {
+        setError(t("common.error"));
+      } finally {
+        setIndexing(false);
+      }
+    },
+    [onWorkspaceChange, t],
+  );
+
   const selectVault = async () => {
     setError(null);
-    setIndexing(true);
-    setIndexStats(null);
 
     try {
       const path = await pickVaultFolder();
-
       if (!path) {
         return;
       }
-
-      const stats = await indexVault(path);
-      setIndexStats(stats);
-      onNotesChange(stats.notes);
-      await refreshNotes();
+      await activateAndIndex(path);
     } catch {
       setError(t("common.error"));
-    } finally {
-      setIndexing(false);
     }
   };
+
+  const switchTo = async (path: string) => {
+    if (path === workspace?.active) {
+      setMenuOpen(false);
+      return;
+    }
+    try {
+      await setActiveWorkspace(path);
+      await activateAndIndex(path);
+    } catch {
+      setError(t("common.error"));
+      setMenuOpen(false);
+    }
+  };
+
+  const forget = async (path: string) => {
+    try {
+      await forgetWorkspace(path);
+      setMenuOpen(false);
+      onWorkspaceChange();
+    } catch {
+      setError(t("common.error"));
+    }
+  };
+
+  const activeName = workspace?.active ? baseName(workspace.active) : null;
+  const recents = workspace?.recents ?? [];
 
   return (
     <aside className="vault-panel" aria-label={t("nav.workspace")}>
       <div className="panel-header compact">
         <div>
-          <p className="eyebrow">{t("nav.workspace")}</p>
-          <h2>{t("workspace.title")}</h2>
+          <p className="eyebrow">{t("workspace.switcher")}</p>
+          <h2 title={workspace?.active ?? undefined}>
+            {activeName ?? t("workspace.none")}
+          </h2>
         </div>
         <button
           aria-label={t("workspace.openFolder")}
@@ -120,6 +202,60 @@ export function VaultExplorer({
           {indexing ? t("common.loading") : t("workspace.openFolder")}
         </button>
       </div>
+
+      {recents.length > 1 ? (
+        <div className="workspace-switcher" ref={menuRef}>
+          <button
+            aria-expanded={menuOpen}
+            aria-haspopup="listbox"
+            className="ws-toggle"
+            onClick={() => setMenuOpen((open) => !open)}
+            type="button"
+          >
+            <span className="ws-toggle-label">{t("workspace.recents")}</span>
+            <span aria-hidden="true" className={`ws-chevron ${menuOpen ? "is-open" : ""}`}>
+              ▾
+            </span>
+          </button>
+          {menuOpen ? (
+            <div className="ws-menu" role="listbox" aria-label={t("workspace.recents")}>
+              {recents.map((path) => {
+                const isActive = path === workspace?.active;
+                const name = baseName(path);
+                return (
+                  <div className={`ws-item ${isActive ? "is-active" : ""}`} key={path}>
+                    <button
+                      aria-label={t("workspace.switchTo", { name })}
+                      className="ws-item-main"
+                      disabled={indexing}
+                      onClick={() => void switchTo(path)}
+                      role="option"
+                      aria-selected={isActive}
+                      title={path}
+                      type="button"
+                    >
+                      <span className="ws-item-name">{name}</span>
+                      {isActive ? (
+                        <span className="ws-badge">{t("workspace.activeBadge")}</span>
+                      ) : null}
+                    </button>
+                    <button
+                      aria-label={`${t("workspace.forget")}: ${name}`}
+                      className="ws-forget"
+                      disabled={indexing}
+                      onClick={() => void forget(path)}
+                      title={t("workspace.forgetTitle")}
+                      type="button"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       {indexStats ? (
         <div className="index-stats" aria-label={t("status.indexed")}>
@@ -144,10 +280,10 @@ export function VaultExplorer({
 
         {groups.map((group) => (
           <section className="note-group" key={group.name}>
-            <h3>{group.name}</h3>
+            <h3>{group.name === ROOT_GROUP ? t("workspace.rootFolder") : group.name}</h3>
             {group.notes.map((note) => (
               <button
-                aria-label={`${note.title} notunu aç`}
+                aria-label={t("workspace.openNoteAria", { title: note.title })}
                 className={`note-row ${activePath === note.path ? "is-active" : ""}`}
                 key={note.path}
                 onClick={() => onOpenNote(note)}

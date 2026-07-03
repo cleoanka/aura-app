@@ -13,13 +13,14 @@ use std::time::UNIX_EPOCH;
 
 /// PERF #5: index_vault'u tek transaction'a sarar. Hata/erken-dönüşte Drop'ta ROLLBACK,
 /// başarıda commit() ile COMMIT. SQLite autocommit'in INSERT başına fsync'ini önler.
-struct TxGuard<'a> {
+/// `pub`: forget_workspace gibi çok-satırlı silme akışları da aynı garantiyi kullanır.
+pub struct TxGuard<'a> {
     conn: &'a db::Connection,
     committed: bool,
 }
 
 impl<'a> TxGuard<'a> {
-    fn begin(conn: &'a db::Connection) -> Result<Self, String> {
+    pub fn begin(conn: &'a db::Connection) -> Result<Self, String> {
         conn.begin_immediate().map_err(|err| err.to_string())?;
         Ok(Self {
             conn,
@@ -27,7 +28,7 @@ impl<'a> TxGuard<'a> {
         })
     }
 
-    fn commit(mut self) -> Result<(), String> {
+    pub fn commit(mut self) -> Result<(), String> {
         self.conn.commit().map_err(|err| err.to_string())?;
         self.committed = true;
         Ok(())
@@ -102,7 +103,25 @@ impl Indexer {
             .map(|file| file.path.clone())
             .collect::<Vec<_>>();
         let known_basenames = links::known_basename_index(&project_paths);
-        let title_aliases = title_aliases(&project_files);
+        // PERF (bench: warm ≈ cold): title_aliases TÜM markdown'ları ikinci kez okuyup parse
+        // ediyordu — artık LAZY: yalnız en az bir dosyanın linkleri yeniden çözülürken kurulur.
+        // Değişmemiş turda hiç hesaplanmaz.
+        let mut title_aliases_cache: Option<HashMap<String, String>> = None;
+        // Dosya-kümesi parmak izi: küme değişmediyse (ekleme/silme/rename yok) değişmemiş
+        // dosyanın link ÇÖZÜMÜ de değişemez → o dosyada parse+link churn tamamen atlanır.
+        let paths_fp = {
+            let mut joined = String::new();
+            for p in &project_paths {
+                joined.push_str(&p.to_string_lossy());
+                joined.push('\n');
+            }
+            sha256_hex(joined.as_bytes())
+        };
+        let fp_key = format!("paths_fp:{}", root.to_string_lossy());
+        let file_set_changed = db::meta_value(&self.conn, &fp_key)
+            .map_err(|err| err.to_string())?
+            .as_deref()
+            != Some(paths_fp.as_str());
         // PERF (codex #6): PathIndex'i tarama başında BİR KEZ kur (per-dosya değil) → O(dosya)
         let path_index = links::PathIndex::new(&root, &project_paths);
         // PRUNE (audit #1): diskte GÖRÜLEN tüm yollar (stat hatasıyla atlananlar dahil) — sonra
@@ -116,8 +135,8 @@ impl Indexer {
         // tek commit (büyük vault'ta çok daha hızlı). Hata olursa TxGuard Drop'ta ROLLBACK.
         let tx = TxGuard::begin(&self.conn)?;
 
-        for project_file in project_files {
-            let path = project_file.path;
+        for project_file in &project_files {
+            let path = project_file.path.clone();
             let note_path = path.to_string_lossy().into_owned();
             // Dayanıklılık (audit #5): tarama↔stat arası dosya silinirse/erişilemezse (TOCTOU:
             // editör temp, .lock, FS hiccup) TÜM indekslemeyi düşürme — sadece o dosyayı atla
@@ -132,14 +151,30 @@ impl Indexer {
 
             if project_file.text_candidate && metadata.len() <= MAX_TEXT_BYTES {
                 match fs::read_to_string(&path) {
+                    // NUL bayt SQLite CString bağlamada ölümcül (audit C14): geçerli-UTF8 ama
+                    // NUL'lu dosyayı (bozuk export, gömülü binary) binary gibi kaydet — tur düşmez.
+                    Ok(content) if content.contains('\0') => {
+                        let content_hash = metadata_hash(&metadata);
+                        self.register_file(&note_path, &file_id, mtime, &content_hash, "binary")?;
+                        db::delete_links_for_source(&self.conn, &note_path)
+                            .map_err(|err| err.to_string())?;
+                        stats.skipped += 1;
+                    }
                     Ok(content) => {
-                        let parsed = markdown::parse_project_text(&path, &content);
+                        // Hash ÖNCE (parse değil): değişmemiş dosyada parse + link/chunk
+                        // churn'ünü tamamen atla (bench: warm no-op 2.2s → ~stat maliyeti).
                         let content_hash = sha256_hex(content.as_bytes());
                         let unchanged = db::note_content_hash(&self.conn, &note_path)
                             .map_err(|err| err.to_string())?
                             .as_deref()
                             == Some(content_hash.as_str());
 
+                        if unchanged && !file_set_changed {
+                            stats.skipped += 1;
+                            continue;
+                        }
+
+                        let parsed = markdown::parse_project_text(&path, &content);
                         db::upsert_file(
                             &self.conn,
                             &note_path,
@@ -150,13 +185,15 @@ impl Indexer {
                             "text",
                         )
                         .map_err(|err| err.to_string())?;
+                        let aliases = title_aliases_cache
+                            .get_or_insert_with(|| title_aliases(&project_files));
                         self.reindex_links(
                             &root,
                             &path,
                             &content,
                             &known_basenames,
                             &path_index,
-                            &title_aliases,
+                            aliases,
                         )?;
 
                         if unchanged {
@@ -205,6 +242,7 @@ impl Indexer {
             }
         }
 
+        db::set_meta_value(&self.conn, &fp_key, &paths_fp).map_err(|err| err.to_string())?;
         tx.commit()?;
         stats.elapsed_ms = started.elapsed().as_millis() as u64;
         Ok(stats)
@@ -234,6 +272,9 @@ impl Indexer {
         // PERF (codex #7): tüm bekleyen chunk'ları TEK batch forward'da embed et (per-chunk değil).
         let texts: Vec<String> = pending.iter().map(|(_, text)| text.clone()).collect();
         let embeddings = self.embedder.embed_passages_batch(&texts);
+        // PERF (perf-audit): batch'in tüm INSERT'leri tek transaction'da → INSERT başına
+        // fsync yerine batch başına 1 (synchronous=NORMAL ile birlikte yazım maliyeti düşer).
+        let tx = TxGuard::begin(&self.conn)?;
         if embeddings.len() == pending.len() {
             for ((chunk_id, _), embedding) in pending.iter().zip(embeddings.iter()) {
                 db::insert_embedding(&self.conn, *chunk_id, embedding)
@@ -248,6 +289,7 @@ impl Indexer {
                     .map_err(|err| err.to_string())?;
             }
         }
+        tx.commit()?;
         Ok(count)
     }
 
@@ -356,28 +398,67 @@ impl Indexer {
     }
 
     pub fn search_fts(&self, query: &str, k: usize) -> Result<Vec<SearchHit>, String> {
-        let matches = db::fts_search(&self.conn, query, k).map_err(|err| err.to_string())?;
-        let mut hits = Vec::new();
+        self.search_fts_in(query, k, None)
+    }
 
-        for (chunk_id, score) in matches {
-            let Some(chunk) =
-                db::chunk_by_id(&self.conn, chunk_id).map_err(|err| err.to_string())?
-            else {
-                continue;
-            };
-            hits.push(SearchHit {
-                note_path: chunk.note_path,
-                heading_path: chunk.heading_path,
-                snippet: snippet(&chunk.text),
-                score,
-            });
+    /// Root-filtreli FTS: sonuçlar yalnız aktif workspace'in notlarından gelir.
+    /// k dolmadıysa ve derinde aday kalmış olabilirse limit 4×'lenir (codex: sabit
+    /// over-fetch çok-workspace'li DB'de aktif kökü aç bırakabiliyordu).
+    pub fn search_fts_in(
+        &self,
+        query: &str,
+        k: usize,
+        root: Option<&str>,
+    ) -> Result<Vec<SearchHit>, String> {
+        const MAX_DEPTH: usize = 5000;
+        let mut fetch = if root.is_some() { k.saturating_mul(6) } else { k };
+        loop {
+            let matches =
+                db::fts_search(&self.conn, query, fetch).map_err(|err| err.to_string())?;
+            let exhausted = matches.len() < fetch;
+            let mut hits = Vec::new();
+
+            for (chunk_id, score) in matches {
+                if hits.len() >= k {
+                    break;
+                }
+                let Some(chunk) =
+                    db::chunk_by_id(&self.conn, chunk_id).map_err(|err| err.to_string())?
+                else {
+                    continue;
+                };
+                if let Some(root) = root {
+                    if !db::path_under_root(&chunk.note_path, root) {
+                        continue;
+                    }
+                }
+                hits.push(SearchHit {
+                    note_path: chunk.note_path,
+                    heading_path: chunk.heading_path,
+                    snippet: snippet(&chunk.text),
+                    score,
+                });
+            }
+
+            if root.is_none() || hits.len() >= k || exhausted || fetch >= MAX_DEPTH {
+                return Ok(hits);
+            }
+            fetch = fetch.saturating_mul(4).min(MAX_DEPTH);
         }
-
-        Ok(hits)
     }
 
     pub fn search_hybrid(&self, query: &str, k: usize) -> Result<Vec<search::SearchHit>, String> {
         search::hybrid_search(&self.conn, self.embedder.as_ref(), query, k)
+    }
+
+    /// Root-filtreli hybrid (workspace semantiği). `root=None` = eski davranış.
+    pub fn search_hybrid_in(
+        &self,
+        query: &str,
+        k: usize,
+        root: Option<&str>,
+    ) -> Result<Vec<search::SearchHit>, String> {
+        search::hybrid_search_in(&self.conn, self.embedder.as_ref(), query, k, root)
     }
 
     /// Sorgu embedding'i (semantic cache için). Opt-in yolda kullanılır.
@@ -409,7 +490,11 @@ fn project_files(root: &Path) -> Result<Vec<ProjectFile>, String> {
         .into_iter()
         .filter_entry(|entry| !is_ignored_path(entry.path(), &extra_ignored))
     {
-        let entry = entry.map_err(|err| err.to_string())?;
+        // Dayanıklılık (audit C13): tek okunamayan dizin/girdi (izin hatası, kopuk symlink,
+        // ağ diski) TÜM indekslemeyi düşürmesin — o girdiyi atla, tarama sürsün.
+        let Ok(entry) = entry else {
+            continue;
+        };
         if entry.file_type().is_file() {
             let path = entry.path().to_path_buf();
             let text_candidate = is_text_project_file(&path);
@@ -678,13 +763,10 @@ fn mtime(metadata: &fs::Metadata) -> i64 {
         .unwrap_or_default()
 }
 
-#[cfg(unix)]
-fn file_id(_path: &Path, metadata: &fs::Metadata) -> String {
-    use std::os::unix::fs::MetadataExt;
-    format!("{}:{}", metadata.dev(), metadata.ino())
-}
-
-#[cfg(not(unix))]
+/// Dosya kimliği YOL-tabanlı (audit C12). Eski dev:ino kimliği atomic-save yapan her
+/// editör kaydında (temp+rename → yeni inode) değişiyordu → tüm chunk_stable_id'ler
+/// değişip dosyanın TAMAMI yeniden embed ediliyor ve cache'i siliyordu. Yol kimliği
+/// yerinde-düzenlemede stabil kalır; rename/taşıma yeni dosya sayılır (prune eskiyi siler).
 fn file_id(path: &Path, _metadata: &fs::Metadata) -> String {
     path.to_string_lossy().into_owned()
 }

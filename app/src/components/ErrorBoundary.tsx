@@ -1,5 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 
+import { translate, type Lang } from "../i18n";
+
 type Props = {
   children: ReactNode;
   /** key değişince (ör. görünüm değişimi) boundary sıfırlanır */
@@ -7,6 +9,19 @@ type Props = {
 };
 
 type State = { error: Error | null };
+
+// Class component hook kullanamaz → dil localStorage'dan okunur, çeviri saf translate() ile.
+function currentLang(): Lang {
+  try {
+    const saved = localStorage.getItem("aura.lang");
+    if (saved === "en" || saved === "tr") {
+      return saved;
+    }
+  } catch {
+    /* yoksay */
+  }
+  return "tr";
+}
 
 // Bir görünüm çökerse TÜM uygulamayı karartmak yerine kurtarılabilir bir hata
 // gösterir. Görünüm değişince (resetKey) otomatik sıfırlanır.
@@ -29,17 +44,18 @@ export class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.error) {
+      const lang = currentLang();
       return (
         <div className="error-fallback" role="alert">
-          <h2>Bir şeyler ters gitti</h2>
-          <p>Bu bölüm beklenmedik bir hatayla karşılaştı. Başka bir sekmeye geçebilir veya yeniden deneyebilirsin.</p>
+          <h2>{translate(lang, "error.title")}</h2>
+          <p>{translate(lang, "error.body")}</p>
           <pre className="error-detail">{String(this.state.error?.message ?? this.state.error)}</pre>
           <div className="error-actions">
             <button className="button primary" onClick={() => this.setState({ error: null })} type="button">
-              Yeniden dene
+              {translate(lang, "error.retry")}
             </button>
             <button className="button" onClick={() => window.location.reload()} type="button">
-              Uygulamayı yenile
+              {translate(lang, "error.reload")}
             </button>
           </div>
         </div>

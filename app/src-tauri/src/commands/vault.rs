@@ -7,47 +7,116 @@ use serde::Serialize;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 
 #[tauri::command]
 pub async fn pick_vault_folder(app: AppHandle) -> Result<Option<String>, String> {
-    // Dialog'u callback + channel ile aç: senkron komut + blocking_pick_folder
-    // ana thread'i kilitleyip çökertiyordu. async komut + non-blocking callback güvenli.
-    let (tx, rx) = std::sync::mpsc::channel();
+    // Dialog'u callback + oneshot ile aç: senkron komut + blocking_pick_folder ana thread'i
+    // kilitleyip çökertiyordu; mpsc recv() de dialog açıkken bir runtime worker'ını park
+    // ediyordu (audit S21). oneshot + await hiçbir thread'i bloklamaz.
+    let (tx, rx) = tokio::sync::oneshot::channel();
     app.dialog().file().pick_folder(move |folder| {
         let _ = tx.send(folder);
     });
-    let Some(folder) = rx.recv().map_err(|err| err.to_string())? else {
+    let Some(folder) = rx.await.map_err(|err| err.to_string())? else {
         return Ok(None);
     };
     let path = picked_folder_to_string(folder)?;
 
+    // Workspace semantiği: seçilen klasör AKTİF workspace olur (MRU başı).
     let mut settings = settings::load();
-    if !settings.vault_roots.iter().any(|root| root == &path) {
-        settings.vault_roots.push(path.clone());
+    if settings::promote_root(&mut settings.vault_roots, &path) {
         settings::save(&settings)?;
     }
 
     Ok(Some(path))
 }
 
-#[tauri::command]
-pub fn list_notes(read: State<'_, ReadDb>) -> Result<Vec<NoteRef>, String> {
-    // Ayrı read connection → indeksleme sürerken dosya listesi DONMAZ (codex #2 güvenli dilim).
-    let conn = read.0.lock().map_err(|err| err.to_string())?;
-    crate::db::list_notes(&conn).map_err(|err| err.to_string())
+/// Aktif workspace + son kullanılanlar (UI switcher'ı için).
+#[derive(Debug, Clone, Serialize)]
+pub struct WorkspaceInfo {
+    pub active: Option<String>,
+    pub recents: Vec<String>,
 }
 
 #[tauri::command]
-pub fn search_hybrid(
-    indexer: State<'_, Mutex<Indexer>>,
+pub fn get_workspace() -> WorkspaceInfo {
+    let settings = settings::load();
+    WorkspaceInfo {
+        active: settings.active_root().map(str::to_string),
+        recents: settings.vault_roots.clone(),
+    }
+}
+
+/// Son-kullanılanlardan birini aktif workspace yapar. Klasör hâlâ mevcut olmalı.
+#[tauri::command]
+pub fn set_active_workspace(path: String) -> Result<WorkspaceInfo, String> {
+    if !Path::new(&path).is_dir() {
+        return Err(format!("workspace folder no longer exists: {path}"));
+    }
+    let mut settings = settings::load();
+    if settings::promote_root(&mut settings.vault_roots, &path) {
+        settings::save(&settings)?;
+    }
+    Ok(get_workspace())
+}
+
+/// Workspace'i listeden çıkarır ve indeksteki tüm izlerini siler (repo mantığı:
+/// unutulan repo'nun verisi arama/graph'ta hayalet bırakmaz, DB şişmez).
+/// PERF (audit C7): Indexer kilidi beklenebilir → spawn_blocking, ana thread donmaz.
+#[tauri::command]
+pub async fn forget_workspace(app: AppHandle, path: String) -> Result<WorkspaceInfo, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        // Sıra: ÖNCE DB temizliği, commit BAŞARILIYSA settings (codex: ters sıra,
+        // purge düşerse workspace listeden gitmiş ama izleri DB'de kalmış bırakıyordu).
+        {
+            let state = app.state::<Mutex<Indexer>>();
+            let indexer = state.lock().map_err(|err| err.to_string())?;
+            let tx = crate::indexer::TxGuard::begin(indexer.conn())?;
+            crate::db::delete_notes_under(indexer.conn(), &path).map_err(|err| err.to_string())?;
+            tx.commit()?;
+        }
+
+        let mut settings = settings::load();
+        let before = settings.vault_roots.len();
+        settings.vault_roots.retain(|root| root != &path);
+        if settings.vault_roots.len() != before {
+            settings::save(&settings)?;
+        }
+
+        Ok(get_workspace())
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+pub fn list_notes(read: State<'_, ReadDb>) -> Result<Vec<NoteRef>, String> {
+    // Ayrı read connection → indeksleme sürerken dosya listesi DONMAZ (codex #2 güvenli dilim).
+    let settings = settings::load();
+    let conn = read.0.lock().map_err(|err| err.to_string())?;
+    // Workspace semantiği: yalnız AKTİF kökün notları (eski repo'lar listede görünmez).
+    crate::db::list_notes_under(&conn, settings.active_root()).map_err(|err| err.to_string())
+}
+
+// PERF (audit C7/C21): sync komut ana thread'de Indexer kilidini bekliyordu →
+// indeksleme sırasında arama tüm UI'ı donduruyordu. async + spawn_blocking.
+#[tauri::command]
+pub async fn search_hybrid(
+    app: AppHandle,
     query: String,
     k: u32,
 ) -> Result<Vec<SearchHit>, String> {
-    let indexer = indexer.lock().map_err(|err| err.to_string())?;
-    // GÜVENLİK (codex #7): istemci-kontrollü k'yi sınırla → dev allocation/sonuç kümesi olmasın.
-    indexer.search_hybrid(&query, (k as usize).clamp(1, 50))
+    tauri::async_runtime::spawn_blocking(move || {
+        let settings = settings::load();
+        let state = app.state::<Mutex<Indexer>>();
+        let indexer = state.lock().map_err(|err| err.to_string())?;
+        // GÜVENLİK (codex #7): istemci-kontrollü k'yi sınırla → dev allocation olmasın.
+        indexer.search_hybrid_in(&query, (k as usize).clamp(1, 50), settings.active_root())
+    })
+    .await
+    .map_err(|err| err.to_string())?
 }
 
 #[tauri::command]
@@ -96,14 +165,13 @@ fn atomic_write(path: &Path, content: &str) -> Result<(), String> {
     })
 }
 
-/// AI çıktısını (plan/cevap/inceleme) projenin "AURA/" klasörüne not olarak kaydeder.
-/// Plan→eylem köprüsü: çıktı artık ölü-uçta kalmaz. Kaydedilen dosyanın yolunu döner.
+/// AI çıktısını (plan/cevap/inceleme) AKTİF workspace'in "AURA/" klasörüne not olarak
+/// kaydeder. Plan→eylem köprüsü: çıktı artık ölü-uçta kalmaz. Kaydedilen yolun döner.
 #[tauri::command]
 pub fn save_note(kind: String, content: String) -> Result<String, String> {
     let settings = settings::load();
     let root = settings
-        .vault_roots
-        .first()
+        .active_root()
         .ok_or_else(|| "no project folder selected".to_string())?;
     let dir = PathBuf::from(root).join("AURA");
     fs::create_dir_all(&dir).map_err(|err| format!("failed to create {}: {err}", dir.display()))?;
@@ -162,22 +230,17 @@ pub fn resolve_note_path_for_write(path: &str, settings: &Settings) -> Result<Pa
     Ok(canonical_parent.join(filename))
 }
 
+/// Workspace semantiği: okuma/yazma yalnız AKTİF kökün altında serbesttir. Son-kullanılan
+/// ama aktif olmayan repo'lar da reddedilir (UI onları zaten göstermez; burası derin savunma).
 fn is_under_vault_root(path: &Path, settings: &Settings) -> Result<bool, String> {
-    if settings.vault_roots.is_empty() {
+    let Some(active) = settings.active_root() else {
         return Ok(false);
-    }
+    };
 
-    for root in &settings.vault_roots {
-        let root = PathBuf::from(root);
-        let Ok(root) = root.canonicalize() else {
-            continue;
-        };
-        if path.starts_with(root) {
-            return Ok(true);
-        }
-    }
-
-    Ok(false)
+    let Ok(root) = PathBuf::from(active).canonicalize() else {
+        return Ok(false);
+    };
+    Ok(path.starts_with(root))
 }
 
 fn picked_folder_to_string(folder: impl Serialize) -> Result<String, String> {

@@ -55,6 +55,13 @@ function App() {
     setActiveView("workspace");
   }, []);
 
+  // Workspace değişti (seç/geç/unut): eski repo'nun açık notu/graph'ı bayatladı →
+  // seçim sıfırlanır, dataVersion artar (liste yeniden çekilir, graph remount olur).
+  const handleWorkspaceChange = useCallback(() => {
+    setSelectedNote(null);
+    setDataVersion((v) => v + 1);
+  }, []);
+
   // Ask + Aura-mode HEP MOUNT kalır (sadece gizlenir) → sekme değişince
   // çalışan AI süreci/akışı DURMAZ, geri dönünce kaldığı yerden görünür.
   const switched = (() => {
@@ -63,10 +70,11 @@ function App() {
         return (
           <div className="workspace-layout">
             <VaultExplorer
-              key={dataVersion}
               activePath={selectedNote?.path ?? null}
+              refreshToken={dataVersion}
               onNotesChange={setNoteCount}
               onOpenNote={openNote}
+              onWorkspaceChange={handleWorkspaceChange}
             />
             <NoteEditor note={selectedNote} />
           </div>

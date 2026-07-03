@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useI18n } from "../../i18n";
-import { askConsensus, cancelJob, chat, pickVaultFolder, runMode, saveNote } from "../../lib/ipc";
+import { askConsensus, cancelJob, chat, getSettings, pickVaultFolder, runMode, saveNote } from "../../lib/ipc";
 import type { AuraMode } from "../../lib/types";
 import { ChatView } from "../Chat/ChatView";
 import { useConversation, type AiRunner, type ChatMessage } from "../../hooks/useConversation";
@@ -33,9 +33,45 @@ export function AuraModePanel() {
   const { t } = useI18n();
   const convo = useConversation();
   const [mode, setMode] = useState<AuraMode>("chat");
+  const [consensusAvailable, setConsensusAvailable] = useState(false);
   const [projectDir, setProjectDir] = useState<string | null>(null);
   const [actionMsg, setActionMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    // Ayar kaydedildikçe consensus_enabled'ı izle; kapalıysa mod listeden düşer,
+    // seçiliyse chat'e geri alınır (backend consensus'u zaten reddederdi).
+    const loadSettings = () => {
+      void getSettings()
+        .then((settings) => {
+          if (!alive) {
+            return;
+          }
+          const enabled = settings.consensus_enabled === true;
+          setConsensusAvailable(enabled);
+          if (!enabled) {
+            setMode((current) => (current === "consensus" ? "chat" : current));
+          }
+        })
+        .catch(() => {
+          if (alive) {
+            setConsensusAvailable(false);
+            setMode((current) => (current === "consensus" ? "chat" : current));
+          }
+        });
+    };
+    loadSettings();
+    window.addEventListener("aura:settings-saved", loadSettings);
+    return () => {
+      alive = false;
+      window.removeEventListener("aura:settings-saved", loadSettings);
+    };
+  }, []);
+
+  const availableModeOptions = consensusAvailable
+    ? modeOptions
+    : modeOptions.filter((option) => option.id !== "consensus");
 
   const chooseProjectDir = async () => {
     setError(null);
@@ -62,6 +98,10 @@ export function AuraModePanel() {
   const sendFor = (targetMode: AuraMode, text: string) => {
     setError(null);
     setActionMsg(null);
+    if (targetMode === "consensus" && !consensusAvailable) {
+      setError(t("common.error"));
+      return;
+    }
     if (requiresProjectDir(targetMode) && !projectDir) {
       setError(`${t(modeLabelKey(targetMode))} · ${t("auraMode.projectFolder")}`);
       return;
@@ -145,7 +185,7 @@ export function AuraModePanel() {
                 onChange={(event) => setMode(event.currentTarget.value as AuraMode)}
                 value={mode}
               >
-                {modeOptions.map((option) => (
+                {availableModeOptions.map((option) => (
                   <option key={option.id} value={option.id}>
                     {t(option.labelKey)}
                   </option>

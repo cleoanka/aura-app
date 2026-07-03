@@ -65,9 +65,12 @@ pub async fn prepare_embedding_model(
     }
 }
 
+// PERF (audit C6): HTTP probe sync komutta ana thread'i blokluyordu → async + spawn_blocking.
 #[tauri::command]
-pub fn ollama_status(base_url: Option<String>) -> lane0::OllamaStatus {
-    lane0::ollama_status(base_url)
+pub async fn ollama_status(base_url: Option<String>) -> Result<lane0::OllamaStatus, String> {
+    tauri::async_runtime::spawn_blocking(move || lane0::ollama_status(base_url))
+        .await
+        .map_err(|err| err.to_string())
 }
 
 #[tauri::command]

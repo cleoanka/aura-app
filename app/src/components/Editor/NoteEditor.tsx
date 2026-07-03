@@ -16,7 +16,7 @@ function basename(path: string) {
 }
 
 export function NoteEditor({ note }: NoteEditorProps) {
-  const { t } = useI18n();
+  const { lang, t } = useI18n();
   const [content, setContent] = useState("");
   const [savedContent, setSavedContent] = useState("");
   const [loading, setLoading] = useState(false);
@@ -117,7 +117,7 @@ export function NoteEditor({ note }: NoteEditorProps) {
         return;
       }
       setSavedContent(contentToSave);
-      setSavedAt(new Intl.DateTimeFormat("tr-TR", {
+      setSavedAt(new Intl.DateTimeFormat(lang === "tr" ? "tr-TR" : "en-US", {
         hour: "2-digit",
         minute: "2-digit",
       }).format(new Date()));
@@ -127,7 +127,7 @@ export function NoteEditor({ note }: NoteEditorProps) {
       savingRef.current = false;
       setSaving(false);
     }
-  }, [content, note, savedContent, t]);
+  }, [content, lang, note, savedContent, t]);
 
   useEffect(() => {
     if (saveTimerRef.current !== null) {
@@ -173,7 +173,7 @@ export function NoteEditor({ note }: NoteEditorProps) {
             {loading
               ? t("common.loading")
               : isDirty
-                ? "Kaydedilmedi"
+                ? t("editor.unsaved")
                 : savedAt
                   ? `${t("editor.saved")} ${savedAt}`
                   : t("editor.saved")}
@@ -185,7 +185,7 @@ export function NoteEditor({ note }: NoteEditorProps) {
             onClick={save}
             type="button"
           >
-            {saving ? t("editor.save") : t("editor.save")}
+            {saving ? t("editor.saving") : t("editor.save")}
           </button>
         </div>
       </header>

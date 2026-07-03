@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -54,13 +55,17 @@ function initialLang(): Lang {
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>(initialLang);
 
+  // Açılışta da (yalnız setLang'de değil) html lang doğru olsun.
+  useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
+
   const setLang = useCallback((next: Lang) => {
     try {
       localStorage.setItem(STORAGE_KEY, next);
     } catch {
       /* yoksay */
     }
-    document.documentElement.lang = next;
     setLangState(next);
   }, []);
 

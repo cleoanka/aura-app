@@ -393,6 +393,112 @@ code,
   font-size: 20px;
 }
 
+/* Workspace switcher: aktif repo + son kullanılanlar menüsü */
+.workspace-switcher {
+  position: relative;
+}
+
+.ws-toggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--text) 3%, transparent);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.ws-toggle:hover {
+  color: var(--text);
+  background: var(--bg-tertiary);
+}
+
+.ws-chevron {
+  transition: transform 0.15s ease;
+}
+
+.ws-chevron.is-open {
+  transform: rotate(180deg);
+}
+
+.ws-menu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 4px);
+  right: 0;
+  left: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-secondary);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.35);
+}
+
+.ws-item {
+  display: flex;
+  align-items: stretch;
+}
+
+.ws-item.is-active {
+  background: var(--accent-soft);
+}
+
+.ws-item-main {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 0;
+  color: var(--text);
+  background: transparent;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ws-item-main:hover {
+  background: var(--bg-tertiary);
+}
+
+.ws-item-name {
+  overflow: hidden;
+  min-width: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ws-badge {
+  flex-shrink: 0;
+  padding: 1px 7px;
+  border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--border));
+  border-radius: 999px;
+  color: var(--accent);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.ws-forget {
+  flex-shrink: 0;
+  padding: 0 10px;
+  border: 0;
+  color: var(--text-muted);
+  background: transparent;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.ws-forget:hover {
+  color: var(--danger, #e5534b);
+  background: var(--bg-tertiary);
+}
+
 .index-stats {
   display: flex;
   flex-wrap: wrap;
@@ -1544,7 +1650,7 @@ select.text-input:focus {
   padding: 11px 14px;
   font: inherit;
   line-height: 1.5;
-  field-sizing: content;
+  field-sizing: content; /* WKWebView desteklemiyor; asıl büyüme ChatView'daki JS autosize */
 }
 .chat-input:focus {
   outline: none;

@@ -35,6 +35,30 @@ fn write_guard_blocks_path_traversal_outside_configured_roots() -> Result<(), St
     Ok(())
 }
 
+// Workspace semantiği: guard yalnız AKTİF (MRU başı) kökü kabul eder; son-kullanılan
+// ama pasif kökler de reddedilir (UI onları göstermez; burası derin savunma).
+#[test]
+fn read_guard_rejects_recent_but_inactive_root() -> Result<(), String> {
+    let (active, recent) = test_paths("inactive")?;
+    fs::write(active.join("aktif.md"), "# Aktif\n").map_err(|err| err.to_string())?;
+    fs::write(recent.join("pasif.md"), "# Pasif\n").map_err(|err| err.to_string())?;
+
+    let mut settings = Settings::default();
+    settings.vault_roots = vec![
+        active.to_string_lossy().into_owned(),
+        recent.to_string_lossy().into_owned(),
+    ];
+
+    assert!(resolve_note_path(&active.join("aktif.md").to_string_lossy(), &settings).is_ok());
+    assert!(
+        resolve_note_path(&recent.join("pasif.md").to_string_lossy(), &settings).is_err(),
+        "pasif workspace'in dosyası aktifken okunamamalı"
+    );
+
+    cleanup(&active, &recent);
+    Ok(())
+}
+
 fn settings_for(root: &std::path::Path) -> Settings {
     let mut settings = Settings::default();
     settings.vault_roots = vec![root.to_string_lossy().into_owned()];

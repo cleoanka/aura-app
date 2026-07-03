@@ -1,22 +1,31 @@
 import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
+import type { ReactNode } from "react";
 
+import { I18nProvider } from "../i18n";
 import { LiveActivity } from "./LiveActivity";
 import { MarkdownView } from "./MarkdownView";
 
+// LiveActivity useI18n kullanıyor → testte gerçek provider ile sarılır.
+function withI18n(ui: ReactNode) {
+  return render(<I18nProvider>{ui}</I18nProvider>);
+}
+
 describe("LiveActivity", () => {
   it("çalışırken güncel durum metnini gösterir", () => {
-    render(<LiveActivity streaming={true} status="🧠 Claude düşünüyor…" log={[]} />);
+    withI18n(<LiveActivity streaming={true} status="🧠 Claude düşünüyor…" log={[]} />);
     expect(screen.getByText("🧠 Claude düşünüyor…")).toBeTruthy();
   });
 
   it("çalışmıyor + log boşken hiçbir şey render etmez", () => {
-    const { container } = render(<LiveActivity streaming={false} status={null} log={[]} />);
+    const { container } = withI18n(
+      <LiveActivity streaming={false} status={null} log={[]} />,
+    );
     expect(container.firstChild).toBeNull();
   });
 
   it("aktivite log satırlarını gösterir", () => {
-    render(<LiveActivity streaming={true} status="x" log={["adım bir", "adım iki"]} />);
+    withI18n(<LiveActivity streaming={true} status="x" log={["adım bir", "adım iki"]} />);
     expect(screen.getByText("adım iki")).toBeTruthy();
   });
 });

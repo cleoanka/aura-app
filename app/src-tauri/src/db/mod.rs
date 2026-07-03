@@ -156,9 +156,13 @@ fn configure(conn: &Connection) -> Result<()> {
         PRAGMA journal_mode=WAL;
         PRAGMA busy_timeout=5000;
         PRAGMA foreign_keys=ON;
+        PRAGMA synchronous=NORMAL;
         "#,
     )
 }
+// synchronous=NORMAL: WAL ile güvenli (uygulama çökmesinde veri kaybı yok; yalnız
+// OS/elektrik kesintisinde son commit riske girer — indeks yeniden üretilebilir veri).
+// FULL'ün her commit'te fsync'i embed_pending gibi sık-küçük yazımlarda ana maliyetti.
 
 fn migrate(conn: &Connection) -> Result<()> {
     conn.execute_batch(
@@ -203,6 +207,12 @@ fn migrate(conn: &Connection) -> Result<()> {
         INSERT INTO vec_ann(rowid, embedding)
             SELECT chunk_id, embedding FROM vec_chunks
             WHERE chunk_id NOT IN (SELECT rowid FROM vec_ann);
+
+        -- GC (audit C16): silinen chunk'ların vec_ann satırları vtab'da cascade'lenemez;
+        -- açılışta stale satırları süpür (senkronken 0 satır → ucuz). Arama zaten
+        -- live-filter'lı; bu süpürme index'in sonsuz büyümesini durdurur.
+        DELETE FROM vec_ann
+            WHERE rowid NOT IN (SELECT chunk_id FROM vec_chunks);
 
         CREATE VIRTUAL TABLE IF NOT EXISTS fts_chunks USING fts5(
             text,
@@ -260,6 +270,10 @@ fn migrate(conn: &Connection) -> Result<()> {
         -- taramasını önler (chunk delete/list/representative, cache invalidation, graph komşu).
         CREATE INDEX IF NOT EXISTS chunks_note_ordinal_idx ON chunks(note_path, ordinal);
         CREATE INDEX IF NOT EXISTS cache_deps_key_idx ON cache_deps(cache_key);
+        -- Ters yön invalidasyonu (audit C11): not/chunk silinince bağımlı cache
+        -- girdilerini bulmak için — tablo taraması olmadan.
+        CREATE INDEX IF NOT EXISTS cache_deps_note_idx ON cache_deps(note_path);
+        CREATE INDEX IF NOT EXISTS cache_deps_chunk_idx ON cache_deps(chunk_stable_id);
         CREATE INDEX IF NOT EXISTS links_source_resolved_idx ON links(source_path, resolved, target_path);
         CREATE INDEX IF NOT EXISTS links_target_resolved_idx ON links(target_path, resolved, source_path);
 
@@ -715,6 +729,9 @@ pub fn note_content_hash(conn: &Connection, path: &str) -> Result<Option<String>
 }
 
 pub fn delete_chunks_for_note(conn: &Connection, note_path: &str) -> Result<usize> {
+    // audit C11/C16: bağımlı cache + vec_ann satırları chunk'lar kaybolmadan önce temizlenir.
+    invalidate_cache_for_note(conn, note_path)?;
+    delete_vec_ann_for_note(conn, note_path)?;
     conn.execute(
         "DELETE FROM chunks WHERE note_path = ?1",
         &[Bind::Text(note_path)],
@@ -793,6 +810,13 @@ pub fn list_chunk_stable_ids_for_note(conn: &Connection, note_path: &str) -> Res
 }
 
 pub fn delete_chunk_by_stable_id(conn: &Connection, stable_id: &str) -> Result<usize> {
+    // Sıra kritik (audit C11/C16): önce bağımlı cache girdileri + vec_ann satırı
+    // (chunk id hâlâ bulunabilirken), sonra chunk'ın kendisi (vec_chunks cascade'i).
+    invalidate_cache_for_chunk(conn, stable_id)?;
+    let _ = conn.execute(
+        "DELETE FROM vec_ann WHERE rowid IN (SELECT id FROM chunks WHERE chunk_stable_id = ?1)",
+        &[Bind::Text(stable_id)],
+    );
     conn.execute(
         "DELETE FROM chunks WHERE chunk_stable_id = ?1",
         &[Bind::Text(stable_id)],
@@ -845,6 +869,37 @@ pub fn list_notes(conn: &Connection) -> Result<Vec<NoteRef>> {
     Ok(notes)
 }
 
+/// `path` verilen kökün ALTINDA mı? Bileşen-bazlı karşılaştırma (`Path::starts_with`) —
+/// "/a/repo" köküne "/a/repo2/x.md" YANLIŞ eşleşmez (string-prefix tuzağı yok).
+pub fn path_under_root(path: &str, root: &str) -> bool {
+    std::path::Path::new(path).starts_with(std::path::Path::new(root))
+}
+
+/// SADECE aktif workspace'in notları. `root=None` → hiç workspace seçilmemiş → boş liste
+/// (repo mantığı: aktif klasör yoksa gösterilecek dosya da yoktur).
+pub fn list_notes_under(conn: &Connection, root: Option<&str>) -> Result<Vec<NoteRef>> {
+    let Some(root) = root else {
+        return Ok(Vec::new());
+    };
+    let mut notes = list_notes(conn)?;
+    notes.retain(|note| path_under_root(&note.path, root));
+    Ok(notes)
+}
+
+/// Bir kökün altındaki TÜM notları izleriyle (chunks/vec/links/cache CASCADE+elle) siler.
+/// "Workspace'i unut" akışı: eski repo'nun verisi DB'de şişkinlik/hayalet yaratmasın.
+/// Çağıran transaction'ı yönetir (TxGuard).
+pub fn delete_notes_under(conn: &Connection, root: &str) -> Result<usize> {
+    let mut deleted = 0usize;
+    for path in all_note_paths(conn)? {
+        if path_under_root(&path, root) {
+            delete_note_fully(conn, &path)?;
+            deleted += 1;
+        }
+    }
+    Ok(deleted)
+}
+
 /// Tüm not yollarını döndürür (audit #1 prune: diskte olmayanları tespit için).
 pub fn all_note_paths(conn: &Connection) -> Result<Vec<String>> {
     let mut paths = Vec::new();
@@ -855,9 +910,43 @@ pub fn all_note_paths(conn: &Connection) -> Result<Vec<String>> {
     Ok(paths)
 }
 
+/// Nota bağımlı TÜM cache girdilerini siler (audit C11). Silme SIRASI kritik:
+/// notes silinince cache_deps satırları CASCADE ile yok olur ve cache_get_valid
+/// dep'siz kalan girdiyi "geçerli" sanır → BAYAT cevap. Bu yüzden çapa (dep)
+/// kaybolmadan ÖNCE girdinin kendisi silinir (cache→deps/query_vec cascade'i temiz).
+pub fn invalidate_cache_for_note(conn: &Connection, path: &str) -> Result<()> {
+    conn.execute(
+        "DELETE FROM cache WHERE key IN (SELECT cache_key FROM cache_deps WHERE note_path = ?1)",
+        &[Bind::Text(path)],
+    )?;
+    Ok(())
+}
+
+/// Chunk'a bağımlı cache girdilerini siler (audit C11 — reindex'te kaybolan başlık/bölüm).
+pub fn invalidate_cache_for_chunk(conn: &Connection, stable_id: &str) -> Result<()> {
+    conn.execute(
+        "DELETE FROM cache WHERE key IN (SELECT cache_key FROM cache_deps WHERE chunk_stable_id = ?1)",
+        &[Bind::Text(stable_id)],
+    )?;
+    Ok(())
+}
+
+/// Bir notun chunk'larının vec_ann satırlarını siler (audit C16). vec0 virtual tablo
+/// FK cascade alamaz; chunk'lar silinmeden ÖNCE (id'ler hâlâ bulunabilirken) çağrılır.
+fn delete_vec_ann_for_note(conn: &Connection, path: &str) -> Result<()> {
+    let _ = conn.execute(
+        "DELETE FROM vec_ann WHERE rowid IN (SELECT id FROM chunks WHERE note_path = ?1)",
+        &[Bind::Text(path)],
+    );
+    Ok(())
+}
+
 /// Bir notu ve TÜM izlerini siler (audit #1). notes silinince chunks→vec_chunks ve cache_deps
 /// ON DELETE CASCADE ile temizlenir; links'in FK'si olmadığından elle silinir (kaynak + hedef).
+/// Cache invalidasyonu + vec_ann GC cascade'den ÖNCE yapılır (audit C11/C16).
 pub fn delete_note_fully(conn: &Connection, path: &str) -> Result<()> {
+    invalidate_cache_for_note(conn, path)?;
+    delete_vec_ann_for_note(conn, path)?;
     conn.execute("DELETE FROM notes WHERE path = ?1", &[Bind::Text(path)])?;
     delete_links_for_source(conn, path)?;
     conn.execute("DELETE FROM links WHERE target_path = ?1", &[Bind::Text(path)])?;
@@ -969,6 +1058,14 @@ pub fn list_links(conn: &Connection) -> Result<Vec<LinkRef>> {
         },
     )?;
     Ok(links)
+}
+
+pub fn set_meta_value(conn: &Connection, key: &str, value: &str) -> Result<()> {
+    conn.execute(
+        "INSERT OR REPLACE INTO meta(k, v) VALUES (?1, ?2)",
+        &[Bind::Text(key), Bind::Text(value)],
+    )?;
+    Ok(())
 }
 
 pub fn meta_value(conn: &Connection, key: &str) -> Result<Option<String>> {

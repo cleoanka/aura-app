@@ -39,18 +39,31 @@ export function ChatView({
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  // Dipte miyiz? Scroll EVENT'inde güncellenir; DOM güncellemesi SONRASI ölçüm
+  // hızlı chunk akışında smooth scroll bitmeden eşiği aşıp autoscroll'u kalıcı susturuyordu.
+  const stickToBottomRef = useRef(true);
 
-  // Yeni içerik geldikçe en alta kaydır (kullanıcı yukarı kaydırmadıysa).
-  useEffect(() => {
+  const onScroll = () => {
     const node = scrollRef.current;
     if (!node) {
       return;
     }
-    const nearBottom = node.scrollHeight - node.scrollTop - node.clientHeight < 160;
-    if (nearBottom) {
-      endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    stickToBottomRef.current = node.scrollHeight - node.scrollTop - node.clientHeight < 160;
+  };
+
+  // Yeni içerik geldikçe en alta kaydır (kullanıcı yukarı kaydırmadıysa).
+  useEffect(() => {
+    if (stickToBottomRef.current) {
+      endRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
     }
   }, [messages]);
+
+  // Tauri macOS WKWebView `field-sizing: content` desteklemiyor — yüksekliği elle ayarla.
+  const autosize = (el: HTMLTextAreaElement) => {
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
+  };
 
   const submit = () => {
     const trimmed = input.trim();
@@ -59,6 +72,9 @@ export function ChatView({
     }
     onSend(trimmed);
     setInput(""); // GÖNDERİNCE OTOMATİK TEMİZLE — silip yeniden yazmak yok.
+    if (inputRef.current) {
+      inputRef.current.style.height = "44px";
+    }
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -71,7 +87,7 @@ export function ChatView({
 
   return (
     <div className="chat-view">
-      <div className="chat-scroll" ref={scrollRef}>
+      <div className="chat-scroll" ref={scrollRef} onScroll={onScroll}>
         {messages.length === 0 ? (
           <div className="chat-empty">{emptyHint ?? t("ask.placeholder")}</div>
         ) : (
@@ -121,8 +137,12 @@ export function ChatView({
         <div className="chat-input-row">
           <textarea
             className="chat-input"
+            ref={inputRef}
             value={input}
-            onChange={(event) => setInput(event.currentTarget.value)}
+            onChange={(event) => {
+              setInput(event.currentTarget.value);
+              autosize(event.currentTarget);
+            }}
             onKeyDown={onKeyDown}
             placeholder={placeholder ?? t("ask.placeholder")}
             rows={1}

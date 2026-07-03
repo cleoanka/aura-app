@@ -68,3 +68,34 @@ fn noop_reindex_preserves_cache() -> db::Result<()> {
     assert_eq!(db::cache_get_valid(&conn, "k")?, Some("answer".to_string()));
     Ok(())
 }
+
+#[test]
+fn deleting_dependency_note_invalidates_cache_not_validates_it() -> db::Result<()> {
+    // audit C11 regresyonu: eskiden notes silinince cache_deps CASCADE ile yok oluyor,
+    // dep'siz kalan cache girdisi "geçerli" sayılıp BAYAT cevap dönüyordu.
+    let conn = db::open_in_memory()?;
+    seed(&conn, "a.md", "h1")?;
+    db::cache_put(&conn, "key1", "cached answer", "model-v", &deps("a.md", "h1"))?;
+
+    db::delete_note_fully(&conn, "a.md")?;
+
+    assert_eq!(
+        db::cache_get_valid(&conn, "key1")?,
+        None,
+        "silinen kaynağın cache'i HIT dönmemeli (bayat cevap)"
+    );
+    Ok(())
+}
+
+#[test]
+fn deleting_dependency_chunk_invalidates_cache() -> db::Result<()> {
+    // audit C11: reindex'te kaybolan başlık/bölüm (chunk) de bağımlı cache'i düşürmeli.
+    let conn = db::open_in_memory()?;
+    seed(&conn, "a.md", "h1")?;
+    db::cache_put(&conn, "key1", "cached answer", "model-v", &deps("a.md", "h1"))?;
+
+    db::delete_chunk_by_stable_id(&conn, "a.md#0")?;
+
+    assert_eq!(db::cache_get_valid(&conn, "key1")?, None);
+    Ok(())
+}

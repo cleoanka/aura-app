@@ -20,9 +20,10 @@ pub mod settings;
 
 use commands::{
     agent_detect, agent_install, agent_test, api_key_status, ask, ask_consensus, cancel_job, chat,
-    clear_api_key, embedding_status, get_graph, get_settings, index_vault, list_notes, ollama_pull,
-    ollama_status, pick_vault_folder, prepare_embedding_model, pty_close, pty_open, pty_resize,
-    pty_write, read_note, run_mode, save_note, search_fts, search_hybrid, set_api_key, set_settings,
+    clear_api_key, embedding_status, forget_workspace, get_graph, get_settings, get_workspace,
+    index_vault, list_notes, ollama_pull, ollama_status, pick_vault_folder,
+    prepare_embedding_model, pty_close, pty_open, pty_resize, pty_write, read_note, run_mode,
+    save_note, search_fts, search_hybrid, set_active_workspace, set_api_key, set_settings,
     write_note,
 };
 use embed::default_embedder;
@@ -38,31 +39,55 @@ fn greet(name: &str) -> String {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let indexer = create_indexer_state().expect("failed to initialize indexer");
-
-    let read_db = create_read_db().expect("failed to open read connection");
+    // audit C8: DB açılamazsa (disk dolu, izin, bozuk dosya) panic yerine kullanıcıya
+    // NEDENİ söyleyen bir dialog göster ve düzgün çık — "uygulama hiç açılmıyor" olmasın.
+    let (indexer, read_db) = match create_indexer_state().and_then(|idx| {
+        let read = create_read_db()?;
+        Ok((idx, read))
+    }) {
+        Ok(pair) => pair,
+        Err(err) => {
+            fatal_startup_error(&format!(
+                "AURA veritabanını açamadı:\n{err}\n\nDisk alanını/izinleri kontrol edin veya \
+                 ~/Library/Application Support/aura-app/index.sqlite3 dosyasını taşıyıp yeniden deneyin."
+            ));
+            return;
+        }
+    };
 
     tauri::Builder::default()
         .manage(indexer)
         .manage(read_db)
         .manage(exec::new_job_registry())
         .setup(|app| {
-            // Başlangıçta kayıtlı proje klasörlerini ARKA PLANDA yeniden indeksle
+            // Başlangıçta YALNIZ AKTİF workspace'i ARKA PLANDA yeniden indeksle
             // (güncel code-aware kodla; stale veriyi self-heal eder). Pencereyi bloklamaz.
+            // PERF: eski davranış TÜM geçmiş kökleri tarıyordu → açılışta uzun süren
+            // disk+CPU yükü ("uygulama kasıyor"). Repo mantığında tek aktif kök yeter;
+            // pasif bir köke geçişte UI set_active_workspace + index_vault çağırır.
             let handle = app.handle().clone();
             std::thread::spawn(move || {
-                let roots = settings::load().vault_roots;
-                if roots.is_empty() {
+                let settings = settings::load();
+                let Some(active) = settings.active_root() else {
                     return;
-                }
+                };
                 let state = handle.state::<Mutex<Indexer>>();
                 // 1) Hızlı indeksleme (embedding YOK) → dosyalar/graph/FTS hemen hazır.
-                for root in &roots {
-                    if let Ok(mut idx) = state.lock() {
-                        let _ = idx.index_vault(&std::path::PathBuf::from(root));
+                // audit S11: hata sessizce yutulmaz — UI'a index-error event'i + stderr log;
+                // "index-updated" yalnız BAŞARILI indekste yayınlanır (UI yanlış "güncel" sanmasın).
+                let outcome = match state.lock() {
+                    Ok(mut idx) => idx.index_vault(&std::path::PathBuf::from(active)),
+                    Err(err) => Err(format!("indexer lock poisoned: {err}")),
+                };
+                match outcome {
+                    Ok(_) => {
+                        let _ = handle.emit("index-updated", ());
+                    }
+                    Err(reason) => {
+                        eprintln!("warning: startup reindex failed for {active}: {reason}");
+                        let _ = handle.emit("index-error", reason);
                     }
                 }
-                let _ = handle.emit("index-updated", ());
 
                 // 2) Vektörleri SADECE semantic_search açıksa arka planda doldur.
                 // Kapalıyken (varsayılan) embedding yok → CPU yükü yok, arama FTS5 ile.
@@ -109,6 +134,9 @@ pub fn run() {
             write_note,
             save_note,
             pick_vault_folder,
+            get_workspace,
+            set_active_workspace,
+            forget_workspace,
             get_settings,
             set_settings,
             pty_open,
@@ -121,6 +149,22 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+/// Açılış-anı ölümcül hatası: pencere yokken native dialog ile bildir (stderr'e de yaz).
+fn fatal_startup_error(message: &str) {
+    eprintln!("fatal: {message}");
+    #[cfg(target_os = "macos")]
+    {
+        let script = format!(
+            "display alert \"AURA başlatılamadı\" message {:?} as critical",
+            message
+        );
+        let _ = std::process::Command::new("osascript")
+            .arg("-e")
+            .arg(script)
+            .status();
+    }
 }
 
 /// PERF (codex #2 güvenli dilim): saf-okuma komutları (get_graph, list_notes) için

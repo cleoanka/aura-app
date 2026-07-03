@@ -3,8 +3,14 @@ use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
+/// Hatırlanan en fazla workspace sayısı (MRU listesi bundan uzunsa kuyruk düşer).
+pub const MAX_RECENT_WORKSPACES: usize = 10;
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Settings {
+    /// MRU-sıralı workspace listesi: `[0]` = AKTİF workspace (repo mantığı — tek aktif
+    /// çalışma klasörü), kalanı "son kullanılanlar". Yeni klasör seçmek/aktifleştirmek
+    /// yolu öne taşır; UI ve tüm sorgular (list/search/graph/ask) yalnız aktif kökü görür.
     #[serde(
         default = "default_vault_roots",
         deserialize_with = "deserialize_vault_roots"
@@ -281,9 +287,32 @@ pub fn save_to(path: &Path, settings: &Settings) -> Result<(), String> {
     result
 }
 
+/// `path`i MRU listesinin başına taşır (yoksa ekler), listeyi `MAX_RECENT_WORKSPACES`e kırpar.
+/// Dönen değer: liste değişti mi (kaydetme kararı için).
+pub fn promote_root(roots: &mut Vec<String>, path: &str) -> bool {
+    if roots.first().map(String::as_str) == Some(path) {
+        return false;
+    }
+    roots.retain(|root| root != path);
+    roots.insert(0, path.to_string());
+    roots.truncate(MAX_RECENT_WORKSPACES);
+    true
+}
+
 impl Settings {
+    /// Aktif workspace kökü (MRU listesinin başı). Hiç klasör seçilmemişse `None`.
+    pub fn active_root(&self) -> Option<&str> {
+        self.vault_roots.first().map(String::as_str)
+    }
+
     fn normalized(&self) -> Self {
         let mut settings = self.clone();
+        // Workspace MRU listesi: boş girdileri at, sırayı koruyarak tekille, kırp.
+        let mut seen_roots = std::collections::HashSet::new();
+        settings
+            .vault_roots
+            .retain(|root| !root.trim().is_empty() && seen_roots.insert(root.clone()));
+        settings.vault_roots.truncate(MAX_RECENT_WORKSPACES);
         if !matches!(settings.default_mode.as_str(), "ask" | "aura") {
             settings.default_mode = default_default_mode();
         }

@@ -11,9 +11,16 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tauri::ipc::Channel;
 
-const TOTAL_TIMEOUT: Duration = Duration::from_secs(420);
-// Ajan zamanlaması artık kullanıcı ayarından gelir (consensus.agent_timeout_secs + grace_secs).
+// Ajan zamanlaması kullanıcı ayarından gelir (consensus.agent_timeout_secs + grace_secs).
 const SYNTHESIS_TIMEOUT: Duration = Duration::from_secs(120);
+
+/// Toplam üst sınır AYARDAN türetilir (audit C18): agent_timeout + grace + sentez + pay.
+/// Eski sabit 420s, ayarların izin verdiği 600s'lik ajanı yarıda kesiyordu.
+fn total_timeout(agent_timeout_secs: u32, grace_secs: u32) -> Duration {
+    Duration::from_secs(u64::from(agent_timeout_secs) + u64::from(grace_secs))
+        + SYNTHESIS_TIMEOUT
+        + Duration::from_secs(30)
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConsensusAnswerMode {
@@ -86,7 +93,7 @@ pub async fn run_consensus(
     // Bekleme süreleri kullanıcı tarafından UI'dan ayarlanır.
     let cfg = crate::settings::load().consensus;
     let result = tokio::time::timeout(
-        TOTAL_TIMEOUT,
+        total_timeout(cfg.agent_timeout_secs, cfg.grace_secs),
         run_consensus_inner(
             query.to_string(),
             temp_paths.shared_prompt.clone(),
@@ -104,9 +111,10 @@ pub async fn run_consensus(
         Err(_) => {
             handle.cancel();
             let reason = "consensus timed out".to_string();
+            // audit C18: bu bir zaman aşımı, ağ hatası değil — doğru taksonomi.
             let _ = on_event.send(AiEvent::Error {
                 reason: reason.clone(),
-                taxonomy: "network".to_string(),
+                taxonomy: "timeout".to_string(),
             });
             Err(reason)
         }
@@ -149,44 +157,82 @@ async fn run_consensus_inner(
         });
     }
 
-    let total = available_agents.len();
     let agent_timeout = Duration::from_secs(agent_timeout_secs as u64);
     let mut children: Vec<Arc<Mutex<GroupChild>>> = Vec::new();
     let mut set: tokio::task::JoinSet<Option<(String, String)>> = tokio::task::JoinSet::new();
+    // audit S16: sayaçlar GERÇEKTEN başlatılan ajanları sayar; spawn edilemeyen ajan
+    // "bekleniyor" görünmez.
+    let mut spawned = 0usize;
     for agent in available_agents.iter().copied() {
         if handle.is_cancelled() {
             break;
         }
         let child = match spawn_agent(&agent, &shared_prompt_path, &handle) {
             Ok(child) => child,
-            Err(_) => continue,
+            Err(err) => {
+                let _ = on_event.send(AiEvent::Status {
+                    text: format!("✗ {} başlatılamadı: {err}", agent.name),
+                    stage: Some("consensus".to_string()),
+                    agent: Some(agent.name.to_string()),
+                });
+                continue;
+            }
         };
-        let stdout = {
+        let (stdout, stderr) = {
             let mut guard = match child.lock() {
                 Ok(guard) => guard,
                 Err(_) => continue,
             };
-            guard.inner().stdout.take()
+            (guard.inner().stdout.take(), guard.inner().stderr.take())
         };
         let Some(stdout) = stdout else {
             continue;
         };
         // child Arc'ını sakla → grace dolunca/asılınca straggler'ı öldürebilelim.
         children.push(child.clone());
+        spawned += 1;
         let on_event_task = on_event.clone();
         let handle_task = handle.clone();
         set.spawn(async move {
+            // audit S14: stderr'i (sınırlı) ayrı thread'de oku → başarısız ajanın NEDENİ
+            // kullanıcıya gösterilebilir; ayrı thread pipe-dolu deadlock'unu önler.
+            let stderr_tail =
+                stderr.map(|stream| std::thread::spawn(move || read_stderr_tail(stream)));
             let read = tokio::task::spawn_blocking(move || read_stdout_to_string(stdout));
             let output = match tokio::time::timeout(agent_timeout, read).await {
                 Ok(Ok(Ok(output))) => output,
                 _ => {
                     kill_child(&child);
                     wait_child(child).await;
+                    let _ = on_event_task.send(AiEvent::Status {
+                        text: format!(
+                            "✗ {} zaman aşımı ({}s) — atlandı",
+                            agent.name,
+                            agent_timeout.as_secs()
+                        ),
+                        stage: Some("consensus".to_string()),
+                        agent: Some(agent.name.to_string()),
+                    });
                     return None;
                 }
             };
             let status = wait_child(child).await;
             if !matches!(status, Some(status) if status.success()) || handle_task.is_cancelled() {
+                if !handle_task.is_cancelled() {
+                    let tail = stderr_tail
+                        .and_then(|reader| reader.join().ok())
+                        .unwrap_or_default();
+                    let reason = if tail.is_empty() {
+                        "çıkış kodu sıfır değil".to_string()
+                    } else {
+                        tail
+                    };
+                    let _ = on_event_task.send(AiEvent::Status {
+                        text: format!("✗ {} başarısız: {reason}", agent.name),
+                        stage: Some("consensus".to_string()),
+                        agent: Some(agent.name.to_string()),
+                    });
+                }
                 return None;
             }
             // agy auth bozulunca login URL'ini STDOUT'a yazıp EXIT 0 dönebiliyor → bu "yanıtı" senteze
@@ -207,6 +253,8 @@ async fn run_consensus_inner(
             Some((agent.name.to_string(), output))
         });
     }
+
+    let total = spawned;
 
     // GRACE modu: ilk yanıttan sonra geç kalanlara yalnız grace_secs süre tanı, sonra eldekiyle
     // senteze geç. grace_secs=0 → grace kapalı (hepsini agent_timeout'a kadar bekle). Tamamlanma
@@ -430,7 +478,8 @@ fn spawn_agent(
         .args(agent.args)
         .stdin(stdin)
         .stdout(Stdio::piped())
-        .stderr(Stdio::null());
+        // audit S14: stderr artık çöpe gitmiyor — başarısız ajanın nedeni UI'a taşınır.
+        .stderr(Stdio::piped());
     let child = command
         .group_spawn()
         .map_err(|err| format!("failed to start {}: {err}", agent.name))?;
@@ -448,6 +497,37 @@ fn read_stdout_to_string(stdout: ChildStdout) -> Result<String, String> {
         .read_to_string(&mut text)
         .map_err(|err| format!("failed to read agent output: {err}"))?;
     Ok(text)
+}
+
+/// stderr'in SON ~500 karakterini döndürür (teşhis için yeterli, UI'ı boğmaz).
+/// EOF'a kadar DRAIN eder (codex: erken kapatmak çok-stderr'li ajanı EPIPE ile bozar);
+/// bellekte yalnız son 8KB tutulur — kaçak ajan belleği şişiremez.
+fn read_stderr_tail(stderr: std::process::ChildStderr) -> String {
+    const KEEP: usize = 8 * 1024;
+    let mut reader = BufReader::new(stderr);
+    let mut tail: Vec<u8> = Vec::with_capacity(KEEP * 2);
+    let mut buf = [0u8; 4096];
+    loop {
+        match reader.read(&mut buf) {
+            Ok(0) | Err(_) => break,
+            Ok(n) => {
+                tail.extend_from_slice(&buf[..n]);
+                if tail.len() > KEEP {
+                    let cut = tail.len() - KEEP;
+                    tail.drain(..cut);
+                }
+            }
+        }
+    }
+    let text = String::from_utf8_lossy(&tail);
+    let trimmed = text.trim();
+    let tail_start = trimmed
+        .char_indices()
+        .rev()
+        .nth(499)
+        .map(|(i, _)| i)
+        .unwrap_or(0);
+    trimmed[tail_start..].to_string()
 }
 
 fn stream_stdout(

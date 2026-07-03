@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
+import { useI18n } from "../i18n";
+
 type Props = {
   /** AI şu an çalışıyor mu */
   streaming: boolean;
@@ -12,6 +14,7 @@ type Props = {
 // Çalışırken kullanıcı HER ZAMAN hareket görsün: dönen spinner + güncel durum +
 // HER SANİYE artan geçen-süre sayacı (TTFT boşluğunda "donmuş mu?" hissini bitirir).
 export function LiveActivity({ streaming, status, log }: Props) {
+  const { t } = useI18n();
   const [elapsed, setElapsed] = useState(0);
   const logRef = useRef<HTMLUListElement | null>(null);
 
@@ -35,7 +38,7 @@ export function LiveActivity({ streaming, status, log }: Props) {
   }
 
   return (
-    <div className="live-activity" role="status" aria-live="polite">
+    <div className="live-activity">
       <div className="live-activity-head">
         {streaming ? (
           <span className="live-spinner" aria-hidden="true" />
@@ -44,8 +47,15 @@ export function LiveActivity({ streaming, status, log }: Props) {
             ✓
           </span>
         )}
-        <span className="live-status">{status ?? "Başlatılıyor…"}</span>
-        {streaming ? <span className="live-elapsed">{elapsed}s</span> : null}
+        {/* aria-live yalnız durum metninde: saniye sayacı anons spam'i yapmasın */}
+        <span className="live-status" role="status" aria-live="polite">
+          {status ?? t("activity.starting")}
+        </span>
+        {streaming ? (
+          <span className="live-elapsed" aria-hidden="true">
+            {elapsed}s
+          </span>
+        ) : null}
       </div>
       {log.length > 0 ? (
         <ul className="live-log" ref={logRef}>

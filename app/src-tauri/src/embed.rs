@@ -147,10 +147,11 @@ mod candle_backend {
             if ids.is_empty() {
                 return Ok(StubEmbedder.embed(text));
             }
+            // PERF (audit C15/C23): tek dizide pad GEREKSİZ — forward gerçek uzunlukta koşar.
+            // Eski kod her sorguyu 512'ye pad ediyordu → kısa sorguda ~10-30x boş hesap.
+            // Mask'li mean-pool pad'siz de aynı sonucu verir (pad token'ları zaten dışlanıyordu).
             ids.truncate(MAX_SEQ_LEN);
             attention.truncate(MAX_SEQ_LEN);
-            ids.resize(MAX_SEQ_LEN, self.pad_token_id);
-            attention.resize(MAX_SEQ_LEN, 0);
 
             let token_type_ids = vec![0u32; ids.len()];
             let input_ids = Tensor::new(ids.as_slice(), &self.device)
@@ -339,21 +340,62 @@ mod candle_backend {
 #[cfg(feature = "candle")]
 pub use candle_backend::CandleEmbedder;
 
+/// Candle modelini İLK KULLANIMDA yükleyen sarmalayıcı (audit C24). Eski davranış
+/// modeli pencere oluşmadan ÖNCE senkron yüklüyordu → açılış gecikmesi. Lazy'de app
+/// anında açılır; ilk embed çağrısı (arka plan embed_pending veya ilk arama) yüklemeyi
+/// öder. Yükleme başarısızsa kalıcı olarak StubEmbedder'a düşer (eski fallback ile aynı).
+#[cfg(feature = "candle")]
+struct LazyCandleEmbedder {
+    inner: std::sync::OnceLock<Box<dyn Embedder>>,
+}
+
+#[cfg(feature = "candle")]
+impl LazyCandleEmbedder {
+    fn get(&self) -> &dyn Embedder {
+        self.inner
+            .get_or_init(|| match CandleEmbedder::new() {
+                Ok(embedder) => Box::new(embedder),
+                Err(err) => {
+                    eprintln!("warning: CandleEmbedder init failed; StubEmbedder kullanılıyor: {err}");
+                    Box::new(StubEmbedder)
+                }
+            })
+            .as_ref()
+    }
+}
+
+#[cfg(feature = "candle")]
+impl Embedder for LazyCandleEmbedder {
+    fn dim(&self) -> usize {
+        db::EMBEDDING_DIM
+    }
+    fn embed(&self, text: &str) -> Vec<f32> {
+        self.get().embed(text)
+    }
+    fn embed_passage(&self, text: &str) -> Vec<f32> {
+        self.get().embed_passage(text)
+    }
+    fn embed_query(&self, text: &str) -> Vec<f32> {
+        self.get().embed_query(text)
+    }
+    fn embed_passages_batch(&self, texts: &[String]) -> Vec<Vec<f32>> {
+        self.get().embed_passages_batch(texts)
+    }
+}
+
 /// Başlangıç-güvenli embedder seçimi: candle SADECE model zaten indirilmişse
 /// kullanılır (cache kontrolü, İNDİRME YOK → app anında açılır). Model yoksa
 /// StubEmbedder + FTS5 ana arama; kullanıcı Model Manager'dan indirince candle'a geçilir.
 pub fn default_embedder() -> Box<dyn Embedder> {
     // candle (gerçek e5) SADECE kullanıcı Settings'ten semantic_search'ü açtıysa VE model
     // cache'liyse kullanılır. Varsayılan KAPALI → StubEmbedder (sıfıra yakın CPU; FTS5 arama).
+    // Yükleme LAZY (audit C24): seçim burada, ağır iş ilk embed'de.
     #[cfg(feature = "candle")]
     {
         if crate::settings::load().semantic_search && candle_backend::model_is_cached() {
-            match CandleEmbedder::new() {
-                Ok(embedder) => return Box::new(embedder),
-                Err(err) => {
-                    eprintln!("warning: CandleEmbedder init failed; StubEmbedder kullanılıyor: {err}");
-                }
-            }
+            return Box::new(LazyCandleEmbedder {
+                inner: std::sync::OnceLock::new(),
+            });
         }
     }
 

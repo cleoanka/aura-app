@@ -10,6 +10,8 @@ import type { NoteRef } from "../../lib/types";
 type GraphViewProps = {
   onOpenNote: (note: NoteRef) => void;
   activePath?: string | null;
+  // Remount gerektirmeden veri tazeleme: değer değişince graph yeniden fetch edilir.
+  refreshToken?: number;
 };
 
 // The backend get_graph() now returns a richer, cross-file graph than the
@@ -284,11 +286,13 @@ function linkEndId(e: string | { id?: string } | undefined): string {
 const LEGEND_TYPES: { type: NodeType; key: string }[] = [
   { type: "markdown", key: "graph.kind.markdown" },
   { type: "code", key: "graph.kind.code" },
+  { type: "config", key: "graph.kind.config" },
   { type: "binary", key: "graph.kind.binary" },
+  { type: "external", key: "graph.kind.external" },
   { type: "dangling", key: "graph.kind.dangling" },
 ];
 
-export function GraphView({ onOpenNote, activePath }: GraphViewProps) {
+export function GraphView({ onOpenNote, activePath, refreshToken }: GraphViewProps) {
   const { t } = useI18n();
   const stageRef = useRef<HTMLDivElement | null>(null);
   const graphRef = useRef<ForceMethods | undefined>(undefined);
@@ -297,6 +301,12 @@ export function GraphView({ onOpenNote, activePath }: GraphViewProps) {
   // selection — coords are undefined until the sim settles, so we retry inside
   // the engine-stop handler.
   const centeredRef = useRef<string | null>(null);
+  // İlk otomatik zoomToFit tek sefer yapılır; sonraki engine-stop'lar viewport'a
+  // dokunmaz (düğüm sürükleme sonrası fit-zıplamasını önler).
+  const didInitialFitRef = useRef(false);
+  // Veri yenilemesinden (refreshToken / manuel refresh) gelen viewData değişiminde
+  // fit atlanır — mevcut zoom/pan korunur.
+  const dataRefreshRef = useRef(false);
 
   const [raw, setRaw] = useState<RawGraph>(emptyGraph);
   const [size, setSize] = useState<GraphSize>(fallbackSize);
@@ -338,6 +348,7 @@ export function GraphView({ onOpenNote, activePath }: GraphViewProps) {
         return;
       }
 
+      dataRefreshRef.current = true;
       setRaw({
         nodes: Array.isArray(data.nodes) ? data.nodes : [],
         links: Array.isArray(data.links) ? data.links : [],
@@ -355,12 +366,13 @@ export function GraphView({ onOpenNote, activePath }: GraphViewProps) {
     }
   }, [t]);
 
+  // refreshToken: remount olmadan yeniden fetch tetikler (viewport/kontroller kalır).
   useEffect(() => {
     void fetchGraph();
     return () => {
       requestIdRef.current += 1;
     };
-  }, [fetchGraph]);
+  }, [fetchGraph, refreshToken]);
 
   useEffect(() => {
     const stage = stageRef.current;
@@ -550,6 +562,12 @@ export function GraphView({ onOpenNote, activePath }: GraphViewProps) {
       return;
     }
     reheat();
+    // Veri yenilemesinde fit yok (zoom/pan korunur); fit yalnız scope/filtre
+    // görünümü değiştirince. İlk fit'i engine-stop yapar.
+    if (dataRefreshRef.current) {
+      dataRefreshRef.current = false;
+      return;
+    }
     const id = window.setTimeout(() => {
       graphRef.current?.zoomToFit(600, 60);
     }, 120);
@@ -676,10 +694,16 @@ export function GraphView({ onOpenNote, activePath }: GraphViewProps) {
     setRunning(false);
     // Retry centering on the active selection if it hasn't happened yet.
     if (selectedId && centeredRef.current !== selectedId) {
-      if (!centerOnSelected(selectedId)) {
+      if (centerOnSelected(selectedId)) {
+        didInitialFitRef.current = true;
+      } else if (!didInitialFitRef.current) {
+        didInitialFitRef.current = true;
         graphRef.current?.zoomToFit(600, 60);
       }
-    } else if (!centeredRef.current) {
+    } else if (!didInitialFitRef.current) {
+      // Otomatik fit yalnız ilk seferde; sonrasında engine-stop viewport'a
+      // dokunmaz (Fit butonu davranışı değişmedi).
+      didInitialFitRef.current = true;
       graphRef.current?.zoomToFit(600, 60);
     }
   }, [selectedId, centerOnSelected]);
@@ -980,7 +1004,7 @@ export function GraphView({ onOpenNote, activePath }: GraphViewProps) {
             onNodeClick={handleNodeClick}
             onNodeHover={(node) => setHoverId(node ? node.id : null)}
             onNodeRightClick={handleNodeRightClick}
-            onNodeDrag={() => reheat()}
+            onNodeDragEnd={() => reheat()}
             onBackgroundClick={handleBackgroundClick}
             onEngineStop={handleEngineStop}
             showPointerCursor
