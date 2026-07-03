@@ -112,9 +112,24 @@ keyed on file content, guarantee this (regression-tested in `tests/cache_invalid
    hash against its *current* hash; an in-place edit (or a deleted/moved chunk) flips the entry to
    invalid → **miss**. Writes are transactional, so a partial write can never leave a "valid" entry
    with missing deps.
+3. **Delete-time eviction.** Deleting a note or chunk first drops every cache entry that depends
+   on it (`invalidate_cache_for_note/_chunk`), *then* lets the FK cascade run — otherwise the
+   cascade would silently remove the `cache_deps` anchors and leave a dependency-less entry that
+   layer 2 would wrongly consider valid.
 
 This is why a busy vault still benefits from the cache: only answers whose actual sources changed
 are recomputed.
+
+#### Workspace (repo) semantics
+
+The app models projects like an IDE, not a junk drawer: **exactly one active workspace** at a
+time. `settings.vault_roots` is an MRU list whose head is the active root; `pick_vault_folder`
+and `set_active_workspace` promote, `forget_workspace` removes the root **and purges every DB
+trace under it** (notes → chunks/vectors/links/cache, plus `vec_ann` rows). All reads scope to
+the active root: `list_notes_under`, `search_{fts,hybrid}_in` (post-score filter with deeper
+over-fetch), `build_from_db_under`, and Ask/consensus context assembly. The read/write path
+guard (`is_under_vault_root`) also only accepts the active root — recent-but-inactive repos are
+rejected as defense in depth. Regression-tested in `tests/workspace.rs`.
 
 ### Indexer
 
@@ -222,9 +237,10 @@ keeping the runtime hardened.
 - **`doctor` contract** — `contracts/doctor.schema.json` + `doctor.fixture.json` are the single
   source of truth for the agent-health JSON shape, validated from **both** Python (`aura`) and
   Rust (`doctor_contract.rs`).
-- **Rust** — 23+ tests pass: `db_smoke`, `indexer_smoke`, `search_rrf`, `settings_robust`,
-  `cache_key`, `vault_guard`, `pty_argv`, `modes_argv`, `consensus_*`, `lane0_ollama`,
-  `gen_*`, `links_*`, `prune`, `advanced_realdb`, …
+- **Rust** — 95 tests / 31 suites pass: `db_smoke`, `indexer_smoke`, `search_rrf`,
+  `settings_robust`, `cache_key`, `cache_invalidation`, `vault_guard`, `workspace`,
+  `pty_argv`, `modes_argv`, `consensus_*`, `lane0_ollama`, `gen_*`, `links_*`, `prune`,
+  `stress_reindex`, `advanced_realdb`, `semantic_cache_eval` (#[ignore], real e5), …
 - **Frontend** — `vitest` component/i18n tests; `tsc + vite build` is clean (0 type errors).
 - **CI** — [`.github/workflows/ci.yml`](../.github/workflows/ci.yml).
 
@@ -253,6 +269,7 @@ Dev/local builds run ad-hoc-signed. Public distribution needs an Apple Developer
 | `app/src-tauri/tests/` | Rust integration tests |
 | `app/src-tauri/capabilities/` | Tauri v2 ACL (`default.json`) |
 | `contracts/` | `doctor` JSON schema + fixture (Python↔Rust contract) |
-| `vendor/` | pinned `aura` engine snapshots (`aura-0.4.0.py`, `aura-patched.py`) |
+| `aura-cli/` | **the live `aura` CLI** (v0.5.x) — what users symlink onto `PATH` |
+| `vendor/` | pinned engine snapshots (`aura-0.4.0.py`, `aura-patched.py`) — tests/pinning only |
 | `docs/assets/` | README visuals (SVG sources + generators + PNG renders) |
 | `docs/` | architecture, roadmap, master plan (`ultraplan-FINAL.md`), Phase-0 findings |

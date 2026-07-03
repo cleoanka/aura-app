@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="560" height="520" viewBox="0 0 560 520" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+<rect x="0" y="0" width="560" height="520" rx="14" fill="#17171c"/>
+<rect x="0.5" y="0.5" width="559" height="519" rx="14" fill="none" stroke="#343440"/>
+<text x="24" y="40" fill="#8f8cf5" font-size="11.5" font-weight="700" text-anchor="start">ÇALIŞMA ALANI</text>
+<text x="24" y="68" fill="#ececf1" font-size="21" font-weight="700" text-anchor="start">notes-vault</text>
+<rect x="392" y="40" width="144" height="34" rx="8" fill="rgba(143,140,245,0.16)" stroke="#8f8cf5" stroke-width="1"/>
+<text x="464" y="62" fill="#ececf1" font-size="12" font-weight="600" text-anchor="middle">Proje Klasörü Aç</text>
+<rect x="24" y="92" width="512" height="34" rx="8" fill="#202027" stroke="#343440" stroke-width="1"/>
+<text x="38" y="114" fill="#a7a7b4" font-size="12" font-weight="500" text-anchor="start">Son çalışma alanları</text>
+<text x="520" y="114" fill="#a7a7b4" font-size="12" font-weight="500" text-anchor="middle">▴</text>
+<rect x="24" y="138" width="512" height="122" rx="8" fill="#202027" stroke="#343440" stroke-width="1"/>
+<rect x="30" y="144" width="500" height="32" rx="6" fill="rgba(143,140,245,0.16)"/>
+<text x="44" y="165" fill="#ececf1" font-size="13" font-weight="500" text-anchor="start">notes-vault</text>
+<rect x="432" y="151" width="52" height="18" rx="9" fill="none" stroke="#8f8cf5" stroke-width="1"/>
+<text x="458" y="164" fill="#8f8cf5" font-size="10" font-weight="600" text-anchor="middle">aktif</text>
+<text x="512" y="165" fill="#a7a7b4" font-size="12" font-weight="500" text-anchor="middle">✕</text>
+<text x="44" y="203" fill="#a7a7b4" font-size="13" font-weight="500" text-anchor="start">trading-research</text>
+<text x="512" y="203" fill="#a7a7b4" font-size="12" font-weight="500" text-anchor="middle">✕</text>
+<text x="44" y="241" fill="#a7a7b4" font-size="13" font-weight="500" text-anchor="start">teknofest-aura</text>
+<text x="512" y="241" fill="#a7a7b4" font-size="12" font-weight="500" text-anchor="middle">✕</text>
+<text x="24" y="290" fill="#a7a7b4" font-size="10.5" font-weight="700" text-anchor="start">DOSYALAR</text>
+<rect x="24" y="302" width="512" height="28" rx="6" fill="#202027"/>
+<circle cx="38" cy="316" r="3.5" fill="#8f8cf5"/>
+<text x="52" y="321" fill="#ececf1" font-size="12.5" font-weight="400" text-anchor="start">Günlük notlar.md</text>
+<rect x="24" y="336" width="512" height="28" rx="6" fill="none"/>
+<circle cx="38" cy="350" r="3.5" fill="#8f8cf5"/>
+<text x="52" y="355" fill="#a7a7b4" font-size="12.5" font-weight="400" text-anchor="start">Fikir defteri.md</text>
+<rect x="24" y="370" width="512" height="28" rx="6" fill="none"/>
+<circle cx="38" cy="384" r="3.5" fill="#8f8cf5"/>
+<text x="52" y="389" fill="#a7a7b4" font-size="12.5" font-weight="400" text-anchor="start">Okuma listesi.md</text>
+<rect x="24" y="404" width="512" height="28" rx="6" fill="none"/>
+<circle cx="38" cy="418" r="3.5" fill="#8f8cf5"/>
+<text x="52" y="423" fill="#a7a7b4" font-size="12.5" font-weight="400" text-anchor="start">Toplantı 2026-07.md</text>
+<rect x="24" y="438" width="512" height="28" rx="6" fill="none"/>
+<circle cx="38" cy="452" r="3.5" fill="#8f8cf5"/>
+<text x="52" y="457" fill="#a7a7b4" font-size="12.5" font-weight="400" text-anchor="start">Arşiv taslağı.md</text>
+</svg>

@@ -27,10 +27,11 @@ your Markdown (and code) files, builds a **knowledge graph** from `[[wikilinks]]
 cross-language imports, and lets you **ask questions in natural language** that are answered
 with retrieval-augmented generation over *your own* notes.
 
-The intelligence comes from the proven [`aura`](https://github.com/cleoanka) CLI orchestrator —
-**Claude is the main brain**, with Antigravity (research) and Codex (local implementation) as
-optional co-pilots. There is **no bespoke LLM integration to break**: AURA wraps battle-tested
-CLIs via `zsh -lc` + `stdin`, spawning a short-lived process per job (no daemon).
+The intelligence comes from the proven [`aura`](aura-cli/) CLI orchestrator (ships in this
+repo under [`aura-cli/`](aura-cli/)) — **Claude is the main brain**, with Antigravity (research)
+and Codex (local implementation) as optional co-pilots. There is **no bespoke LLM integration
+to break**: AURA wraps battle-tested CLIs via `zsh -lc` + `stdin`, spawning a short-lived
+process per job (no daemon).
 
 > 🔒 **Local-first by design.** Your vault is a plain folder of files. Indexing, embeddings,
 > hybrid search and the exact-match answer cache all run **on-device**. Nothing is uploaded
@@ -53,6 +54,14 @@ CLIs via `zsh -lc` + `stdin`, spawning a short-lived process per job (no daemon)
 ### Knowledge Graph — every note & file, linked
 <img src="docs/assets/graph.png" alt="AURA Desktop knowledge graph: a force-directed view of notes and code colored by type, with a controls panel and legend" width="92%" />
 
+<br/><br/>
+
+### Workspaces — repo-style, one active project at a time
+<img src="docs/assets/workspace-switch.gif" alt="Animated: opening the workspace switcher, choosing another recent repo, and the file list instantly swapping to the new project" width="70%" />
+
+*Switching projects swaps the file list, search, graph and Ask context in one move — old
+repos never bleed into the current one. Forgetting a workspace (✕) also purges its index.*
+
 </div>
 
 > The visuals above are rendered from a synthetic demo vault — no personal data. Source SVGs
@@ -64,11 +73,12 @@ CLIs via `zsh -lc` + `stdin`, spawning a short-lived process per job (no daemon)
 
 | | |
 |---|---|
-| 🧠 **Ask your notes** | Hybrid retrieval (**FTS5 keyword + vector → RRF**) feeds RAG. An **exact-match cache** guarantees zero wrong cached answers. Streaming responses with a lane badge. |
+| 🗂️ **Repo-style workspaces** | One **active** project at a time (like an IDE, not a junk drawer): pick a folder and the explorer, search, graph and Ask all scope to it instantly. Recent workspaces live in an MRU switcher; **forget** purges a repo's index completely. |
+| 🧠 **Ask your notes** | Hybrid retrieval (**FTS5 keyword + vector → RRF**, vectors served by **sqlite-vec vec0 ANN**) feeds RAG. An **exact-match cache** guarantees zero wrong cached answers; an opt-in **semantic cache** catches paraphrased repeats (cosine ≥ 0.96 **and** dep-hash recheck — FP=0 in eval). Streaming responses with a lane badge. |
 | 🕸️ **Knowledge graph** | `react-force-graph` view of every file. Nodes colored by type, sized by degree; `[[wikilinks]]` + cross-language imports as edges; dangling nodes; click → open; local-scope BFS, search, folder/type coloring. |
 | 🤝 **Consensus** *(opt-in)* | Ask the same question to Claude + Antigravity + Codex **in parallel**, then **Claude synthesizes** one answer. Gracefully degrades if an agent is down. Off by default. |
 | 🛠️ **Aura Mode** | Run `plan / review / fix / ship` on a project folder from inside the app. **Fix only previews** a diff — it never edits files or commits. |
-| 🏠 **Two local layers** | (a) on-device embeddings for search & cache (candle/e5), (b) **Lane 0** local generation via Ollama (opt-in, off by default). |
+| 🏠 **Two local layers** | (a) on-device embeddings for search & cache (candle/e5, **loaded lazily** — opt-in via the *semantic search* toggle in Settings), (b) **Lane 0** local generation via Ollama (opt-in, off by default). |
 | 🧩 **Agent Manager** | Detect / install / **log in (embedded PTY)** / health / rate-limit for Claude, Antigravity & Codex — right inside the app. |
 | 🔑 **Bring your own key** | Optional **BYOK**: run on your own Anthropic API key instead of a subscription. Stored locally (`~/.aura`, `0600`), shared with the CLI, never uploaded. Off by default. |
 | ✍️ **Editor** | CodeMirror 6 Markdown editor, Obsidian-dark theme, custom icon set. |
@@ -230,14 +240,22 @@ Contributing: **[`CONTRIBUTING.md`](CONTRIBUTING.md)** (constitution + green-gat
 ## 📦 Install & build
 
 **Requirements:** macOS (Apple Silicon), Rust 1.93+, Node 24+, Xcode Command-Line Tools, and the
-`aura` CLI on your `PATH`. The three sub-CLIs can be authenticated from the in-app **Agent Manager**.
+`aura` CLI on your `PATH`. The CLI **ships in this repo** — see [`aura-cli/`](aura-cli/):
 
 ```bash
+# one-time: put the bundled aura CLI on your PATH
+ln -s "$(pwd)/aura-cli/aura" ~/.local/bin/aura   # or any dir already on PATH
+aura --version                                    # sanity check
+
 cd app
 npm install
 npm run tauri dev      # development (a window opens)
 npm run tauri build    # release .app + .dmg → src-tauri/target/release/bundle/
 ```
+
+The three sub-CLIs (Claude / Antigravity / Codex) can be installed and authenticated from the
+in-app **Agent Manager** — none of them is required just to use the local second-brain features.
+(`vendor/` holds pinned engine snapshots used by tests; `aura-cli/` is the live CLI.)
 
 ### Distribution (notarization)
 
@@ -250,7 +268,8 @@ need an **Apple Developer ID**: `codesign --options runtime` → `xcrun notaryto
 
 ## 🧭 Usage
 
-1. **Open a project folder** (your vault) from the Workspace.
+1. **Open a project folder** (your vault) from the Workspace — it becomes the **active
+   workspace**; previous ones stay one click away in the recents switcher.
 2. AURA **indexes** it — Markdown, code and config, with cross-file links.
 3. **Search** (hybrid) or **Ask** a question; watch the lane badge to see which path answered.
 4. Open the **Graph** to explore how everything connects.
@@ -263,16 +282,17 @@ need an **Apple Developer ID**: `codesign --options runtime` → `xcrun notaryto
 
 `Tauri 2` · `Rust 1.93` · `React 19` · `TypeScript 5.8` · `Vite 7` · `CodeMirror 6` ·
 `react-force-graph-2d` · `d3-force` · `xterm` + `portable-pty` · `SQLite (FTS5)` ·
-`candle` (e5 embeddings) · `Ollama` (optional local generation).
+`sqlite-vec` (vec0 ANN) · `candle` (e5 embeddings) · `Ollama` (optional local generation).
 
 <br/>
 
 ## 📊 Status
 
 Core is complete and the release **`.app` + `.dmg` build, open and run** without crashing:
-23+ Rust tests pass, the frontend builds clean (0 type errors), and the AI engine contract
-(`--json-events`, `doctor --json`) passes. Built autonomously with the `aura` model itself —
-**Opus 4.8** (orchestrator/architect) + **Codex** (implementer) + **Antigravity** (verification).
+**95 Rust tests** (31 suites) pass, the frontend builds clean (0 type errors, vitest 10/10),
+and the AI engine contract (`--json-events`, `doctor --json`) passes. Built autonomously with
+the `aura` model itself — **Claude** (orchestrator/architect) + **Codex** (implementer) +
+**Antigravity** (verification).
 Full breakdown in [`PROGRESS.md`](PROGRESS.md); known limits & plans in [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 <br/>
@@ -289,7 +309,8 @@ tutar** (cache → tekrarlar bedava, retrieval → sadece ilgili parçalar, lane
 plan-önce), yani tek abonelik çok daha uzağa gider. *Üçü birden* varsa araştırma + implementasyon +
 consensus eklenir.
 
-- **Token ekonomisi:** exact-match cache (tekrar = 0 token), sadece ilgili chunk'lar context'e, lane yönlendirme, plan-önce → aynı Claude'dan kat kat fazla iş.
+- **Repo mantığı çalışma alanları:** aynı anda TEK aktif proje (IDE gibi); klasör seçince liste/arama/graf/Ask anında o projeye daralır, eski repo'lar karışmaz. Son kullanılanlar menüsü + "unut" (indeks temizliğiyle birlikte).
+- **Token ekonomisi:** exact-match cache (tekrar = 0 token) + opsiyonel semantic-cache (yakın-anlamlı tekrarlar), sadece ilgili chunk'lar context'e, lane yönlendirme, plan-önce → aynı Claude'dan kat kat fazla iş.
 - **Aura Modu avantajı:** `plan` (salt-okunur, güvenli varsayılan) / `review` (git diff'ini eleştirir, dosya yapıştırma yok) / `fix` (`--dry` önizler, asla commit etmez) / `ship`.
 - **Notlarına sor:** hibrit arama (FTS5 + vektör → RRF) + RAG, **exact-match cache** (sıfır yanlış cevap), streaming yanıt.
 - **Bilgi grafiği:** `[[wikilink]]` + diller-arası import'lardan üretilen, tipe göre renklendirilmiş etkileşimli graf.

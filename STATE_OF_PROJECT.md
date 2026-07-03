@@ -1,21 +1,38 @@
-# STATE OF PROJECT — branch `a1` (2026-06-23)
+# STATE OF PROJECT — branch `a1` (güncel: 2026-07-03)
 
 İnsan-incelemesi için devir dokümanı. `a1`, `main` (v0.2.0) üzerine otonom maraton
 dalı; gözden geçirilip uygun görülürse merge edilir. Hiçbir döngü `main`'e dokunmadı.
 Anlık durum (final değil).
 
+## 2026-07-03 oturumu — "mükemmelleştir" turu (özet)
+Çok-ajanlı derin denetim (7 paralel okuyucu → 69 ham bulgu → 42 bug/perf adversarial
+doğrulamada 24 onay) + uygulama. Ana başlıklar:
+- **Workspace (repo) semantiği**: TEK aktif kök; liste/arama/graf/Ask aktif köke daralır;
+  MRU switcher + "unut" (DB izleri dahil temizlik). `tests/workspace.rs`.
+- **UI donması kökten çözüldü**: ağır komutlar async+`spawn_blocking` (sync komut ana
+  thread'de Indexer kilidi bekliyordu); açılışta yalnız aktif kök reindekslenir; candle
+  lazy yüklenir; warm reindeks 2.2 s → **11 ms** (hash-önce + lazy title_aliases + paths-fp).
+- **Cache doğruluğu (kritik fix)**: silinen not/chunk'ta CASCADE dep-silme bayat cevabı
+  "geçerli" bırakıyordu → silme-öncesi cache-eviction + regresyon testleri.
+- **file_id yol-tabanlı** (atomic-save'de tam re-embed/cache-wipe bitti); NUL/okunamayan-dizin
+  dayanıklılığı; lane-settings IPC uyumsuzluğu (toggle'lar no-op'tu); lane0 artık iptal
+  edilebilir; consensus stderr/sayaç/timeout düzeltmeleri; PTY zombi fix; i18n/a11y temizliği.
+- Dokümanlar koda hizalandı (README/ROADMAP/ARCHITECTURE/BENCHMARKS/CHANGELOG) +
+  workspace-switcher görseli & animasyonlu GIF.
+
 ## Özet
-- **FAZ 1 + 28 döngü**, hepsi atomik + koruma kapılarından geçti (ya da kapı patladıysa ROLLBACK + belge).
+- **FAZ 1 + 38 döngü + 2026-07-03 turu**, hepsi atomik + koruma kapılarından geçti (ya da kapı patladıysa ROLLBACK + belge).
 - **`a1-known-good`** her zaman yeşil noktada (rollback çıpası).
 - Backlog'un tamamı: ya **uygulandı+test edildi**, ya **test edilip gerekçeyle elendi**, ya da **harici bağımlılık** nedeniyle bloklu.
 
 ## Metrikler (taban v0.2.0 → şimdi)
 | | taban | a1 |
 |---|---|---|
-| Rust testleri | 63 | **88** (+25) · ayrıca `#[ignore]` gerçek-e5 eval |
+| Rust testleri | 63 | **95** (+32) · ayrıca `#[ignore]` gerçek-e5 eval + `bench_index` |
 | Frontend (vitest) | 10 | 10 |
 | tsc / soul_check | — | 0 hata / ✅ (CI'de) |
 | JS bundle | tek 1.57MB | **7 chunk** (max editor 610KB) |
+| Warm reindeks (360 dosya) | ~2.2 s | **~11 ms** |
 
 ## Eklenen & test edilen (büyük→küçük)
 - **[C] Semantic-cache (opt-in, default OFF):** db `cache_query_vec` + `semantic_cache_lookup` (cosine≥threshold **VE** dep-hash recheck = anayasa Madde 9) + ai.rs entegrasyonu. **Gerçek-e5 eval'i: false-positive=0 @0.96** (`tests/semantic_cache_eval.rs`, #[ignore]). Açık: UI toggle + daha geniş eval ile eşik ~0.90.
