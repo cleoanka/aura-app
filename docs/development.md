@@ -1,5 +1,11 @@
 # Geliştirme — otonom maraton & kapılar
 
+> **English abstract.** How AURA is developed: a "constitution + green-gates"
+> discipline where every change is atomic and must pass the gates —
+> `cargo test` / `clippy` / `fmt`, `npm build` + `vitest`, and
+> `scripts/soul_check.py` — or it is rolled back. The Turkish text below details
+> the marathon workflow and each gate.
+
 AURA, **anayasa + koruma kapıları** disipliniyle geliştirilir. Bu doküman akışı
 özetler; felsefe için [`philosophy.md`](philosophy.md), mimari için
 [`ARCHITECTURE.md`](ARCHITECTURE.md).

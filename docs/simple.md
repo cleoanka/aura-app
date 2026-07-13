@@ -1,5 +1,11 @@
 # AURA — 5 dakikada, jargonsuz
 
+> **English abstract.** A zero-jargon, five-minute intro: AURA Desktop is a Mac
+> app that makes a folder of notes "smart" — it reads them, links them, and lets
+> you ask questions of *your own notes* (not Google). Everything runs on-device;
+> nothing is uploaded unless you explicitly send a prompt to a cloud agent. The
+> Turkish text below is the full walkthrough.
+
 **AURA Desktop nedir?** Not klasörünü "akıllı" yapan bir Mac uygulaması. Notlarını
 okur, aralarındaki bağları çıkarır, ve onlara **soru sormanı** sağlar — Google'a değil,
 **kendi notlarına**.

@@ -1,5 +1,12 @@
 # Felsefe — AURA neden böyle?
 
+> **English abstract.** AURA's value lives in a few non-negotiable principles,
+> not its feature list: local-first (your vault never leaves the device),
+> explicit egress only, no shell-injection surface, read-only-by-default actions,
+> and honest measurement. Any change that improves a metric but violates one of
+> these principles is reverted. `scripts/soul_check.py` enforces them in CI. The
+> Turkish text below is the authoritative, detailed version.
+
 AURA'nın değeri özelliklerinde değil, **inatla savunduğu birkaç ilkede**. Bunlar
 ihlal-edilemez; bir değişiklik bir metriği iyileştirse bile bu ilkelerden birini
 çiğnerse **geri alınır**. (`scripts/soul_check.py` bunları otomatik denetler.)

@@ -1,5 +1,9 @@
 # Sözlük (glossary)
 
+> **English abstract.** A glossary of AURA's domain terms — vault, indexer,
+> `.auraignore`, hybrid retrieval (FTS5 + vector → RRF), exact/semantic cache,
+> lanes, consensus, BYOK, and more. Each entry is defined in Turkish below.
+
 - **Vault** — notlarının olduğu klasör (düz Markdown/kod dosyaları). AURA'nın kaynağı.
 - **Indexer** — vault'u tarayıp arama/graph için sindiren bileşen; denylist + `.gitignore` + `.auraignore` ile çöp/istenmeyen klasörleri atlar.
 - **`.auraignore`** — vault kökünde, AURA'ya özel ignore dosyası: bir dosya/klasörü `.gitignore`'a dokunmadan indekslemeden hariç tutar (basit isim girdileri).

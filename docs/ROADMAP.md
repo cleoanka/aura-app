@@ -1,5 +1,10 @@
 # AURA Desktop — Durum, Bilinen Sınırlar, Yol Haritası
 
+> **English abstract.** Status, known limits and roadmap: what is done (built +
+> compiled + tested), what is deliberately deferred, and external blockers
+> (notarization needs an Apple Developer ID; live-GUI QA is manual). The Turkish
+> sections below are the authoritative detail.
+
 ## ✅ Tamamlanan (kodlandı + derlendi + test edildi)
 - Tauri v2 + Rust + React/TS iskeleti; release **`.app` + `.dmg`** build oluyor, açılıyor, çökmüyor.
 - **Agent Manager**: detect/install/health/limit + **gömülü PTY login** (xterm), claude=ANA BEYİN. doctor JSON sözleşmesi (Python+Rust tek kaynak, test).
