@@ -43,11 +43,13 @@ fn read_guard_rejects_recent_but_inactive_root() -> Result<(), String> {
     fs::write(active.join("aktif.md"), "# Aktif\n").map_err(|err| err.to_string())?;
     fs::write(recent.join("pasif.md"), "# Pasif\n").map_err(|err| err.to_string())?;
 
-    let mut settings = Settings::default();
-    settings.vault_roots = vec![
-        active.to_string_lossy().into_owned(),
-        recent.to_string_lossy().into_owned(),
-    ];
+    let settings = Settings {
+        vault_roots: vec![
+            active.to_string_lossy().into_owned(),
+            recent.to_string_lossy().into_owned(),
+        ],
+        ..Default::default()
+    };
 
     assert!(resolve_note_path(&active.join("aktif.md").to_string_lossy(), &settings).is_ok());
     assert!(
@@ -60,9 +62,10 @@ fn read_guard_rejects_recent_but_inactive_root() -> Result<(), String> {
 }
 
 fn settings_for(root: &std::path::Path) -> Settings {
-    let mut settings = Settings::default();
-    settings.vault_roots = vec![root.to_string_lossy().into_owned()];
-    settings
+    Settings {
+        vault_roots: vec![root.to_string_lossy().into_owned()],
+        ..Default::default()
+    }
 }
 
 fn test_paths(name: &str) -> Result<(std::path::PathBuf, std::path::PathBuf), String> {

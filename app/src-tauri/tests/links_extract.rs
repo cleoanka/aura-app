@@ -140,7 +140,7 @@ fn assert_resolves(
         resolved.iter().any(|(raw, link)| {
             raw == &expected_raw
                 && link.resolved
-                && PathBuf::from(&link.target_path) == expected_target
+                && &link.target_path == expected_target
         }),
         "missing resolved link {expected_raw:?} -> {} in {resolved:?}",
         expected_target.display()

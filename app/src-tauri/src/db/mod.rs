@@ -1294,7 +1294,7 @@ pub fn semantic_cache_lookup(
             let key = statement.column_text(0)?;
             let embedding = statement.column_blob(1)?;
             if let Some(score) = dot_product_blob(&query, embedding) {
-                if best.as_ref().map_or(true, |(_, current)| score > *current) {
+                if best.as_ref().is_none_or(|(_, current)| score > *current) {
                     best = Some((key, score));
                 }
             }
