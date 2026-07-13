@@ -35,4 +35,4 @@
 - **Rerank tam-metin overlap**: rerank 200-karakter snippet üzerinde lexical-overlap hesaplıyor; tam chunk metnine geçirilebilir (advanced-retrieval opt-in olduğundan düşük öncelik).
 
 ## Mimari kaynaklar
-`docs/ultraplan-FINAL.md` (master plan + playbook) · `docs/plan-v2.1.md` · `docs/faz0/bulgular.md` · `PROGRESS.md`.
+`docs/ARCHITECTURE.md` · `STATE_OF_PROJECT.md` (güncel durum) · arşiv: `docs/history/ultraplan-FINAL.md` (master plan + playbook) · `docs/history/plan-v2.1.md` · `docs/history/faz0/bulgular.md` · `docs/history/PROGRESS.md`.

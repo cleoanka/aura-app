@@ -1,6 +1,13 @@
 # AURA Desktop — Build Progress
 
-Otonom build (Opus 4.8 orkestratör + Codex implementer + Gemini verify). Ultraplan: `docs/ultraplan-FINAL.md`.
+> **📜 HISTORICAL — build log, kept for the record.** The test tallies below are
+> phase-by-phase snapshots from the original marathon (e.g. "23 test", "63 test")
+> and are *intentionally* frozen at the moment each phase closed. For the
+> **current, authoritative status** — **95 Rust tests / 10 vitest**, clippy &
+> fmt clean — see [`STATE_OF_PROJECT.md`](../../STATE_OF_PROJECT.md) and the live
+> CI badge in the [README](../../README.md). This file is no longer updated.
+
+Otonom build (Opus 4.8 orkestratör + Codex implementer + Gemini verify). Ultraplan: [`ultraplan-FINAL.md`](ultraplan-FINAL.md).
 
 ## Faz 0 — Platform ölüm-kalım smoke ✅ GO
 - T0.0 ortam: Rust 1.93, Node 24.15, codesign, brew ✓; Tauri CLI yok (npm-local kullanılacak).
@@ -11,7 +18,7 @@ Otonom build (Opus 4.8 orkestratör + Codex implementer + Gemini verify). Ultrap
 - T0.5 cold-start: ek-median **30ms** « 1.5s → **per-job spawn, daemon YOK**.
 - T0.6 env-resolver: zsh -lc & -c ikisi de binary buluyor → nice-to-have.
 - T0.7 **OPUS GO** ✅. Entitlement: NON-SANDBOXED Developer ID + hardened + inherit.
-- Detay: `docs/faz0/bulgular.md`.
+- Detay: [`faz0/bulgular.md`](faz0/bulgular.md).
 
 ## Faz 1 — Agent Manager + sözleşmeler + vault (DEVAM EDİYOR)
 - [ ] T1.1 Tauri v2 + plugin-shell + ACL iskeleti + Playwright

@@ -215,8 +215,9 @@ Deep dives: **[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)** ·
 [`docs/philosophy.md`](docs/philosophy.md) (the soul) ·
 [`docs/simple.md`](docs/simple.md) (zero-jargon) ·
 [`docs/glossary.md`](docs/glossary.md) ·
-[`docs/ultraplan-FINAL.md`](docs/ultraplan-FINAL.md) ·
-[`docs/ROADMAP.md`](docs/ROADMAP.md) · [`PROGRESS.md`](PROGRESS.md).
+[`docs/ROADMAP.md`](docs/ROADMAP.md) ·
+[`STATE_OF_PROJECT.md`](STATE_OF_PROJECT.md) (current status) ·
+[`docs/history/`](docs/history) (master plan & build log, archived).
 
 Contributing: **[`CONTRIBUTING.md`](CONTRIBUTING.md)** (constitution + green-gates) ·
 [`docs/development.md`](docs/development.md) (marathon & gates) ·
@@ -293,7 +294,7 @@ Core is complete and the release **`.app` + `.dmg` build, open and run** without
 and the AI engine contract (`--json-events`, `doctor --json`) passes. Built autonomously with
 the `aura` model itself — **Claude** (orchestrator/architect) + **Codex** (implementer) +
 **Antigravity** (verification).
-Full breakdown in [`PROGRESS.md`](PROGRESS.md); known limits & plans in [`docs/ROADMAP.md`](docs/ROADMAP.md).
+Full breakdown in [`STATE_OF_PROJECT.md`](STATE_OF_PROJECT.md); known limits & plans in [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 <br/>
 

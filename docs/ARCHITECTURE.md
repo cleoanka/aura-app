@@ -2,8 +2,9 @@
 
 A technical tour of how AURA Desktop is put together: the process model, the data
 layer, the Ask pipeline, the consensus engine, and the security boundaries. For a
-high-level overview see the [README](../README.md); for build progress see
-[`PROGRESS.md`](../PROGRESS.md) and [`ROADMAP.md`](ROADMAP.md).
+high-level overview see the [README](../README.md); for current status see
+[`STATE_OF_PROJECT.md`](../STATE_OF_PROJECT.md) and [`ROADMAP.md`](ROADMAP.md)
+(the archived build log lives in [`history/`](history)).
 
 ---
 
@@ -272,4 +273,4 @@ Dev/local builds run ad-hoc-signed. Public distribution needs an Apple Developer
 | `aura-cli/` | **the live `aura` CLI** (v0.5.x) — what users symlink onto `PATH` |
 | `vendor/` | pinned engine snapshots (`aura-0.4.0.py`, `aura-patched.py`) — tests/pinning only |
 | `docs/assets/` | README visuals (SVG sources + generators + PNG renders) |
-| `docs/` | architecture, roadmap, master plan (`ultraplan-FINAL.md`), Phase-0 findings |
+| `docs/` | architecture, roadmap, philosophy, glossary; `docs/history/` archives the master plan (`ultraplan-FINAL.md`), build log (`PROGRESS.md`) and Phase-0 findings |
