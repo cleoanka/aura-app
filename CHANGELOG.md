@@ -22,7 +22,13 @@ Format [Keep a Changelog](https://keepachangelog.com/), sürümleme [SemVer](htt
 - **Semantic-cache** (opt-in, default OFF): anlamca-benzer soruları cosine≥threshold ile yakalar; İKİ kapı (threshold + dep-hash recheck) anayasa Madde 9'u (sıfır yanlış-cevap) korur. Gerçek-e5 eval'i FP=0 @0.96 ile kanıtlı (`tests/semantic_cache_eval.rs`).
 - **sqlite-vec ANN** (D30-31): veri katmanı **bundled sqlite**'a (rusqlite) taşındı; `vec_search` artık vec0 KNN (cosine) — büyük vault'ta ölçekli ANN, brute-force fallback. Davranış-eşdeğer (tüm testler).
 - **Stress test** (eşzamanlı reindex↔ask) + db/ai/markdown/cache/workspace testleri → **cargo test 63 → 95**.
+- `.editorconfig` (UTF-8 / LF / final-newline / trim-ws; rustfmt-uyumlu 100-kol).
+- `app/.env.example` — `.gitignore`'daki `!.env.example` askıda referansını çözer; app'in gerçekten okuduğu env override'larını (`TAURI_DEV_HOST`, `AURA_RUNS_DIR_HOME`) belgeler.
+- `docs/history/` — büyük planlama/build-log dokümanları (`ultraplan-FINAL.md`, `plan-v2.1.md`, `PROGRESS.md`, `faz0/`, `vector-optimization-notes.md`) arşivlendi; kök/`docs/` sadeleşti.
+- Türkçe deep-dive dokümanlarına kısa İngilizce özet (abstract) eklendi.
 ### Changed
+- **CI sertleşti**: `cargo fmt --check` + `cargo clippy --all-targets -D warnings` + frontend `vitest` kapıları eklendi (workflow `a1`'de de çalışır); tüm kaynak rustfmt kanonik biçimine getirildi.
+- `app/README.md` stok Tauri şablonundan gerçek geliştirici rehberine dönüştürüldü.
 - BYOK anahtar doğrulaması: app `validate_key` + CLI `aura key set` (tek-token; boşluk/satır içeren yanlış-yapıştırma reddedilir).
 ### Performance
 - **Async komut katmanı**: `index_vault` / `search_hybrid` / `search_fts` / `forget_workspace` /
