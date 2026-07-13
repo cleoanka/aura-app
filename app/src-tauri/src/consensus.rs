@@ -88,7 +88,12 @@ pub async fn run_consensus(
     jobs.lock()
         .map_err(|err| err.to_string())?
         .insert(job_id.clone(), handle.clone());
-    send_event(&on_event, AiEvent::Job { job_id: job_id.clone() })?;
+    send_event(
+        &on_event,
+        AiEvent::Job {
+            job_id: job_id.clone(),
+        },
+    )?;
 
     // Bekleme süreleri kullanıcı tarafından UI'dan ayarlanır.
     let cfg = crate::settings::load().consensus;
@@ -239,7 +244,10 @@ async fn run_consensus_inner(
             // BESLEME; düşür + kullanıcıya net uyarı (workflow bulgusu).
             if is_auth_prompt(&output) {
                 let _ = on_event_task.send(AiEvent::Status {
-                    text: format!("⚠️ {} oturum açık değil (login gerekiyor) — atlandı", agent.name),
+                    text: format!(
+                        "⚠️ {} oturum açık değil (login gerekiyor) — atlandı",
+                        agent.name
+                    ),
                     stage: Some("consensus".to_string()),
                     agent: Some(agent.name.to_string()),
                 });
@@ -268,7 +276,9 @@ async fn run_consensus_inner(
                 Ok(next) => next,
                 Err(_) => {
                     let _ = on_event.send(AiEvent::Status {
-                        text: format!("⏳ grace ({grace_secs}s) doldu → eldeki yanıtlarla sentezleniyor…"),
+                        text: format!(
+                            "⏳ grace ({grace_secs}s) doldu → eldeki yanıtlarla sentezleniyor…"
+                        ),
                         stage: Some("consensus".to_string()),
                         agent: None,
                     });
@@ -732,7 +742,11 @@ pub async fn test_agent(name: String) -> AgentTestResult {
     };
 
     let prompt = "Reply with ONE short sentence confirming you are working and naming which model/CLI you are.";
-    let path = std::env::temp_dir().join(format!("aura-agent-test-{}-{}.txt", spec.name, std::process::id()));
+    let path = std::env::temp_dir().join(format!(
+        "aura-agent-test-{}-{}.txt",
+        spec.name,
+        std::process::id()
+    ));
     if let Err(err) = write_private_file(&path, prompt) {
         return fail(err);
     }

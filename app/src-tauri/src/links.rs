@@ -79,7 +79,8 @@ pub fn extract_links_with_mentions(
         .to_lowercase();
 
     let mut seen_mentions = HashSet::new();
-    for token in content.split(|ch: char| !(ch.is_alphanumeric() || ch == '.' || ch == '_' || ch == '-'))
+    for token in
+        content.split(|ch: char| !(ch.is_alphanumeric() || ch == '.' || ch == '_' || ch == '-'))
     {
         if token.is_empty() {
             continue;

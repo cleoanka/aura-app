@@ -182,7 +182,11 @@ mod candle_backend {
 
         /// PERF (codex #7): bir grup metni TEK forward'da embed et; batch-max'a pad
         /// (her zaman 512 değil). Mask pad token'ları dışlar → sonuç tek-tek ile eşdeğer.
-        fn embed_inner_batch(&self, prefix: &str, texts: &[String]) -> Result<Vec<Vec<f32>>, String> {
+        fn embed_inner_batch(
+            &self,
+            prefix: &str,
+            texts: &[String],
+        ) -> Result<Vec<Vec<f32>>, String> {
             if texts.is_empty() {
                 return Ok(Vec::new());
             }
@@ -356,7 +360,9 @@ impl LazyCandleEmbedder {
             .get_or_init(|| match CandleEmbedder::new() {
                 Ok(embedder) => Box::new(embedder),
                 Err(err) => {
-                    eprintln!("warning: CandleEmbedder init failed; StubEmbedder kullanılıyor: {err}");
+                    eprintln!(
+                        "warning: CandleEmbedder init failed; StubEmbedder kullanılıyor: {err}"
+                    );
                     Box::new(StubEmbedder)
                 }
             })

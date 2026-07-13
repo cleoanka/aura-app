@@ -263,8 +263,8 @@ impl Indexer {
     /// Embedding'i olmayan chunk'lardan en fazla `limit` tanesini embed eder.
     /// Arka planda tekrar tekrar çağrılır (0 dönene kadar). İndekslemeyi yavaşlatmaz.
     pub fn embed_pending(&mut self, limit: usize) -> Result<usize, String> {
-        let pending =
-            db::chunks_missing_embedding(&self.conn, limit as i64).map_err(|err| err.to_string())?;
+        let pending = db::chunks_missing_embedding(&self.conn, limit as i64)
+            .map_err(|err| err.to_string())?;
         if pending.is_empty() {
             return Ok(0);
         }
@@ -306,7 +306,9 @@ impl Indexer {
         db::delete_links_for_source(&self.conn, &note_path).map_err(|err| err.to_string())?;
         let raw_links = links::extract_links_with_mentions(path, content, known_basenames);
         let mut seen = HashSet::new();
-        for (raw, mut resolved) in links::resolve_links_with_index(root, path, &raw_links, path_index) {
+        for (raw, mut resolved) in
+            links::resolve_links_with_index(root, path, &raw_links, path_index)
+        {
             if !resolved.resolved {
                 if let Some(title_target) = title_aliases.get(&link_key(&raw.target_hint)) {
                     resolved.target_path = title_target.clone();
@@ -355,8 +357,8 @@ impl Indexer {
             );
             let chunk_hash = sha256_hex(chunk.text.as_bytes());
             // audit #2: yerinde düzenlemede stable_id aynı kalıp text değişebilir → eski hash'i oku.
-            let prev_hash = db::chunk_content_hash(&self.conn, &stable_id)
-                .map_err(|err| err.to_string())?;
+            let prev_hash =
+                db::chunk_content_hash(&self.conn, &stable_id).map_err(|err| err.to_string())?;
             let chunk_id = db::upsert_chunk_with_hash(
                 &self.conn,
                 note_path,
@@ -411,7 +413,11 @@ impl Indexer {
         root: Option<&str>,
     ) -> Result<Vec<SearchHit>, String> {
         const MAX_DEPTH: usize = 5000;
-        let mut fetch = if root.is_some() { k.saturating_mul(6) } else { k };
+        let mut fetch = if root.is_some() {
+            k.saturating_mul(6)
+        } else {
+            k
+        };
         loop {
             let matches =
                 db::fts_search(&self.conn, query, fetch).map_err(|err| err.to_string())?;
@@ -799,7 +805,14 @@ mod tests {
 
     #[test]
     fn denylist_dirs_are_ignored() {
-        for dir in [".git", "node_modules", "target", "dist", "__pycache__", ".venv"] {
+        for dir in [
+            ".git",
+            "node_modules",
+            "target",
+            "dist",
+            "__pycache__",
+            ".venv",
+        ] {
             assert!(
                 is_ignored_dir(Path::new("/vault").join(dir).as_path()),
                 "{dir} denylist'te ignored olmalı"

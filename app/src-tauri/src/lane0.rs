@@ -183,7 +183,10 @@ pub fn is_loopback_url(base_url: &str) -> bool {
     let host = if let Some(rest) = authority.strip_prefix('[') {
         rest.split(']').next().unwrap_or("") // [::1]:port → ::1
     } else {
-        authority.rsplit_once(':').map(|(h, _)| h).unwrap_or(authority)
+        authority
+            .rsplit_once(':')
+            .map(|(h, _)| h)
+            .unwrap_or(authority)
     };
     matches!(host, "localhost" | "127.0.0.1" | "::1")
 }

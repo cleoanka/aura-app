@@ -29,7 +29,10 @@ fn mention_matches_non_ascii_basename() {
             .iter()
             .any(|l| matches!(l.kind, LinkKind::Mention) && l.target_hint == "günlük.md"),
         "non-ASCII mention bulunmalı: {:?}",
-        links.iter().map(|l| (&l.target_hint, &l.kind)).collect::<Vec<_>>()
+        links
+            .iter()
+            .map(|l| (&l.target_hint, &l.kind))
+            .collect::<Vec<_>>()
     );
 }
 

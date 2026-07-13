@@ -156,7 +156,10 @@ mod tests {
 
     #[test]
     fn validate_key_accepts_a_clean_single_token() {
-        assert_eq!(validate_key("  sk-ant-api03-abcd  ").unwrap(), "sk-ant-api03-abcd");
+        assert_eq!(
+            validate_key("  sk-ant-api03-abcd  ").unwrap(),
+            "sk-ant-api03-abcd"
+        );
     }
 
     #[test]
@@ -175,7 +178,10 @@ mod tests {
     #[test]
     fn parse_key_file_takes_first_nonempty_line() {
         assert_eq!(parse_key_file("sk-ant-x\n").as_deref(), Some("sk-ant-x"));
-        assert_eq!(parse_key_file("\n  sk-ant-y  \n# note\n").as_deref(), Some("sk-ant-y"));
+        assert_eq!(
+            parse_key_file("\n  sk-ant-y  \n# note\n").as_deref(),
+            Some("sk-ant-y")
+        );
         assert_eq!(parse_key_file("\n\n"), None);
         assert_eq!(parse_key_file(""), None);
     }

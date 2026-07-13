@@ -145,7 +145,9 @@ fn atomic_write(path: &Path, content: &str) -> Result<(), String> {
         .ok_or_else(|| format!("invalid note path: {}", path.display()))?;
     let tmp = parent.join(format!(
         ".{}.{}.{}.tmp",
-        path.file_name().and_then(|n| n.to_str()).unwrap_or("note.md"),
+        path.file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("note.md"),
         std::process::id(),
         TMP_SEQ.fetch_add(1, Ordering::Relaxed)
     ));

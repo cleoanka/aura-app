@@ -27,7 +27,10 @@ fn bench_index_and_search_synthetic_vault() -> Result<(), String> {
         fs::write(root.join(format!("not-{i:03}.md")), body).map_err(|e| e.to_string())?;
     }
     for i in 0..60 {
-        let body = format!("import os\n\ndef fn_{i}():\n    return {i}  # kelime{}\n", i % 37);
+        let body = format!(
+            "import os\n\ndef fn_{i}():\n    return {i}  # kelime{}\n",
+            i % 37
+        );
         fs::write(root.join("src").join(format!("mod_{i:02}.py")), body)
             .map_err(|e| e.to_string())?;
     }

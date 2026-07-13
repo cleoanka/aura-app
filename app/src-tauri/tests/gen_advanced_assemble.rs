@@ -45,13 +45,17 @@ fn assemble_surfaces_linked_note_via_graph() -> Result<(), String> {
     assert!(
         hits.iter().any(|h| h.note_path == a_id),
         "seed a.md gelmeli: {:?}",
-        hits.iter().map(|h| (&h.note_path, &h.via)).collect::<Vec<_>>()
+        hits.iter()
+            .map(|h| (&h.note_path, &h.via))
+            .collect::<Vec<_>>()
     );
     // b.md SADECE link üzerinden (via=graph) gelmeli — lexical eşleşmiyor
     assert!(
         hits.iter().any(|h| h.note_path == b_id && h.via == "graph"),
         "b.md graph-expansion ile gelmeli: {:?}",
-        hits.iter().map(|h| (&h.note_path, &h.via)).collect::<Vec<_>>()
+        hits.iter()
+            .map(|h| (&h.note_path, &h.via))
+            .collect::<Vec<_>>()
     );
 
     fs::remove_dir_all(&root).map_err(|e| e.to_string())?;
@@ -66,7 +70,8 @@ fn assemble_disabled_path_unaffected() -> Result<(), String> {
         fs::remove_dir_all(&root).map_err(|e| e.to_string())?;
     }
     fs::create_dir_all(&root).map_err(|e| e.to_string())?;
-    fs::write(root.join("x.md"), "# X\n\nbananaunique content here.\n").map_err(|e| e.to_string())?;
+    fs::write(root.join("x.md"), "# X\n\nbananaunique content here.\n")
+        .map_err(|e| e.to_string())?;
 
     let conn = db::open_in_memory().map_err(|e| e.to_string())?;
     let mut indexer = Indexer::new(conn, Box::new(StubEmbedder), 1);

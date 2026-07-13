@@ -15,7 +15,15 @@ fn stable_id_is_deterministic() {
 fn stable_id_varies_with_every_input() {
     let base = chunk_stable_id("file-1", "Heading", 0, 1);
     assert_ne!(base, chunk_stable_id("file-2", "Heading", 0, 1), "file_id");
-    assert_ne!(base, chunk_stable_id("file-1", "Other", 0, 1), "heading_path");
+    assert_ne!(
+        base,
+        chunk_stable_id("file-1", "Other", 0, 1),
+        "heading_path"
+    );
     assert_ne!(base, chunk_stable_id("file-1", "Heading", 1, 1), "ordinal");
-    assert_ne!(base, chunk_stable_id("file-1", "Heading", 0, 2), "chunker_ver");
+    assert_ne!(
+        base,
+        chunk_stable_id("file-1", "Heading", 0, 2),
+        "chunker_ver"
+    );
 }

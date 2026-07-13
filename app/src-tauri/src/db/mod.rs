@@ -472,7 +472,10 @@ pub fn insert_embedding(conn: &Connection, chunk_id: i64, embedding: &[f32]) -> 
         &[Bind::I64(chunk_id), Bind::Blob(&embedding)],
     )?;
     // ANN index'i senkron tut (vec0 OR REPLACE desteklemez → önce sil, sonra ekle).
-    let _ = conn.execute("DELETE FROM vec_ann WHERE rowid = ?1", &[Bind::I64(chunk_id)]);
+    let _ = conn.execute(
+        "DELETE FROM vec_ann WHERE rowid = ?1",
+        &[Bind::I64(chunk_id)],
+    );
     conn.execute(
         "INSERT INTO vec_ann(rowid, embedding) VALUES (?1, ?2)",
         &[Bind::I64(chunk_id), Bind::Blob(&embedding)],
@@ -567,7 +570,12 @@ fn vec_search_brute(conn: &Connection, query_vec: &[f32], k: usize) -> Result<Ve
             Ok(())
         },
     )?;
-    best.sort_by(|left, right| right.1.total_cmp(&left.1).then_with(|| left.0.cmp(&right.0)));
+    best.sort_by(|left, right| {
+        right
+            .1
+            .total_cmp(&left.1)
+            .then_with(|| left.0.cmp(&right.0))
+    });
     Ok(best
         .into_iter()
         .map(|(chunk_id, score)| (chunk_id, f64::from(score)))
@@ -673,10 +681,7 @@ pub fn representative_chunks_for_notes(
 
 /// Faz 5: bir chunk'ın PARENT (üst başlık bölümü) chunk'ını getir (parent_id ile).
 /// Dönüş: (note_path, heading_path, text, chunk_stable_id, content_hash). Yoksa None.
-pub fn parent_chunk_for(
-    conn: &Connection,
-    stable_id: &str,
-) -> Result<Option<ChunkRow>> {
+pub fn parent_chunk_for(conn: &Connection, stable_id: &str) -> Result<Option<ChunkRow>> {
     let mut found = None;
     conn.query(
         r#"
@@ -949,7 +954,10 @@ pub fn delete_note_fully(conn: &Connection, path: &str) -> Result<()> {
     delete_vec_ann_for_note(conn, path)?;
     conn.execute("DELETE FROM notes WHERE path = ?1", &[Bind::Text(path)])?;
     delete_links_for_source(conn, path)?;
-    conn.execute("DELETE FROM links WHERE target_path = ?1", &[Bind::Text(path)])?;
+    conn.execute(
+        "DELETE FROM links WHERE target_path = ?1",
+        &[Bind::Text(path)],
+    )?;
     Ok(())
 }
 
@@ -973,7 +981,10 @@ pub fn delete_embedding(conn: &Connection, chunk_id: i64) -> Result<()> {
         "DELETE FROM vec_chunks WHERE chunk_id = ?1",
         &[Bind::I64(chunk_id)],
     )?;
-    let _ = conn.execute("DELETE FROM vec_ann WHERE rowid = ?1", &[Bind::I64(chunk_id)]);
+    let _ = conn.execute(
+        "DELETE FROM vec_ann WHERE rowid = ?1",
+        &[Bind::I64(chunk_id)],
+    );
     Ok(())
 }
 
@@ -1088,10 +1099,7 @@ pub struct CacheDep {
     pub content_hash: String,
 }
 
-pub fn chunk_ai_meta(
-    conn: &Connection,
-    chunk_id: i64,
-) -> Result<Option<ChunkRow>> {
+pub fn chunk_ai_meta(conn: &Connection, chunk_id: i64) -> Result<Option<ChunkRow>> {
     let mut chunk = None;
     conn.query(
         r#"
@@ -1333,15 +1341,8 @@ impl Connection {
     fn execute_batch(&self, sql: &str) -> Result<()> {
         let sql = cstring(sql)?;
         let mut errmsg = ptr::null_mut();
-        let code = unsafe {
-            sqlite3_exec(
-                self.raw(),
-                sql.as_ptr(),
-                None,
-                ptr::null_mut(),
-                &mut errmsg,
-            )
-        };
+        let code =
+            unsafe { sqlite3_exec(self.raw(), sql.as_ptr(), None, ptr::null_mut(), &mut errmsg) };
 
         if code == SQLITE_OK {
             Ok(())
@@ -1736,7 +1737,10 @@ mod tests {
         // ortogonal vektör → cosine 0 < threshold → miss
         assert_eq!(semantic_cache_lookup(&conn, &unit_vec(1), "m", 0.9)?, None);
         // farklı model_ver → miss
-        assert_eq!(semantic_cache_lookup(&conn, &unit_vec(0), "other", 0.9)?, None);
+        assert_eq!(
+            semantic_cache_lookup(&conn, &unit_vec(0), "other", 0.9)?,
+            None
+        );
         Ok(())
     }
 

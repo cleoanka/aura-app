@@ -11,7 +11,8 @@ fn deleted_notes_are_pruned_from_all_subsystems() -> Result<(), String> {
         fs::remove_dir_all(&root).map_err(|e| e.to_string())?;
     }
     fs::create_dir_all(&root).map_err(|e| e.to_string())?;
-    fs::write(root.join("a.md"), "# A\n\nalpha uniquekw links [[B]]\n").map_err(|e| e.to_string())?;
+    fs::write(root.join("a.md"), "# A\n\nalpha uniquekw links [[B]]\n")
+        .map_err(|e| e.to_string())?;
     fs::write(root.join("b.md"), "# B\n\nbeta keepmeword content\n").map_err(|e| e.to_string())?;
 
     let conn = db::open_in_memory().map_err(|e| e.to_string())?;

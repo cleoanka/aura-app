@@ -129,7 +129,10 @@ fn overlap_ratio(terms: &[String], text_lower: &str) -> f64 {
     if terms.is_empty() {
         return 0.0;
     }
-    let hits = terms.iter().filter(|t| text_lower.contains(t.as_str())).count();
+    let hits = terms
+        .iter()
+        .filter(|t| text_lower.contains(t.as_str()))
+        .count();
     hits as f64 / terms.len() as f64
 }
 
@@ -260,8 +263,8 @@ pub fn assemble(
         let existing: HashSet<String> = hits.iter().map(|h| h.chunk_stable_id.clone()).collect();
         // Cap = seed×per-seed (tek seed tüm slotları yemesin, codex #3) AMA token için
         // toplam 2×final_k ile sınırla (bağlam şişmesin, kullanıcının token hedefi).
-        let graph_cap = (seed_paths.len().max(1) * adv.graph_neighbors_per_seed as usize)
-            .min(final_k * 2);
+        let graph_cap =
+            (seed_paths.len().max(1) * adv.graph_neighbors_per_seed as usize).min(final_k * 2);
         let mut added = 0usize;
         for (note, heading, text, stable, hash) in nb_chunks {
             if added >= graph_cap {

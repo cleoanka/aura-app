@@ -95,7 +95,14 @@ pub async fn ask(
             }
             (None, None) => None,
         };
-        (context, deps, fingerprint, vault_epoch, cache_hit, query_vec)
+        (
+            context,
+            deps,
+            fingerprint,
+            vault_epoch,
+            cache_hit,
+            query_vec,
+        )
     };
 
     if let Some(text) = cache_hit {
@@ -261,7 +268,9 @@ pub async fn chat(
     on_event: Channel<AiEvent>,
 ) -> Result<String, String> {
     on_event
-        .send(AiEvent::Start { lane: "fast".to_string() })
+        .send(AiEvent::Start {
+            lane: "fast".to_string(),
+        })
         .ok();
     let job_id = new_job_id();
     exec::run_aura(job_id, "fast", &message, "", on_event, jobs.inner().clone()).await
@@ -447,13 +456,21 @@ mod tests {
 
     #[test]
     fn deep_query_routes_analytical_prompts_to_deep() {
-        for q in ["explain the architecture", "why is this slow", "compare A and B"] {
+        for q in [
+            "explain the architecture",
+            "why is this slow",
+            "compare A and B",
+        ] {
             assert!(deep_query(q), "{q:?} deep olmalı");
         }
         assert!(deep_query(&"x".repeat(300)), "uzun sorgu deep");
         assert!(!deep_query("note title"), "kısa/anahtarsız sorgu fast");
         // audit S15: substring tuzağı — kelime-sınırı olmadan bunlar yanlışlıkla deep'ti.
-        for q in ["what is a planet", "airplane ticket note", "esplanade photos"] {
+        for q in [
+            "what is a planet",
+            "airplane ticket note",
+            "esplanade photos",
+        ] {
             assert!(!deep_query(q), "{q:?} fast kalmalı (substring tuzağı)");
         }
         assert!(deep_query("what is the trade-off here"), "trade-off deep");
@@ -472,6 +489,9 @@ mod tests {
         };
         let a = retrieval_fingerprint(&[hit("a.md", "A"), hit("b.md", "B")]);
         let b = retrieval_fingerprint(&[hit("b.md", "B"), hit("a.md", "A")]);
-        assert_eq!(a, b, "fingerprint sıralamadan bağımsız olmalı (cache hit kararlılığı)");
+        assert_eq!(
+            a, b,
+            "fingerprint sıralamadan bağımsız olmalı (cache hit kararlılığı)"
+        );
     }
 }

@@ -54,8 +54,8 @@ pub fn build(notes: &[(String, Vec<String>, String)]) -> GraphData {
 
     for (source, wikilinks, _) in notes {
         for target in wikilinks {
-            let target_id = resolve_target(target, &title_index, &stem_index)
-                .unwrap_or_else(|| target.clone());
+            let target_id =
+                resolve_target(target, &title_index, &stem_index).unwrap_or_else(|| target.clone());
 
             if seen.insert(target_id.clone()) {
                 nodes.push(GraphNode {

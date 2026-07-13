@@ -55,7 +55,10 @@ fn switching_workspace_hides_old_repo_everywhere() -> Result<(), String> {
 
     // hybrid: aynı garanti
     let hits = indexer.search_hybrid_in("oldunique", 5, Some(&active))?;
-    assert!(hits.is_empty(), "eski repo içeriği hybrid aramada sızmamalı");
+    assert!(
+        hits.is_empty(),
+        "eski repo içeriği hybrid aramada sızmamalı"
+    );
     let hits = indexer.search_hybrid_in("newunique", 5, Some(&active))?;
     assert!(!hits.is_empty());
 

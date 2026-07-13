@@ -138,9 +138,7 @@ fn assert_resolves(
     let resolved = links::resolve_links(root, source, &raw_links, project_files);
     assert!(
         resolved.iter().any(|(raw, link)| {
-            raw == &expected_raw
-                && link.resolved
-                && &link.target_path == expected_target
+            raw == &expected_raw && link.resolved && &link.target_path == expected_target
         }),
         "missing resolved link {expected_raw:?} -> {} in {resolved:?}",
         expected_target.display()

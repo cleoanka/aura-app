@@ -333,7 +333,8 @@ impl Settings {
         adv.semantic_cache_threshold = adv.semantic_cache_threshold.clamp(50, 100);
         // Consensus bekleme süreleri makul aralıkta (kullanıcı UI'dan girer).
         settings.consensus.grace_secs = settings.consensus.grace_secs.min(600);
-        settings.consensus.agent_timeout_secs = settings.consensus.agent_timeout_secs.clamp(10, 600);
+        settings.consensus.agent_timeout_secs =
+            settings.consensus.agent_timeout_secs.clamp(10, 600);
         settings.local_gen = settings.local_gen.normalized();
         settings
     }

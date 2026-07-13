@@ -25,7 +25,13 @@ fn deps(note: &str, hash: &str) -> Vec<CacheDep> {
 fn cache_hits_while_source_unchanged() -> db::Result<()> {
     let conn = db::open_in_memory()?;
     seed(&conn, "a.md", "h1")?;
-    db::cache_put(&conn, "key1", "cached answer", "model-v", &deps("a.md", "h1"))?;
+    db::cache_put(
+        &conn,
+        "key1",
+        "cached answer",
+        "model-v",
+        &deps("a.md", "h1"),
+    )?;
 
     assert_eq!(
         db::cache_get_valid(&conn, "key1")?,
@@ -38,7 +44,13 @@ fn cache_hits_while_source_unchanged() -> db::Result<()> {
 fn cache_invalidates_when_source_file_edited() -> db::Result<()> {
     let conn = db::open_in_memory()?;
     seed(&conn, "a.md", "h1")?;
-    db::cache_put(&conn, "key1", "cached answer", "model-v", &deps("a.md", "h1"))?;
+    db::cache_put(
+        &conn,
+        "key1",
+        "cached answer",
+        "model-v",
+        &deps("a.md", "h1"),
+    )?;
 
     // User edits a.md in place → new content hash for the same note.
     db::upsert_note(&conn, "a.md", "fid", 2, "h2", Some("T"))?;
@@ -75,7 +87,13 @@ fn deleting_dependency_note_invalidates_cache_not_validates_it() -> db::Result<(
     // dep'siz kalan cache girdisi "geçerli" sayılıp BAYAT cevap dönüyordu.
     let conn = db::open_in_memory()?;
     seed(&conn, "a.md", "h1")?;
-    db::cache_put(&conn, "key1", "cached answer", "model-v", &deps("a.md", "h1"))?;
+    db::cache_put(
+        &conn,
+        "key1",
+        "cached answer",
+        "model-v",
+        &deps("a.md", "h1"),
+    )?;
 
     db::delete_note_fully(&conn, "a.md")?;
 
@@ -92,7 +110,13 @@ fn deleting_dependency_chunk_invalidates_cache() -> db::Result<()> {
     // audit C11: reindex'te kaybolan başlık/bölüm (chunk) de bağımlı cache'i düşürmeli.
     let conn = db::open_in_memory()?;
     seed(&conn, "a.md", "h1")?;
-    db::cache_put(&conn, "key1", "cached answer", "model-v", &deps("a.md", "h1"))?;
+    db::cache_put(
+        &conn,
+        "key1",
+        "cached answer",
+        "model-v",
+        &deps("a.md", "h1"),
+    )?;
 
     db::delete_chunk_by_stable_id(&conn, "a.md#0")?;
 

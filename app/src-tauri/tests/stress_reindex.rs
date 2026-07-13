@@ -15,7 +15,10 @@ fn concurrent_reindex_and_search_is_stable() {
     for i in 0..8 {
         std::fs::write(
             dir.join(format!("note{i}.md")),
-            format!("# Note {i}\n\nalpha beta gamma [[note{}]] govde {i}\n", (i + 1) % 8),
+            format!(
+                "# Note {i}\n\nalpha beta gamma [[note{}]] govde {i}\n",
+                (i + 1) % 8
+            ),
         )
         .expect("write note");
     }
@@ -24,7 +27,11 @@ fn concurrent_reindex_and_search_is_stable() {
     // hızlı tutar (amaç embedding kalitesi değil, Mutex/db yolunun stabilitesi).
     let conn = db::open_in_memory().expect("db");
     let indexer = Arc::new(Mutex::new(Indexer::new(conn, Box::new(StubEmbedder), 1)));
-    indexer.lock().unwrap().index_vault(&dir).expect("ilk index");
+    indexer
+        .lock()
+        .unwrap()
+        .index_vault(&dir)
+        .expect("ilk index");
 
     let mut handles = Vec::new();
     for t in 0..6 {

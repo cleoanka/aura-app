@@ -34,7 +34,8 @@ fn capture_login_env() -> HashMap<String, String> {
         .or_else(|| std::env::var("HOME").ok())
         .unwrap_or_default();
     if !home.is_empty() {
-        env.entry("HOME".to_string()).or_insert_with(|| home.clone());
+        env.entry("HOME".to_string())
+            .or_insert_with(|| home.clone());
     }
 
     // KRİTİK: GUI/Launchpad'den açılınca login-shell PATH'i kullanıcı CLI dizinlerini
@@ -47,7 +48,13 @@ fn capture_login_env() -> HashMap<String, String> {
 fn augment_path(env: &mut HashMap<String, String>, home: &str) {
     let mut dirs: Vec<String> = Vec::new();
     if !home.is_empty() {
-        for sub in [".local/bin", ".npm-global/bin", "bin", ".cargo/bin", ".deno/bin"] {
+        for sub in [
+            ".local/bin",
+            ".npm-global/bin",
+            "bin",
+            ".cargo/bin",
+            ".deno/bin",
+        ] {
             dirs.push(format!("{home}/{sub}"));
         }
     }
@@ -108,7 +115,9 @@ fn login_env_output_with_timeout() -> Option<Vec<u8>> {
             Ok(Some(status)) if status.success() => {
                 // Kalan bütçe içinde çıktıyı bekle; gelmezse (stdout'u tutan torun
                 // süreç) None → mevcut env'e düş. Thread arkada kendi kendine biter.
-                return rx.recv_timeout(remaining(started).max(Duration::from_millis(50))).ok();
+                return rx
+                    .recv_timeout(remaining(started).max(Duration::from_millis(50)))
+                    .ok();
             }
             Ok(Some(_)) => return None,
             Ok(None) if started.elapsed() > LOGIN_ENV_TIMEOUT => {

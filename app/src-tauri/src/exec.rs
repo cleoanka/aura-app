@@ -21,18 +21,31 @@ const MAX_OUTPUT_BYTES: usize = 16 * 1024 * 1024;
 #[derive(Serialize, Clone)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum AiEvent {
-    Start { lane: String },
+    Start {
+        lane: String,
+    },
     /// İş kimliği baştan UI'a gönderilir → Stop butonu akış sırasında çalışır.
-    Job { job_id: String },
-    Chunk { text: String },
-    Cached { text: String },
+    Job {
+        job_id: String,
+    },
+    Chunk {
+        text: String,
+    },
+    Cached {
+        text: String,
+    },
     Status {
         text: String,
         stage: Option<String>,
         agent: Option<String>,
     },
-    Done { run_dir: Option<String> },
-    Error { reason: String, taxonomy: String },
+    Done {
+        run_dir: Option<String>,
+    },
+    Error {
+        reason: String,
+        taxonomy: String,
+    },
 }
 
 #[derive(Clone)]
@@ -236,7 +249,12 @@ async fn run_aura_mode_with_argv(
     jobs.lock()
         .map_err(|err| err.to_string())?
         .insert(job_id.clone(), handle.clone());
-    send_event(&on_event, AiEvent::Job { job_id: job_id.clone() })?;
+    send_event(
+        &on_event,
+        AiEvent::Job {
+            job_id: job_id.clone(),
+        },
+    )?;
 
     let read_task = tokio::task::spawn_blocking({
         let on_event = on_event.clone();
@@ -329,7 +347,12 @@ async fn run_aura_with_files(
     jobs.lock()
         .map_err(|err| err.to_string())?
         .insert(job_id.clone(), handle.clone());
-    send_event(&on_event, AiEvent::Job { job_id: job_id.clone() })?;
+    send_event(
+        &on_event,
+        AiEvent::Job {
+            job_id: job_id.clone(),
+        },
+    )?;
 
     let read_task = tokio::task::spawn_blocking({
         let on_event = on_event.clone();
@@ -663,7 +686,12 @@ mod tests {
 
     #[test]
     fn ai_event_kind_is_lowercase_for_frontend() {
-        assert_eq!(kind(&AiEvent::Start { lane: "fast".into() }), "start");
+        assert_eq!(
+            kind(&AiEvent::Start {
+                lane: "fast".into()
+            }),
+            "start"
+        );
         assert_eq!(kind(&AiEvent::Job { job_id: "j".into() }), "job");
         assert_eq!(kind(&AiEvent::Chunk { text: "t".into() }), "chunk");
         assert_eq!(kind(&AiEvent::Cached { text: "t".into() }), "cached");
@@ -687,7 +715,10 @@ mod tests {
 
     #[test]
     fn ai_event_job_carries_job_id_field() {
-        let value = serde_json::to_value(AiEvent::Job { job_id: "abc".into() }).unwrap();
+        let value = serde_json::to_value(AiEvent::Job {
+            job_id: "abc".into(),
+        })
+        .unwrap();
         assert_eq!(value["job_id"], "abc");
     }
 }

@@ -8,8 +8,14 @@ fn parse_extracts_title_and_section_headings() {
     let p = markdown::parse(md);
     assert_eq!(p.title, "Title");
     assert!(!p.chunks.is_empty());
-    assert!(p.chunks.iter().any(|c| c.heading_path.contains("Section A")));
-    assert!(p.chunks.iter().any(|c| c.heading_path.contains("Section B")));
+    assert!(p
+        .chunks
+        .iter()
+        .any(|c| c.heading_path.contains("Section A")));
+    assert!(p
+        .chunks
+        .iter()
+        .any(|c| c.heading_path.contains("Section B")));
 
     // ordinaller benzersiz
     let mut ords: Vec<usize> = p.chunks.iter().map(|c| c.ordinal).collect();
@@ -43,7 +49,9 @@ fn parse_ignores_headings_inside_code_fences() {
     let p = markdown::parse(md);
     assert_eq!(p.title, "Real Title");
     assert!(
-        !p.chunks.iter().any(|c| c.heading_path.contains("fake heading")),
+        !p.chunks
+            .iter()
+            .any(|c| c.heading_path.contains("fake heading")),
         "kod bloğundaki # başlık sayılmamalı"
     );
 }
@@ -66,10 +74,30 @@ fn parse_project_text_routes_by_extension() {
 #[test]
 fn chunk_stable_id_is_deterministic_and_sensitive() {
     let a = chunk_stable_id("file1", "A > B", 3, 1);
-    assert_eq!(a, chunk_stable_id("file1", "A > B", 3, 1), "aynı girdi → aynı id");
+    assert_eq!(
+        a,
+        chunk_stable_id("file1", "A > B", 3, 1),
+        "aynı girdi → aynı id"
+    );
     assert_eq!(a.len(), 64, "sha256 hex 64 karakter");
-    assert_ne!(a, chunk_stable_id("file1", "A > B", 4, 1), "ordinal id'yi değiştirir");
-    assert_ne!(a, chunk_stable_id("file1", "A > C", 3, 1), "heading_path id'yi değiştirir");
-    assert_ne!(a, chunk_stable_id("file1", "A > B", 3, 2), "chunker_ver id'yi değiştirir");
-    assert_ne!(a, chunk_stable_id("file2", "A > B", 3, 1), "file_id id'yi değiştirir");
+    assert_ne!(
+        a,
+        chunk_stable_id("file1", "A > B", 4, 1),
+        "ordinal id'yi değiştirir"
+    );
+    assert_ne!(
+        a,
+        chunk_stable_id("file1", "A > C", 3, 1),
+        "heading_path id'yi değiştirir"
+    );
+    assert_ne!(
+        a,
+        chunk_stable_id("file1", "A > B", 3, 2),
+        "chunker_ver id'yi değiştirir"
+    );
+    assert_ne!(
+        a,
+        chunk_stable_id("file2", "A > B", 3, 1),
+        "file_id id'yi değiştirir"
+    );
 }

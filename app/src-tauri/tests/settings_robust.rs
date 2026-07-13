@@ -1,4 +1,6 @@
-use app_lib::settings::{self, AdvancedRetrievalSettings, LaneSettings, LocalGenSettings, Settings};
+use app_lib::settings::{
+    self, AdvancedRetrievalSettings, LaneSettings, LocalGenSettings, Settings,
+};
 use std::fs;
 
 #[test]

@@ -82,7 +82,11 @@ fn hybrid_search_pass(
         .collect::<Vec<_>>();
     // Root filtresi varken fusion'ı derin tut (filtre sonrası k'yı doldurabilmek için);
     // filtresiz yol k ile aynı davranışta kalır (bit-aynı sonuç).
-    let fused = rrf_fuse(&fts_ids, &vec_ids, if root.is_some() { search_limit } else { k });
+    let fused = rrf_fuse(
+        &fts_ids,
+        &vec_ids,
+        if root.is_some() { search_limit } else { k },
+    );
 
     let fts_set = fts_ids.iter().copied().collect::<HashSet<_>>();
     let vec_set = vec_ids.iter().copied().collect::<HashSet<_>>();
