@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, a1]
   pull_request:
-    branches: [main]
+    branches: [main, a1]
 
 jobs:
   test:
@@ -23,6 +23,8 @@ jobs:
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
 
       - name: Cache cargo
         uses: actions/cache@v4
@@ -40,9 +42,20 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: python3 scripts/soul_check.py
 
+      - name: Rust format check
+        working-directory: app/src-tauri
+        run: cargo fmt --check
+
+      - name: Rust clippy (deny warnings)
+        working-directory: app/src-tauri
+        run: cargo clippy --all-targets --locked -- -D warnings
+
       - name: Rust tests (offline-safe; aura/network tests are #[ignore])
         working-directory: app/src-tauri
         run: cargo test --locked
+
+      - name: Frontend unit tests (vitest)
+        run: npm test
 
       - name: Frontend typecheck + build
         run: npm run build
