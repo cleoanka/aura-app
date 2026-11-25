@@ -1,10 +1,15 @@
-import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 
 import { I18nProvider } from "../i18n";
 import { LiveActivity } from "./LiveActivity";
 import { MarkdownView } from "./MarkdownView";
+
+const openUrl = vi.fn();
+vi.mock("@tauri-apps/plugin-opener", () => ({
+  openUrl: (url: string) => openUrl(url),
+}));
 
 // LiveActivity useI18n kullanıyor → testte gerçek provider ile sarılır.
 function withI18n(ui: ReactNode) {
@@ -50,6 +55,22 @@ describe("MarkdownView", () => {
     const link = container.querySelector('a[href^="https://evil.example"]');
     expect(link?.textContent).toBe("[pixel]");
     expect(screen.getByText("[yerel]").tagName).toBe("SPAN");
+  });
+
+  it("göreli/file: linkler webview'ı başka sayfaya götürmez; http(s) dışarıda açılır", () => {
+    openUrl.mockReset();
+    render(
+      <MarkdownView
+        text={"[kod](src/indexer.rs) [dosya](file:///etc/hosts) [web](https://example.com) [bölüm](#ozet)"}
+      />,
+    );
+    // fireEvent.click → preventDefault çağrıldıysa false döner.
+    expect(fireEvent.click(screen.getByText("kod"))).toBe(false);
+    expect(fireEvent.click(screen.getByText("dosya"))).toBe(false);
+    expect(fireEvent.click(screen.getByText("web"))).toBe(false);
+    expect(openUrl).toHaveBeenCalledTimes(1);
+    expect(openUrl).toHaveBeenCalledWith("https://example.com");
+    expect(fireEvent.click(screen.getByText("bölüm"))).toBe(true);
   });
 
   it("kod bloğunu <code> olarak render eder", () => {

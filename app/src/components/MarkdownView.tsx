@@ -10,22 +10,26 @@ export function MarkdownView({ text }: { text: string }) {
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
-          // http(s) linkleri WKWebView içinde navigasyona gitmesin;
-          // sistem tarayıcısında açılsın. Diğer href'ler (anchor vb.) aynen kalır.
+          // Hiçbir link WKWebView'ı uygulamanın dışına götürmesin: http(s) sistem
+          // tarayıcısında açılır; göreli/file:/diğer şemalar (ajan çıktısındaki
+          // `[x](src/a.rs)` gibi) tıklanınca hiçbir şey yapmaz — aksi halde pencere
+          // tauri://localhost/src/a.rs'e gidip sohbet + React state kayboluyordu.
+          // Yalnız sayfa içi `#anchor` varsayılan davranışta kalır.
           a: ({ href, children, ...props }) => {
             const isExternal = /^https?:\/\//i.test(href ?? "");
+            const isAnchor = (href ?? "").startsWith("#");
             return (
               <a
                 {...props}
                 href={href}
                 rel="noreferrer"
                 onClick={
-                  isExternal
-                    ? (e) => {
+                  isAnchor
+                    ? undefined
+                    : (e) => {
                         e.preventDefault();
-                        void openUrl(href!);
+                        if (isExternal) void openUrl(href!);
                       }
-                    : undefined
                 }
               >
                 {children}
