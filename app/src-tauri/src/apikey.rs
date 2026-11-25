@@ -133,6 +133,14 @@ fn write_private(path: &Path, content: &str) -> Result<(), String> {
     let mut file = options
         .open(path)
         .map_err(|err| format!("failed to write API key: {err}"))?;
+    // `mode(0o600)` yalnız dosya YENİ oluşturulurken uygulanır; CLI/kullanıcı dosyayı
+    // önceden 0644 ile oluşturduysa anahtar dünya-okunur kalırdı → yazmadan ÖNCE daralt.
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        file.set_permissions(fs::Permissions::from_mode(0o600))
+            .map_err(|err| format!("failed to restrict API key file permissions: {err}"))?;
+    }
     file.write_all(content.as_bytes())
         .map_err(|err| format!("failed to write API key: {err}"))?;
     Ok(())
@@ -141,6 +149,22 @@ fn write_private(path: &Path, content: &str) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(unix)]
+    #[test]
+    fn write_private_tightens_a_preexisting_world_readable_file() {
+        use std::os::unix::fs::PermissionsExt;
+        let path = std::env::temp_dir().join(format!("aura-apikey-perm-{}", std::process::id()));
+        fs::write(&path, "old").unwrap();
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o644)).unwrap();
+
+        write_private(&path, "sk-ant-new").unwrap();
+
+        let mode = fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o600);
+        assert_eq!(fs::read_to_string(&path).unwrap(), "sk-ant-new");
+        fs::remove_file(&path).unwrap();
+    }
 
     #[test]
     fn mask_hides_the_middle() {
