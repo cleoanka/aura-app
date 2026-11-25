@@ -77,6 +77,19 @@ Format [Keep a Changelog](https://keepachangelog.com/), sürümleme [SemVer](htt
   VaultExplorer'daki hardcoded Türkçe metinler i18n'e bağlandı; saniye sayacının
   ekran-okuyucu spam'i giderildi (aria-live daraltıldı); graf legend'ine eksik
   `config`/`external` tipleri eklendi; Aura-Mode'da consensus, ayar kapalıyken listeden kalkar.
+- FTS araması: kullanıcı metni tırnaklanmış terimlere çevrilir (`C++`, `?`, `auth-flow` artık
+  syntax hatası verip boş dönmez). Davranış değişikliği: terimler **OR** ile birleşir (sıralama
+  bm25) ve FTS5 operatörleri (`*` önek, `NEAR`, `col:`) artık uygulanmaz.
+- Aura-Mode'da proje klasörü seçmek aktif workspace'i değiştirmez (yalnız VaultExplorer değiştirir).
+- `.gitignore`/`.auraignore`'daki eğik çizgisiz `*`/`?` glob'ları (`.env*`, `*.pem`) indekslemede
+  uygulanır; `!` negation desteklenmez, tek başına `*` satırı atlanır.
+- Consensus sentezi ve ajan testi stderr'i okuyor: çok stderr yazan ajan asılı kalmaz, hata nedeni gösterilir.
+### Security
+- `csp: null` yerine kısıtlayıcı CSP (`tauri.conf.json`); uzak kaynak yüklenmez.
+- Sohbet markdown'ında uzak görseller otomatik yüklenmez (tıklanabilir yer tutucu); göreli/`file:`
+  linkler webview'ı uygulama dışına götürmez.
+- API anahtarı dosyası önceden varsa da `0600`'a daraltılır.
+- Kullanılmayan `tauri-plugin-shell` + `shell:default` yetkisi ve şablon `greet` komutu kaldırıldı.
 
 ## [0.2.0] — 2026-06-23
 ### Added
