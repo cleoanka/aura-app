@@ -90,6 +90,11 @@ Format [Keep a Changelog](https://keepachangelog.com/), sürümleme [SemVer](htt
   linkler webview'ı uygulama dışına götürmez.
 - API anahtarı dosyası önceden varsa da `0600`'a daraltılır.
 - Kullanılmayan `tauri-plugin-shell` + `shell:default` yetkisi ve şablon `greet` komutu kaldırıldı.
+### Fixed
+- Production build boş pencere açıyordu: `vite.config.ts` manualChunks'taki catch-all `vendor`
+  chunk'ı graph/markdown/react ile döngüsel import kuruyordu (`Cannot access 'h' before
+  initialization`). Catch-all kaldırıldı, `react` eşleşmesi tam paket adına daraltıldı; chunk
+  grafiği döngüsüz.
 
 ## [0.2.0] — 2026-06-23
 ### Added

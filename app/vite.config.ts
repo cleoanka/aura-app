@@ -29,8 +29,13 @@ export default defineConfig(async () => ({
             id.includes("hast")
           )
             return "markdown";
-          if (id.includes("react") || id.includes("scheduler")) return "react";
-          return "vendor";
+          // Tam paket adı: `includes("react")` preact/react-kapsule'u da yakalıyordu.
+          if (/[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/.test(id)) return "react";
+          // Catch-all "vendor" YOK: force-graph/prop-types/vfile gibi geçişli bağımlılıkları
+          // ayrı chunk'a koymak vendor<->graph/markdown/react döngüsü kuruyordu; prod build'de
+          // "Cannot access 'h' before initialization" → boş pencere. Atanmamış modülleri
+          // Rollup, onları kullanan chunk'a yerleştirir (chunk grafiği döngüsüz).
+          return undefined;
         },
       },
     },
