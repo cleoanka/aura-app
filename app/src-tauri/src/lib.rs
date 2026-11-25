@@ -31,12 +31,6 @@ use indexer::Indexer;
 use std::sync::Mutex;
 use tauri::{Emitter, Manager};
 
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // audit C8: DB açılamazsa (disk dolu, izin, bozuk dosya) panic yerine kullanıcıya
@@ -110,9 +104,7 @@ pub fn run() {
         })
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![
-            greet,
             agent_detect,
             agent_install,
             agent_test,
