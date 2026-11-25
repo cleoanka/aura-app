@@ -26,7 +26,7 @@ flowchart TB
         CORE[indexer · markdown · links · graph · search · retrieval · embed]
         RUN[exec · env_resolver · error · consensus · lane0 · pty]
     end
-    DB[(aura.sqlite · FTS5 + vectors + cache)]
+    DB[(index.sqlite3 · FTS5 + vectors + cache)]
     CLI{{aura CLI · zsh -lc + file→stdin}}
     EXT[[Claude · Antigravity · Codex · Ollama]]
 
@@ -60,7 +60,7 @@ single source of truth for *which* agent runs and *how* it authenticates.
 sequenceDiagram
     participant UI as React (AskPanel)
     participant BE as Rust (commands/ai.rs)
-    participant DB as aura.sqlite
+    participant DB as index.sqlite3
     participant CLI as aura --json-events
     UI->>BE: ask(question, opts)
     BE->>DB: exact-match cache lookup
@@ -81,7 +81,7 @@ sequenceDiagram
 
 ## 3. Data layer
 
-A single **`aura.sqlite`** holds everything:
+A single **`index.sqlite3`** holds everything:
 
 | Concern | How |
 |---|---|

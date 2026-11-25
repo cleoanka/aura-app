@@ -191,7 +191,7 @@ flowchart TB
         EMB[Embedder · candle/e5]
         EX[exec · per-job spawn · pgid cancel]
     end
-    DB[(aura.sqlite<br/>FTS5 + vectors + cache)]
+    DB[(index.sqlite3<br/>FTS5 + vectors + cache)]
     CLI{{aura CLI · zsh -lc + stdin}}
     AGENTS[[Claude · Antigravity · Codex · Ollama]]
 
@@ -204,7 +204,7 @@ flowchart TB
     CMD --> EX --> CLI --> AGENTS
 ```
 
-- **Backend** — Rust + Tauri v2. One `aura.sqlite` holds FTS5, vectors and the cache.
+- **Backend** — Rust + Tauri v2. One `index.sqlite3` holds FTS5, vectors and the cache.
   Each AI job spawns a **short-lived `aura` process** (no daemon); cancel = process-group kill;
   prompts/context are passed **file → stdin** (no shell-injection surface).
 - **Frontend** — React 19 / TypeScript / Vite, Obsidian-dark theme.

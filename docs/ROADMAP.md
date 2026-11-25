@@ -8,7 +8,7 @@
 ## ✅ Tamamlanan (kodlandı + derlendi + test edildi)
 - Tauri v2 + Rust + React/TS iskeleti; release **`.app` + `.dmg`** build oluyor, açılıyor, çökmüyor.
 - **Agent Manager**: detect/install/health/limit + **gömülü PTY login** (xterm), claude=ANA BEYİN. doctor JSON sözleşmesi (Python+Rust tek kaynak, test).
-- **Veri**: tek `aura.sqlite` (rusqlite **bundled**) — FTS5 + **sqlite-vec vec0 ANN** (cosine, brute-force fallback) + cache/cache_deps/cache_query_vec/meta.
+- **Veri**: tek `index.sqlite3` (rusqlite **bundled**) — FTS5 + **sqlite-vec vec0 ANN** (cosine, brute-force fallback) + cache/cache_deps/cache_query_vec/meta.
 - **Indexer**: markdown/wikilink/hierarchical chunk + petgraph knowledge graph + content-hash incremental.
 - **Arama**: hibrit FTS5+vektör → RRF.
 - **AI ask**: exact-match cache (sıfır false-positive) → retrieval → lane → per-job `aura --json-events` spawn → Channel streaming → pgid cancel.
