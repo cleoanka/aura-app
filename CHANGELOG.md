@@ -87,7 +87,7 @@ Format [Keep a Changelog](https://keepachangelog.com/), sürümleme [SemVer](htt
 - CI: `.dmg` paketleme headless runner'da Finder gerektirdiği için patlıyordu → CI artık `--bundles app`.
 - gemini→agy yeniden adlandırmasından kalma 3 stale test (`settings_robust`, `consensus_degrade`, `pty_argv`) düzeltildi → tam paket yeşil (63 test).
 ### Security
-- Release binary'leri `--remap-path-prefix` ile derlenir → gömülü kişisel yol/kullanıcı adı yok.
+- Release binary'leri için yol: `RUSTFLAGS="--remap-path-prefix=$HOME=/build" npm run tauri build` ile **elle** derleyin, sonra `strings <binary> | grep "$HOME"` ile boş çıktıyı doğrulayın (hiçbir config/CI bunu zorunlu kılmaz; varsayılan build ev yolunu gömebilir).
 
 ## [0.1.0] — 2026-06-23
 ### Added

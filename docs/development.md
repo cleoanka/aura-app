@@ -37,5 +37,5 @@ PLAN → CHECKPOINT → EXECUTE → VERIFY (kapılar) → DECIDE (LAND/ROLLBACK)
 
 ## Sürüm & yayın
 - Sürüm: `app/package.json` + `app/src-tauri/tauri.conf.json` + `Cargo.toml` (üçü senkron).
-- Release binary **`RUSTFLAGS="--remap-path-prefix=$HOME=/build"`** ile derlenir (kişisel yol sızmaz).
+- Release binary'lerini **`RUSTFLAGS="--remap-path-prefix=$HOME=/build" npm run tauri build`** ile **elle** derleyin; `strings <binary> | grep "$HOME"` ile kişisel yol sızmadığını doğrulayın. Hiçbir config/CI bunu zorunlu kılmaz.
 - `.dmg` GUI gerektirir → CI yalnız `--bundles app`; imzalı `.dmg` yerelde üretilip GitHub Release'e eklenir.

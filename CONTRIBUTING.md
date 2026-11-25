@@ -19,7 +19,7 @@ python3 scripts/soul_check.py                 # ANAYASA denetimi
 
 ## Anayasa (ihlal eden PR reddedilir)
 1. **Yerel-öncelik & gizlilik** — veri yalnızca kullanıcının bilerek gönderdiği prompt ile çıkar.
-2. **Kişisel veri sızıntısı yok** — repo/commit/binary'de kullanıcı adı / ev yolu / token yok. Release binary'leri `RUSTFLAGS="--remap-path-prefix=$HOME=/build"` ile derlenir.
+2. **Kişisel veri sızıntısı yok** — repo/commit/binary'de kullanıcı adı / ev yolu / token yok. Release binary'lerini `RUSTFLAGS="--remap-path-prefix=$HOME=/build" npm run tauri build` ile **elle** derleyin ve `strings <binary> | grep "$HOME"` ile doğrulayın — hiçbir config/CI bunu zorunlu kılmaz.
 3. **App modele doğrudan konuşmaz** — tüm AI çağrıları `aura` CLI üzerinden.
 4. **Shell-injection yok** — prompt+context `0600` dosya → stdin; asla shell dizgesine interpolate edilmez.
 5. **`Fix` salt-okunur** — diff önizler, asla commit etmez.
