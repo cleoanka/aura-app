@@ -494,7 +494,8 @@ fn project_files(root: &Path) -> Result<Vec<ProjectFile>, String> {
     let mut files = Vec::new();
     for entry in WalkDir::new(root)
         .into_iter()
-        .filter_entry(|entry| !is_ignored_path(entry.path(), &extra_ignored))
+        // depth 0 = the vault root the user picked: never prune it by its own name.
+        .filter_entry(|entry| entry.depth() == 0 || !is_ignored_path(entry.path(), &extra_ignored))
     {
         // Dayanıklılık (audit C13): tek okunamayan dizin/girdi (izin hatası, kopuk symlink,
         // ağ diski) TÜM indekslemeyi düşürmesin — o girdiyi atla, tarama sürsün.
@@ -530,13 +531,48 @@ fn is_ignored_path(path: &Path, extra: &HashSet<String>) -> bool {
     }
     path.file_name()
         .and_then(|name| name.to_str())
-        .is_some_and(|name| extra.contains(name))
+        .is_some_and(|name| {
+            extra.contains(name)
+                || extra.iter().any(|pattern| {
+                    pattern.contains(['*', '?']) && basename_glob_match(pattern, name)
+                })
+        })
 }
 
-/// Read simple entries from the vault's top-level `.gitignore` AND `.auraignore`
-/// (AURA-specific: exclude files from indexing without touching git). Only plain
-/// names (optionally `name/` or `/name`) are honored; glob/path patterns are left
-/// to the built-in denylist so matching stays correct and predictable.
+/// Minimal gitignore-style basename glob: `*` matches any run of characters
+/// (including none), `?` exactly one; everything else is literal. Patterns never
+/// contain `/` here (the parser drops path patterns), so a match on the entry's
+/// basename at any depth mirrors git's semantics for slash-free patterns.
+fn basename_glob_match(pattern: &str, name: &str) -> bool {
+    let pattern: Vec<char> = pattern.chars().collect();
+    let name: Vec<char> = name.chars().collect();
+    let (mut p, mut n) = (0, 0);
+    // Last `*` position in pattern and the name index it is currently absorbing up to.
+    let mut star: Option<(usize, usize)> = None;
+    while n < name.len() {
+        if p < pattern.len() && pattern[p] == '*' {
+            star = Some((p, n));
+            p += 1;
+        } else if p < pattern.len() && (pattern[p] == '?' || pattern[p] == name[n]) {
+            p += 1;
+            n += 1;
+        } else if let Some((star_p, star_n)) = star {
+            // Backtrack: let the last `*` swallow one more character.
+            p = star_p + 1;
+            n = star_n + 1;
+            star = Some((star_p, n));
+        } else {
+            return false;
+        }
+    }
+    pattern[p..].iter().all(|&c| c == '*')
+}
+
+/// Read entries from the vault's top-level `.gitignore` AND `.auraignore`
+/// (AURA-specific: exclude files from indexing without touching git). Plain names
+/// (optionally `name/` or `/name`) and slash-free basename globs using `*`/`?`
+/// (`.env*`, `*.pem`) are honored at any depth; path patterns and `[...]` classes
+/// are left to the built-in denylist so matching stays correct and predictable.
 fn gitignore_names(root: &Path) -> HashSet<String> {
     let mut names = HashSet::new();
     for file in [".gitignore", ".auraignore"] {
@@ -549,11 +585,12 @@ fn gitignore_names(root: &Path) -> HashSet<String> {
                 continue;
             }
             let name = line.trim_start_matches('/').trim_end_matches('/');
+            // A bare `*` is the "ignore all, then `!`-whitelist" idiom; without negation
+            // support honoring it would empty the index, so it is skipped.
             if name.is_empty()
                 || name.contains('/')
-                || name.contains('*')
-                || name.contains('?')
                 || name.contains('[')
+                || name.chars().all(|c| c == '*')
             {
                 continue;
             }
@@ -779,7 +816,10 @@ fn file_id(path: &Path, _metadata: &fs::Metadata) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{gitignore_names, is_ignored_dir, is_ignored_path, snippet, IndexStats};
+    use super::{
+        basename_glob_match, gitignore_names, is_ignored_dir, is_ignored_path, project_files,
+        snippet, IndexStats,
+    };
     use std::collections::HashSet;
     use std::path::Path;
 
@@ -849,7 +889,7 @@ mod tests {
         assert!(names.contains("build"), "trailing slash strip");
         assert!(names.contains("out"), "leading slash strip");
         assert!(names.contains("node_modules"));
-        assert!(!names.contains("*.log"), "glob atlanmalı");
+        assert!(names.contains("*.log"), "basename glob tutulmalı");
         assert!(!names.contains("keep"), "! negation atlanmalı");
         assert!(!names.contains("src/generated"), "path atlanmalı");
         assert!(!names.contains(""), "boş/comment satırı yok");
@@ -866,6 +906,76 @@ mod tests {
         assert!(names.contains("node_modules"), ".gitignore girdisi");
         assert!(names.contains("scratch"), ".auraignore girdisi");
         assert!(names.contains("private"), ".auraignore trailing-slash");
+    }
+
+    #[test]
+    fn basename_glob_match_semantics() {
+        for (pattern, name) in [
+            ("*.pem", "a.pem"),
+            ("*.pem", ".pem"),
+            (".env*", ".env"),
+            (".env*", ".env.local"),
+            ("key?.txt", "key1.txt"),
+            ("*", "anything"),
+            ("a*b*c", "aXbYbZc"),
+            ("*.ç", "ü.ç"),
+            ("*.pem", "*x.pem"),
+        ] {
+            assert!(basename_glob_match(pattern, name), "{pattern} ~ {name}");
+        }
+        for (pattern, name) in [
+            ("*.pem", "a.pem.bak"),
+            (".env*", "x.env"),
+            ("key?.txt", "key.txt"),
+            ("key?.txt", "key12.txt"),
+            ("a*b*c", "aXbY"),
+        ] {
+            assert!(!basename_glob_match(pattern, name), "{pattern} !~ {name}");
+        }
+    }
+
+    #[test]
+    fn gitignore_basename_globs_keep_secrets_out_of_index() {
+        // Gizlilik (review #10): `.env*`, `*.pem` gibi glob satırları yok sayılınca bu
+        // dosyalar metin olarak indekslenip bulut ajanlarına bağlam olarak gidebiliyordu.
+        let dir = std::env::temp_dir().join(format!("aura-gitignore-glob-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("notes")).expect("temp dir");
+        // `*` (whitelist idiom) skipped; `aura-gitignore-glob-*` would match the root itself.
+        std::fs::write(
+            dir.join(".gitignore"),
+            "*\n!*.md\n.env*\n*.pem\nkey?.txt\naura-gitignore-glob-*\n",
+        )
+        .expect("gitignore");
+        for file in [
+            ".env",
+            ".env.local",
+            "a.pem",
+            "notes/b.pem",
+            "key1.txt",
+            "keys.md",
+            "notes/plan.md",
+            "README.md",
+        ] {
+            std::fs::write(dir.join(file), "x").expect("write file");
+        }
+        let mut indexed: Vec<String> = project_files(&dir)
+            .expect("walk")
+            .into_iter()
+            .filter_map(|f| {
+                f.path
+                    .strip_prefix(&dir)
+                    .ok()
+                    .map(|p| p.to_string_lossy().replace('\\', "/"))
+            })
+            .collect();
+        let _ = std::fs::remove_dir_all(&dir);
+        indexed.sort();
+        assert_eq!(
+            indexed,
+            [".gitignore", "README.md", "keys.md", "notes/plan.md"],
+            "glob ile eşleşen sırlar indekslenmemeli, normal notlar indekslenmeli"
+        );
     }
 
     #[test]
