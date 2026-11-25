@@ -582,7 +582,28 @@ fn vec_search_brute(conn: &Connection, query_vec: &[f32], k: usize) -> Result<Ve
         .collect())
 }
 
+/// Kullanıcı metninden güvenli bir FTS5 MATCH ifadesi kurar.
+/// Ham metin FTS5 sorgu dili olarak yorumlanınca `?`, `-`, `.`, `'`, `+` syntax
+/// hatası verir (hata yutulunca arama ve Ask bağlamı boş döner) ve `OR`/`NEAR`/
+/// `col:`/`*` operatör enjeksiyonuna açıktır. Her boşlukla ayrılmış parça `"..."`
+/// phrase'i olur (iç `"` → `""`); FTS5 tokenizer'ı phrase içindeki noktalamayı
+/// ayraç sayar (`auth-flow` → "auth flow"). Parçalar OR ile birleşir: doğal dil
+/// sorusunda her kelimenin chunk'ta geçmesi gerekmez, sıralamayı bm25 `rank` yapar.
+/// Harf/rakam içermeyen parçalar atılır; hiç terim kalmazsa `None`.
+pub fn fts_match_query(raw: &str) -> Option<String> {
+    let terms = raw
+        .split_whitespace()
+        .filter(|token| token.chars().any(char::is_alphanumeric))
+        .map(|token| format!("\"{}\"", token.replace('"', "\"\"")))
+        .collect::<Vec<_>>();
+    (!terms.is_empty()).then(|| terms.join(" OR "))
+}
+
 pub fn fts_search(conn: &Connection, query: &str, k: usize) -> Result<Vec<(i64, f64)>> {
+    let Some(match_query) = fts_match_query(query) else {
+        return Ok(Vec::new());
+    };
+    let query = match_query.as_str();
     let mut matches = Vec::new();
     conn.query(
         r#"

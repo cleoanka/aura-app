@@ -64,8 +64,9 @@ fn hybrid_search_pass(
     root: Option<&str>,
     search_limit: usize,
 ) -> Result<(Vec<SearchHit>, bool), String> {
-    // FTS5 MATCH özel karakterlerde (C++, tırnak, ?, -foo) syntax hatası verebilir.
-    // Bu ÖLÜMCÜL olmasın → boş FTS'e düş, vektör araması yine çalışsın (ask düşmez).
+    // Sorgu `db::fts_match_query` ile tırnaklanıyor (C++, ?, -foo artık hata vermez);
+    // yine de beklenmedik bir FTS hatası ÖLÜMCÜL olmasın → boş FTS'e düş, vektör
+    // araması yine çalışsın (ask düşmez).
     let fts_ranked = db::fts_search(conn, query, search_limit).unwrap_or_default();
     let vec_ranked =
         db::vec_search(conn, query_embedding, search_limit).map_err(|err| err.to_string())?;
