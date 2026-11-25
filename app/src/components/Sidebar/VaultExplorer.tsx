@@ -146,7 +146,7 @@ export function VaultExplorer({
     setError(null);
 
     try {
-      const path = await pickVaultFolder();
+      const path = await pickVaultFolder(true);
       if (!path) {
         return;
       }

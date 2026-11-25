@@ -231,9 +231,11 @@ export async function searchHybrid(query: string, k = 10): Promise<SearchHit[]> 
   }
 }
 
-export async function pickVaultFolder(): Promise<string | null> {
+// activate=true: seçilen klasör aktif workspace olur (VaultExplorer). Varsayılan
+// false: yalnız yol döner, workspace değişmez (ör. Aura modu proje klasörü).
+export async function pickVaultFolder(activate = false): Promise<string | null> {
   try {
-    return await invoke<string | null>("pick_vault_folder");
+    return await invoke<string | null>("pick_vault_folder", { activate });
   } catch (error) {
     throw readableError(error);
   }

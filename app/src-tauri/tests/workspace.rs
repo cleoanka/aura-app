@@ -1,5 +1,6 @@
 // Workspace (repo) semantiği: tek AKTİF kök. Yeni klasör seçmek eskisinin dosyalarını
 // listeden/aramadan/graph'tan düşürür; "unut" DB izlerini tamamen siler.
+use app_lib::commands::vault::apply_picked_folder;
 use app_lib::db;
 use app_lib::embed::StubEmbedder;
 use app_lib::graph;
@@ -136,4 +137,18 @@ fn promote_root_moves_to_front_dedups_and_caps() {
         promote_root(&mut roots, &format!("/extra-{i}"));
     }
     assert_eq!(roots.len(), MAX_RECENT_WORKSPACES);
+}
+
+#[test]
+fn picking_a_folder_only_switches_workspace_when_asked() {
+    let mut roots = vec!["/repo-a".to_string(), "/repo-b".to_string()];
+
+    // Aura modu proje klasörü: aktif workspace DEĞİŞMEZ, kaydedilecek bir şey yok.
+    assert!(!apply_picked_folder(&mut roots, "/repo-c", false));
+    assert!(!apply_picked_folder(&mut roots, "/repo-b", false));
+    assert_eq!(roots, ["/repo-a", "/repo-b"]);
+
+    // VaultExplorer "klasör seç": seçilen klasör aktif kök olur.
+    assert!(apply_picked_folder(&mut roots, "/repo-c", true));
+    assert_eq!(roots, ["/repo-c", "/repo-a", "/repo-b"]);
 }

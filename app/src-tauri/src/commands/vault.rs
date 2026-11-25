@@ -10,8 +10,19 @@ use std::sync::Mutex;
 use tauri::{AppHandle, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 
+/// Klasör seçiminin workspace'e etkisi: seçilen klasör YALNIZ `activate` istenirse
+/// aktif workspace (MRU başı) olur. Değişiklik olduysa `true` (kaydedilmeli).
+/// Aura modu proje klasörü seçerken aktif workspace'i sessizce değiştirmemeli:
+/// indeks ve arayüz eski kökte kalıyor, editör yazmaları kökten reddediliyordu.
+pub fn apply_picked_folder(vault_roots: &mut Vec<String>, path: &str, activate: bool) -> bool {
+    activate && settings::promote_root(vault_roots, path)
+}
+
 #[tauri::command]
-pub async fn pick_vault_folder(app: AppHandle) -> Result<Option<String>, String> {
+pub async fn pick_vault_folder(
+    app: AppHandle,
+    activate: Option<bool>,
+) -> Result<Option<String>, String> {
     // Dialog'u callback + oneshot ile aç: senkron komut + blocking_pick_folder ana thread'i
     // kilitleyip çökertiyordu; mpsc recv() de dialog açıkken bir runtime worker'ını park
     // ediyordu (audit S21). oneshot + await hiçbir thread'i bloklamaz.
@@ -24,9 +35,9 @@ pub async fn pick_vault_folder(app: AppHandle) -> Result<Option<String>, String>
     };
     let path = picked_folder_to_string(folder)?;
 
-    // Workspace semantiği: seçilen klasör AKTİF workspace olur (MRU başı).
+    // Workspace semantiği: çağıran isterse seçilen klasör AKTİF workspace olur (MRU başı).
     let mut settings = settings::load();
-    if settings::promote_root(&mut settings.vault_roots, &path) {
+    if apply_picked_folder(&mut settings.vault_roots, &path, activate.unwrap_or(false)) {
         settings::save(&settings)?;
     }
 
