@@ -421,16 +421,18 @@ async fn run_synthesis(
     }
 
     let child = spawn_agent(&agent, prompt_path, &handle)?;
-    let stdout = {
+    let (stdout, stderr) = {
         let mut child = child
             .lock()
             .map_err(|_| format!("failed to lock {} synthesis process", agent.name))?;
-        child
-            .inner()
-            .stdout
-            .take()
-            .ok_or_else(|| format!("failed to capture {} synthesis stdout", agent.name))?
+        let inner = child.inner();
+        (inner.stdout.take(), inner.stderr.take())
     };
+    // stderr piped ama okunmazsa ajan ~64KB stderr'den sonra pipe'ta bloklanır ve sentez
+    // SYNTHESIS_TIMEOUT'a kadar asılı kalır → ana yoldaki gibi ayrı thread'de DRAIN et.
+    let stderr_tail = stderr.map(|stream| std::thread::spawn(move || read_stderr_tail(stream)));
+    let stdout =
+        stdout.ok_or_else(|| format!("failed to capture {} synthesis stdout", agent.name))?;
 
     let read_task = tokio::task::spawn_blocking({
         let on_event = on_event.clone();
@@ -458,7 +460,14 @@ async fn run_synthesis(
             Ok(text)
         }
         (Ok(_), Some(status)) => {
-            let reason = format!("{} synthesis exited with status {status}", agent.name);
+            let tail = stderr_tail
+                .and_then(|reader| reader.join().ok())
+                .unwrap_or_default();
+            let mut reason = format!("{} synthesis exited with status {status}", agent.name);
+            if !tail.is_empty() {
+                reason.push_str(": ");
+                reason.push_str(&tail);
+            }
             Err(reason)
         }
         (Ok(_), None) => {
@@ -760,7 +769,16 @@ pub async fn test_agent(name: String) -> AgentTestResult {
             return fail(err);
         }
     };
-    let stdout = { child.lock().ok().and_then(|mut c| c.inner().stdout.take()) };
+    let (stdout, stderr) = child
+        .lock()
+        .ok()
+        .map(|mut c| {
+            let inner = c.inner();
+            (inner.stdout.take(), inner.stderr.take())
+        })
+        .unwrap_or((None, None));
+    // stderr'i DRAIN et (dolu pipe ajanı bloklar) ve başarısızlıkta nedeni göster.
+    let stderr_tail = stderr.map(|stream| std::thread::spawn(move || read_stderr_tail(stream)));
     let response = if let Some(stdout) = stdout {
         let read = tokio::task::spawn_blocking(move || read_stdout_to_string(stdout));
         match tokio::time::timeout(Duration::from_secs(120), read).await {
@@ -778,16 +796,24 @@ pub async fn test_agent(name: String) -> AgentTestResult {
 
     let latency_ms = start.elapsed().as_millis() as u64;
     let ok = matches!(status, Some(s) if s.success()) && !response.trim().is_empty();
+    let error = if ok {
+        None
+    } else {
+        let tail = stderr_tail
+            .and_then(|reader| reader.join().ok())
+            .unwrap_or_default();
+        Some(if tail.is_empty() {
+            "ajan boş yanıt verdi veya hata oluştu".to_string()
+        } else {
+            format!("ajan boş yanıt verdi veya hata oluştu: {tail}")
+        })
+    };
     AgentTestResult {
         agent: name,
         ok,
         latency_ms,
         response: response.trim().to_string(),
-        error: if ok {
-            None
-        } else {
-            Some("ajan boş yanıt verdi veya hata oluştu".to_string())
-        },
+        error,
     }
 }
 
@@ -830,4 +856,37 @@ fn send_event(on_event: &Channel<AiEvent>, event: AiEvent) -> Result<(), String>
     on_event
         .send(event)
         .map_err(|err| format!("failed to send AI event: {err}"))
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::read_stderr_tail;
+    use std::process::{Command, Stdio};
+
+    /// Pipe kapasitesinden (~64KB) çok daha büyük stderr: drain thread'i olmadan çocuk
+    /// `write`'ta bloklanır ve `wait` hiç dönmez. Yardımcı EOF'a kadar okumalı, yalnız
+    /// son ~500 karakteri döndürmeli.
+    #[test]
+    fn read_stderr_tail_drains_output_larger_than_the_pipe_buffer() {
+        let mut child = Command::new("/bin/sh")
+            .arg("-c")
+            .arg("yes x | head -c 200000 >&2; printf 'TAIL-END' >&2; echo ok")
+            .stdout(Stdio::null())
+            .stderr(Stdio::piped())
+            .spawn()
+            .expect("spawn /bin/sh");
+        let stderr = child.stderr.take().expect("piped stderr");
+        let reader = std::thread::spawn(move || read_stderr_tail(stderr));
+
+        let status = child.wait().expect("wait child");
+        let tail = reader.join().expect("join drain thread");
+
+        assert!(status.success());
+        assert!(tail.ends_with("TAIL-END"), "tail = {tail:?}");
+        assert!(
+            tail.chars().count() <= 500,
+            "len = {}",
+            tail.chars().count()
+        );
+    }
 }
