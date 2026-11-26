@@ -1605,8 +1605,8 @@ fn dot_product_blob(query: &[f32], blob: &[u8]) -> Option<f32> {
         return None;
     }
     let mut sum = 0.0f32;
-    for (i, chunk) in blob.chunks_exact(4).enumerate() {
-        sum += query[i] * f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
+    for (i, chunk) in blob.as_chunks::<4>().0.iter().enumerate() {
+        sum += query[i] * f32::from_le_bytes(*chunk);
     }
     Some(sum)
 }
@@ -1648,6 +1648,15 @@ mod tests {
     #[test]
     fn f32_blob_uses_four_bytes_per_float() {
         assert_eq!(f32_blob(&[1.0, 2.0]).len(), 8);
+    }
+
+    #[test]
+    fn dot_product_blob_matches_f32_dot_and_rejects_wrong_length() {
+        let query: Vec<f32> = (0..EMBEDDING_DIM).map(|i| i as f32 * 0.5).collect();
+        let row: Vec<f32> = (0..EMBEDDING_DIM).map(|i| 1.0 - i as f32 * 0.25).collect();
+        let expected: f32 = query.iter().zip(&row).map(|(a, b)| a * b).sum();
+        assert_eq!(dot_product_blob(&query, &f32_blob(&row)), Some(expected));
+        assert_eq!(dot_product_blob(&query, &f32_blob(&row[1..])), None);
     }
 
     #[test]
