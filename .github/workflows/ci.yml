@@ -9,7 +9,7 @@ on:
 jobs:
   test:
     name: Build & Test (macOS arm64)
-    runs-on: macos-14
+    runs-on: macos-26   # Apple Silicon (arm64); macos-14 image retired
     defaults:
       run:
         working-directory: app
